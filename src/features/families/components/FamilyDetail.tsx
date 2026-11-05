@@ -13,7 +13,7 @@
 
 import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Crown, User, GitBranch, ShieldAlert } from 'lucide-react'
+import { Camera, Crown, User, GitBranch, ShieldAlert, Award } from 'lucide-react'
 import type { Tables } from '@/types/database.types'
 import { PRIVACY_LEVEL_LABELS, canManagePrivacy, ROUTES } from '@/constants/app'
 import { AuthContext } from '@/features/auth/context/AuthContext'
@@ -23,8 +23,14 @@ import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembe
 import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { useTranslation } from '@/features/i18n'
+import { useExecutiveCommittee } from '@/features/community/hooks/useExecutiveCommittee'
+import type { ExecutiveCommitteeMember } from '@/features/community/services/executive-committee.service'
+import { ChangeMukhiDialog } from './ChangeMukhiDialog'
 
-type FamilyRow = Tables<'families'>
+type FamilyRow = Tables<'families'> & {
+  selected_mukhi_id?: string | null
+  selected_mukhi?: ExecutiveCommitteeMember | null
+}
 
 /** Formats an ISO date string to a locale-readable date. */
 function formatDate(iso: string | null): string {
@@ -62,6 +68,19 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(family.avatar_url ?? null)
+
+  const { members: committeeMembers } = useExecutiveCommittee()
+  const [currentMukhi, setCurrentMukhi] = useState<ExecutiveCommitteeMember | null>(
+    family.selected_mukhi ?? null
+  )
+  const [changeMukhiOpen, setChangeMukhiOpen] = useState(false)
+
+  // Resolve Mukhi from list if not already resolved on family prop
+  const effectiveMukhi = currentMukhi || (
+    family.selected_mukhi_id
+      ? committeeMembers.find((m) => m.id === family.selected_mukhi_id) || null
+      : null
+  )
 
   // Fetch active family members for census head and stats
   const { data: members = [] } = useFamilyMembers(family.id, { includeFormer: false })
@@ -126,65 +145,167 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
         </div>
       </section>
 
-      {/* Family Head Highlight Card */}
-      <section aria-labelledby="family-head-heading">
-        {currentHead ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3.5">
+      {/* Family Leadership: Head of Family & Selected Mukhi */}
+      <section aria-label="Family Leadership" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* FAMILY HEAD SECTION */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
+          {currentHead ? (
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                  Family Head
+                </span>
+                <span className="text-xs text-navy-500">
+                  Since {formatDate(currentHead.joined_at)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3.5 mt-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-800 shrink-0">
                   <Crown className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider">
-                      Family Head
-                    </span>
-                    <span className="text-xs text-navy-500">
-                      Since {formatDate(currentHead.joined_at)}
-                    </span>
-                  </div>
                   <Link
                     to={ROUTES.PERSON_DETAIL(currentHead.person_id)}
-                    className="text-base font-bold text-navy-900 hover:text-brand-700 hover:underline mt-0.5 block"
+                    className="text-base font-bold text-navy-900 hover:text-brand-700 hover:underline block"
                   >
                     {currentHead.person
                       ? `${currentHead.person.first_name} ${currentHead.person.last_name}`
                       : 'Head of Family'}
                   </Link>
-                  <p className="text-xs text-navy-600">
+                  <p className="text-xs text-navy-600 mt-0.5">
                     Primary representative for this family census registry
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-amber-200/60">
                 <Link
                   to={ROUTES.FAMILY_TREE(family.id)}
-                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-50 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-50 transition-colors"
                 >
                   <GitBranch className="h-3.5 w-3.5" />
                   <span>View Family Tree</span>
                 </Link>
                 <Link
                   to={ROUTES.PERSON_DETAIL(currentHead.person_id)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-navy-300 bg-white px-3 py-1.5 text-xs font-semibold text-navy-700 shadow-2xs hover:bg-navy-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-2.5 py-1 text-xs font-semibold text-navy-700 shadow-2xs hover:bg-navy-50"
                 >
                   <User className="h-3.5 w-3.5" />
                   <span>View Profile</span>
                 </Link>
               </div>
             </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm font-semibold text-navy-800">No Head of Family Designated</p>
+              <p className="text-xs text-navy-500 mt-1">
+                Assign a head from the membership roster below to complete the census representation.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* SELECTED MUKHI SECTION */}
+        <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-800 uppercase tracking-wider">
+                  Selected Mukhi
+                </span>
+                <span className="text-[11px] text-navy-500">Executive Committee</span>
+              </div>
+              {canManageMembers && (
+                <button
+                  type="button"
+                  onClick={() => setChangeMukhiOpen(true)}
+                  className="text-xs font-semibold text-brand-600 hover:text-brand-800 hover:underline"
+                >
+                  Change Mukhi
+                </button>
+              )}
+            </div>
+
+            {effectiveMukhi ? (
+              <div className="mt-3 flex items-start gap-3.5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white font-bold text-sm shrink-0 shadow-xs">
+                  {effectiveMukhi.serial_number}
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-navy-900">
+                    {effectiveMukhi.full_name}
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[11px] font-semibold text-brand-800">
+                      {effectiveMukhi.designation}
+                    </span>
+                    <span className="text-xs text-navy-600">
+                      • {effectiveMukhi.city}
+                    </span>
+                    {effectiveMukhi.nukh && (
+                      <span className="text-xs text-navy-600">
+                        • {effectiveMukhi.nukh}
+                      </span>
+                    )}
+                  </div>
+                  {effectiveMukhi.mobile_number && (
+                    <p className="text-xs text-navy-500 mt-1.5">
+                      📞 <a href={`tel:${effectiveMukhi.mobile_number}`} className="hover:underline font-medium text-navy-700">{effectiveMukhi.mobile_number}</a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="py-2">
+                <p className="text-sm font-semibold text-navy-800">No Mukhi Designated</p>
+                <p className="text-xs text-navy-500 mt-1">
+                  Designate an official Mukhi from the 31-member Executive Committee Register to represent this family unit.
+                </p>
+                {canManageMembers && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setChangeMukhiOpen(true)}
+                    className="mt-3 text-xs"
+                  >
+                    <Award className="h-3.5 w-3.5" />
+                    Select Mukhi
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-navy-200 bg-white p-5 text-center">
-            <p className="text-sm font-semibold text-navy-800">No Head of Family Designated</p>
-            <p className="text-xs text-navy-500 mt-0.5">
-              Assign a head from the membership roster below to complete the census representation.
-            </p>
-          </div>
-        )}
+
+          {effectiveMukhi && (
+            <div className="mt-4 pt-3 border-t border-brand-100 flex items-center justify-between text-[11px] text-brand-800">
+              <span>Official Community Representative</span>
+              {canManageMembers && (
+                <button
+                  type="button"
+                  onClick={() => setChangeMukhiOpen(true)}
+                  className="font-semibold underline hover:text-brand-950"
+                >
+                  Edit Selection
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </section>
+
+      {/* Change Mukhi Dialog */}
+      {changeMukhiOpen && (
+        <ChangeMukhiDialog
+          isOpen={changeMukhiOpen}
+          onClose={() => setChangeMukhiOpen(false)}
+          familyId={family.id}
+          currentMukhiId={family.selected_mukhi_id}
+          onMukhiChanged={(newMukhi) => {
+            setCurrentMukhi(newMukhi)
+          }}
+        />
+      )}
 
       {/* Census Completeness & Lineage Summary */}
       <section aria-label="Census Summary Metrics" className="grid grid-cols-2 sm:grid-cols-3 gap-3">

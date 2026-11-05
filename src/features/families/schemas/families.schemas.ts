@@ -138,6 +138,7 @@ export const createFamilySchema = z
     // Optional in input: if omitted, the database default (PRIVATE) applies.
     profile_privacy: privacyLevelField.optional().default('PRIVATE'),
     members_privacy: privacyLevelField.optional().default('PRIVATE'),
+    selected_mukhi_id: z.string().uuid('Invalid Mukhi ID').nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const trimmedGotra = data.gotra?.trim()
@@ -198,6 +199,7 @@ export const updateFamilySchema = z
     nukh: nukhField,
     profile_privacy: privacyLevelField.optional(),
     members_privacy: privacyLevelField.optional(),
+    selected_mukhi_id: z.string().uuid('Invalid Mukhi ID').nullable().optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,

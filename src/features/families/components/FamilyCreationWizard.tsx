@@ -25,6 +25,8 @@ import {
   Search,
   AlertCircle,
   Sparkles,
+  Award,
+  Check,
 } from 'lucide-react'
 
 import { Input } from '@/components/forms/Input'
@@ -37,6 +39,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createFamilyWithHead } from '../services/families.service'
 import { listPersonFamilies } from '@/features/family-members/services/family-members.service'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
+import { useExecutiveCommittee } from '@/features/community/hooks/useExecutiveCommittee'
 import { ROUTES, canManagePrivacy } from '@/constants/app'
 import type { Tables } from '@/types/database.types'
 import type { PrivacyLevel } from '@/types'
@@ -90,8 +93,30 @@ export function FamilyCreationWizard() {
   const { user, profile } = useAuthContext()
   const isPrivacyManager = canManagePrivacy(profile?.role)
 
-  // Step state: 1 (Details) | 2 (Head)
-  const [step, setStep] = useState<1 | 2>(1)
+  // Step state: 1 (Details) | 2 (Head) | 3 (Mukhi)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+
+  // Step 3 Mukhi State
+  const [selectedMukhiId, setSelectedMukhiId] = useState<string | null>(null)
+  const [mukhiSearchQuery, setMukhiSearchQuery] = useState('')
+  const { members: committeeMembers, isLoading: isCommitteeLoading } = useExecutiveCommittee()
+
+  const filteredCommitteeMembers = useMemo(() => {
+    if (!mukhiSearchQuery.trim()) return committeeMembers
+    const q = mukhiSearchQuery.toLowerCase().trim()
+    return committeeMembers.filter(
+      (m) =>
+        m.full_name.toLowerCase().includes(q) ||
+        m.designation.toLowerCase().includes(q) ||
+        m.city.toLowerCase().includes(q) ||
+        (m.nukh && m.nukh.toLowerCase().includes(q))
+    )
+  }, [committeeMembers, mukhiSearchQuery])
+
+  const selectedMukhi = useMemo(
+    () => committeeMembers.find((m) => m.id === selectedMukhiId) || null,
+    [committeeMembers, selectedMukhiId]
+  )
 
   // Step 2 Head Mode: 'new' | 'existing'
   const [headMode, setHeadMode] = useState<'new' | 'existing'>('new')
@@ -218,6 +243,27 @@ export function FamilyCreationWizard() {
     return Object.keys(errs).length === 0
   }
 
+  // Advance from Step 2 to Step 3 (Mukhi Selection)
+  function handleProceedToMukhi() {
+    setGeneralError(null)
+
+    // Validate Head selection
+    if (headMode === 'new') {
+      if (!validateNewHead()) return
+    } else {
+      if (!selectedExistingPerson) {
+        setGeneralError('Please select an existing person to designate as Family Head.')
+        return
+      }
+      if (existingFamilyWarning && !confirmedTransfer) {
+        setGeneralError('Please confirm designating this person as Family Head to continue.')
+        return
+      }
+    }
+
+    setStep(3)
+  }
+
   // Final Submission
   async function handleCreateFamily() {
     setGeneralError(null)
@@ -257,6 +303,7 @@ export function FamilyCreationWizard() {
         nukh: sanitizeOptional(famValues.nukh),
         profile_privacy: effPrivacy,
         members_privacy: effPrivacy,
+        selected_mukhi_id: selectedMukhiId,
         existing_person_id: headMode === 'existing' ? selectedExistingPerson!.id : null,
         new_person:
           headMode === 'new'
@@ -331,6 +378,21 @@ export function FamilyCreationWizard() {
             2
           </span>
           <span>2. Add Family Head</span>
+        </div>
+        <span className="text-slate-300">/</span>
+        <div
+          className={`flex items-center gap-2 text-sm font-semibold ${
+            step === 3 ? 'text-brand-600' : 'text-navy-500'
+          }`}
+        >
+          <span
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+              step === 3 ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            3
+          </span>
+          <span>3. Select Mukhi</span>
         </div>
       </nav>
 
@@ -673,6 +735,166 @@ export function FamilyCreationWizard() {
             >
               <ArrowLeft className="h-4 w-4" />
               Back: Family Details
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleProceedToMukhi}
+              className="font-bold shadow-sm"
+            >
+              Next: Select Mukhi
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* STEP 3: SELECT MUKHI */}
+      {/* ===================================================================== */}
+      {step === 3 && (
+        <div className="space-y-5 rounded-xl border border-navy-200 bg-white p-5 sm:p-7 shadow-xs">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-navy-900 flex items-center gap-2">
+                <Award className="h-5 w-5 text-amber-600" />
+                Select Mukhi
+              </h2>
+              <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                Official Register: 31 Members
+              </span>
+            </div>
+            <p className="text-xs text-navy-500 mt-1">
+              Choose your family&apos;s designated Mukhi from the official Khatri Sarvaniyat Executive Committee Register.
+            </p>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+            <input
+              type="text"
+              placeholder="Search by Mukhi name, designation, city, or nukh..."
+              value={mukhiSearchQuery}
+              onChange={(e) => setMukhiSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-navy-200 bg-white text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+
+          {/* Currently Selected Summary */}
+          {selectedMukhi && (
+            <div className="flex items-center justify-between p-3.5 rounded-lg border border-brand-200 bg-brand-50/60">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
+                  {selectedMukhi.serial_number}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-brand-950">{selectedMukhi.full_name}</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold bg-brand-100 text-brand-800">
+                      {selectedMukhi.designation}
+                    </span>
+                  </div>
+                  <div className="text-xs text-brand-700 flex items-center gap-2 mt-0.5">
+                    <span>City: <strong>{selectedMukhi.city}</strong></span>
+                    {selectedMukhi.nukh && <span>• Nukh: <strong>{selectedMukhi.nukh}</strong></span>}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMukhiId(null)}
+                className="text-xs text-brand-600 hover:text-brand-800 underline font-medium"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {/* Mukhi Members List */}
+          <div className="max-h-72 overflow-y-auto divide-y divide-navy-100 border border-navy-200 rounded-lg">
+            {isCommitteeLoading ? (
+              <div className="p-6 text-center text-sm text-navy-500">
+                Loading official Executive Committee members...
+              </div>
+            ) : filteredCommitteeMembers.length === 0 ? (
+              <div className="p-6 text-center text-sm text-navy-500">
+                No committee members match &quot;{mukhiSearchQuery}&quot;.
+              </div>
+            ) : (
+              filteredCommitteeMembers.map((member) => {
+                const isSelected = selectedMukhiId === member.id
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => setSelectedMukhiId(member.id)}
+                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+                      isSelected ? 'bg-brand-50/80 font-medium' : 'hover:bg-navy-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                          isSelected
+                            ? 'bg-brand-600 text-white'
+                            : 'bg-navy-100 text-navy-600'
+                        }`}
+                      >
+                        {member.serial_number}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-navy-900 font-semibold">{member.full_name}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              member.designation.includes('President') || member.designation.includes('Secretary')
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {member.designation}
+                          </span>
+                        </div>
+                        <div className="text-xs text-navy-500 flex items-center gap-2 mt-0.5">
+                          <span>{member.city}</span>
+                          {member.nukh && <span>• {member.nukh}</span>}
+                          {member.mobile_number && <span>• 📞 {member.mobile_number}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-brand-600">
+                        <Check className="h-4 w-4" />
+                        Selected
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs px-2.5 py-1 rounded border border-navy-200 text-navy-600 hover:border-brand-500 hover:text-brand-600 bg-white"
+                      >
+                        Select
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <p className="text-[11px] text-navy-400 italic">
+            Note: Selecting a Mukhi links your family to their registered community leader from the Executive Committee. It does not transfer family ownership or administrative rights.
+          </p>
+
+          {/* Navigation Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-navy-100">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setStep(2)}
+              disabled={isSubmitting}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back: Family Head
             </Button>
 
             <Button

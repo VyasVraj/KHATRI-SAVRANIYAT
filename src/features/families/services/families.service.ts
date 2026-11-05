@@ -24,6 +24,10 @@ import type { ApiResponse } from '@/types'
 import type { Tables } from '@/types/database.types'
 import type { PrivacyLevel } from '@/types/database'
 import {
+  getExecutiveCommitteeMember,
+  type ExecutiveCommitteeMember,
+} from '@/features/community/services/executive-committee.service'
+import {
   createFamilySchema,
   updateFamilySchema,
   type CreateFamilyInput,
@@ -36,7 +40,10 @@ import { ZodError } from 'zod'
 // ---------------------------------------------------------------------------
 
 /** The full family row as returned from the database. */
-export type FamilyRow = Tables<'families'>
+export type FamilyRow = Tables<'families'> & {
+  selected_mukhi_id?: string | null
+  selected_mukhi?: ExecutiveCommitteeMember | null
+}
 
 export interface FamilyHeadSummary {
   person_id: string
@@ -48,6 +55,7 @@ export interface FamilyHeadSummary {
 export type FamilyWithDetails = FamilyRow & {
   head?: FamilyHeadSummary | null
   member_count?: number
+  selected_mukhi?: ExecutiveCommitteeMember | null
 }
 
 /** Parameters for listing families — minimal; pagination deferred to future phase. */
@@ -87,8 +95,8 @@ export async function createFamily(
 
   const validated = parseResult.data
 
-  const { data, error } = await supabase
-    .from('families')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('families') as any)
     .insert({
       ...validated,
       created_by: createdBy,
@@ -125,6 +133,7 @@ export interface CreateFamilyWithHeadInput {
   nukh?: string | null
   profile_privacy?: PrivacyLevel
   members_privacy?: PrivacyLevel
+  selected_mukhi_id?: string | null
   existing_person_id?: string | null
   new_person?: {
     first_name: string
@@ -178,6 +187,7 @@ export async function createFamilyWithHead(
     p_new_person_gender: input.new_person?.gender ?? 'MALE',
     p_new_person_dob: input.new_person?.date_of_birth ? input.new_person.date_of_birth.split('T')[0] : null,
     p_new_person_birth_place: input.new_person?.birth_place ?? null,
+    p_selected_mukhi_id: input.selected_mukhi_id ?? null,
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,7 +256,16 @@ export async function getFamily(familyId: string): Promise<ApiResponse<FamilyRow
     }
   }
 
-  return { data, error: null }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const familyData = data as any
+  if (familyData && familyData.selected_mukhi_id) {
+    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    if (mukhiRes.data) {
+      familyData.selected_mukhi = mukhiRes.data
+    }
+  }
+
+  return { data: familyData as FamilyRow, error: null }
 }
 
 // ---------------------------------------------------------------------------
@@ -283,8 +302,8 @@ export async function updateFamily(
 
   const validated = parseResult.data
 
-  const { data, error } = await supabase
-    .from('families')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('families') as any)
     .update(validated)
     .eq('id', familyId)
     .is('deleted_at', null)
@@ -302,7 +321,63 @@ export async function updateFamily(
     }
   }
 
-  return { data, error: null }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const familyData = data as any
+  if (familyData && familyData.selected_mukhi_id) {
+    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    if (mukhiRes.data) {
+      familyData.selected_mukhi = mukhiRes.data
+    }
+  }
+
+  return { data: familyData as FamilyRow, error: null }
+}
+
+// ---------------------------------------------------------------------------
+// updateFamilyMukhi
+// ---------------------------------------------------------------------------
+
+/**
+ * Update or change the selected Mukhi for an existing family.
+ *
+ * @param familyId - The UUID of the family.
+ * @param mukhiId - The UUID of the executive committee member (Mukhi), or null to clear.
+ */
+export async function updateFamilyMukhi(
+  familyId: string,
+  mukhiId: string | null
+): Promise<ApiResponse<FamilyRow>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('families') as any)
+    .update({ selected_mukhi_id: mukhiId })
+    .eq('id', familyId)
+    .is('deleted_at', null)
+    .select()
+    .single()
+
+  if (error) {
+    return {
+      data: null,
+      error: {
+        message: mapFamilyError(error.message, error.code),
+        code: error.code,
+        cause: error,
+      },
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const familyData = data as any
+  if (familyData && familyData.selected_mukhi_id) {
+    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    if (mukhiRes.data) {
+      familyData.selected_mukhi = mukhiRes.data
+    }
+  } else if (familyData) {
+    familyData.selected_mukhi = null
+  }
+
+  return { data: familyData as FamilyRow, error: null }
 }
 
 // ---------------------------------------------------------------------------
