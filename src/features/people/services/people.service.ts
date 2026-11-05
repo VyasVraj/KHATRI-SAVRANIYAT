@@ -481,6 +481,9 @@ export async function updatePersonProtectedDetails(
  */
 function mapPersonError(message: string, code?: string): string {
   if (code === '42501') {
+    if (message && message.toLowerCase().includes('function')) {
+      return `Database permission error: ${message}. Please run the latest database migration in Supabase SQL editor.`
+    }
     return 'You do not have permission to perform this action.'
   }
   if (code === '42P17') {
@@ -495,14 +498,14 @@ function mapPersonError(message: string, code?: string): string {
   if (code === '23503') {
     return 'Related record not found.'
   }
-  const lower = message.toLowerCase()
+  const lower = message ? message.toLowerCase() : ''
   if (lower.includes('network') || lower.includes('fetch')) {
     return 'Network error. Please check your connection and try again.'
   }
   if (message && message !== 'Failed to create person.') {
     return message
   }
-  return 'Something went wrong. Please try again.'
+  return 'Could not create person. Please try again.'
 }
 
 /**

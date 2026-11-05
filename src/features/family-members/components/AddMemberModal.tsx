@@ -82,6 +82,19 @@ function sanitizeOptional(val: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function normalizeDateInput(val: string | null | undefined): string | null {
+  if (!val) return null
+  const trimmed = val.trim()
+  if (!trimmed) return null
+  // Match DD-MM-YYYY or DD/MM/YYYY and normalize to ISO YYYY-MM-DD
+  const dmyMatch = trimmed.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/)
+  if (dmyMatch) {
+    const [, day, month, year] = dmyMatch
+    return `${year}-${month}-${day}`
+  }
+  return trimmed
+}
+
 function getAutoGender(rel: MemberRelationship, headGender?: string | null): 'MALE' | 'FEMALE' | 'OTHER' {
   switch (rel) {
     case 'Son':
@@ -299,7 +312,7 @@ export function AddMemberModal({
             last_name: lastName.trim(),
             maiden_name: sanitizeOptional(maidenName),
             gender,
-            date_of_birth: sanitizeOptional(dateOfBirth),
+            date_of_birth: normalizeDateInput(dateOfBirth),
             birth_place: sanitizeOptional(birthPlace),
             gotra: sanitizeOptional(gotra),
             nukh: sanitizeOptional(nukh),

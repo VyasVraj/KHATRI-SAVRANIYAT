@@ -543,6 +543,9 @@ export async function transferFamilyHead(
  */
 function mapFamilyMemberError(message: string, code?: string): string {
   if (code === '42501') {
+    if (message && message.toLowerCase().includes('function')) {
+      return `Database permission error: ${message}. Please run the latest database migration in Supabase SQL editor.`
+    }
     return 'You do not have permission to manage members of this family.'
   }
   if (code === '42P17') {
@@ -561,14 +564,14 @@ function mapFamilyMemberError(message: string, code?: string): string {
   if (code === 'PGRST116') {
     return 'Family member record not found.'
   }
-  const lower = message.toLowerCase()
+  const lower = message ? message.toLowerCase() : ''
   if (lower.includes('network') || lower.includes('fetch')) {
     return 'Network error. Please check your connection and try again.'
   }
   if (message && message !== 'Failed to add member to family.') {
     return message
   }
-  return 'Something went wrong. Please try again.'
+  return 'Could not add member to family. Please try again.'
 }
 
 /** Formats Zod errors into a single string */
