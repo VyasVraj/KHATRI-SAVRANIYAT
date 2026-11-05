@@ -65,7 +65,8 @@ export function PersonDetail({ person, canEdit = false, onAvatarUpdated }: Perso
   const auth = useContext(AuthContext)
   const isPrivacyManager = canManagePrivacy(auth?.profile?.role)
   const isOwner = Boolean(auth?.user?.id && person.user_id && auth.user.id === person.user_id)
-  const canViewProtected = isPrivacyManager || isOwner
+  const isSameFamily = Boolean((person as unknown as { is_same_family?: boolean })?.is_same_family)
+  const canViewProtected = isPrivacyManager || isOwner || isSameFamily
 
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(person.avatar_url ?? null)
@@ -142,26 +143,21 @@ export function PersonDetail({ person, canEdit = false, onAvatarUpdated }: Perso
             value={person.gender ? GENDER_LABELS[person.gender] : null}
           />
           {canViewProtected ? (
-            <DetailRow label="Date of birth" value={formatDate(person.date_of_birth)} />
+            <>
+              <DetailRow label="Date of birth" value={formatDate(person.date_of_birth)} />
+              {person.age !== undefined && person.age !== null && (
+                <DetailRow label="Calculated age" value={`${person.age} years`} />
+              )}
+              <DetailRow label="Birth place" value={person.birth_place} />
+            </>
           ) : (
             <>
-              <DetailRow
-                label="Date of birth (Year)"
-                value={
-                  person.dob_year
-                    ? String(person.dob_year)
-                    : person.date_of_birth
-                      ? person.date_of_birth.slice(0, 4)
-                      : '—'
-                }
-              />
               {person.age !== undefined && person.age !== null && (
-                <DetailRow label="Age" value={`${person.age} years`} />
+                <DetailRow label="Calculated age" value={`${person.age} years`} />
               )}
             </>
           )}
           <DetailRow label="Date of death" value={formatDate(person.date_of_death)} />
-          <DetailRow label="Birth place" value={person.birth_place} />
         </dl>
       </section>
 

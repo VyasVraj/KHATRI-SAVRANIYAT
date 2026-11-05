@@ -37,10 +37,16 @@ export function PersonEditPage() {
     )
   }
 
-  if (error || !person) {
+  const hasEditPermission = Boolean(
+    (person as unknown as { can_edit?: boolean })?.can_edit ?? true
+  )
+
+  if (error || !person || !hasEditPermission) {
     const message =
-      (error as { message?: string } | null)?.message ??
-      'Person not found or you do not have permission to edit this record.'
+      !hasEditPermission
+        ? "Unauthorized: You do not have permission to edit this person's record. Only the authorized Family Head, Family Manager, or an Administrator can edit members of this family."
+        : (error as { message?: string } | null)?.message ??
+          'Person not found or you do not have permission to edit this record.'
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
         <Button

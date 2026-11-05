@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { useFamily } from '../hooks/useFamily'
 import { useSoftDeleteFamily } from '../hooks/useFamilyMutations'
+import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { FamilyDetail } from '../components/FamilyDetail'
 import { FamilyVerificationSection } from '@/features/verification'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
@@ -31,15 +32,23 @@ export function FamilyDetailPage() {
   const softDelete = useSoftDeleteFamily()
   const { user, profile } = useAuthContext()
 
-  // Derive management capabilities for UX visibility (RLS is the ultimate authority)
-  const isCreator = Boolean(user && family && family.created_by === user.id)
+  const { data: members = [] } = useFamilyMembers(familyId, { includeFormer: false })
+
+  // Management capabilities based on Manager, Head, or Admin roles (Section 2 & 4)
+  // Creator alone does not retain management rights unless designated Manager or Head
+  const isManager = Boolean(
+    user && family && (family as unknown as { manager_user_id?: string | null }).manager_user_id === user.id
+  )
+  const isHead = Boolean(
+    user && members.some((m) => m.is_head && m.person?.user_id === user.id)
+  )
   const isModerator = Boolean(
     profile?.is_active &&
     (profile.role === 'ADMIN' ||
      profile.role === 'SUPER_ADMIN' ||
      (ADMIN_ROLES as readonly string[]).includes(profile.role))
   )
-  const canManageMembers = isCreator || isModerator
+  const canManageMembers = isManager || isHead || isModerator
 
   async function handleSoftDelete() {
     if (!familyId) return

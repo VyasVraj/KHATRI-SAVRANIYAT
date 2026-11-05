@@ -94,6 +94,8 @@ export const ADMIN_ROLES: ReadonlyArray<import('@/types').UserRole> = [
   'SUPER_ADMIN',
   'ADMIN',
   'COMMUNITY_MODERATOR',
+  'COMMUNITY_MUKHI',
+  'ASSISTANT_MUKHI',
 ]
 
 /** Full Platform Administrator roles (can access Admin Hub / admin RPCs) */
@@ -111,6 +113,8 @@ export const PRIVACY_MANAGEMENT_ROLES: ReadonlyArray<import('@/types').UserRole>
   'SUPER_ADMIN',
   'ADMIN',
   'COMMUNITY_MODERATOR',
+  'COMMUNITY_MUKHI',
+  'ASSISTANT_MUKHI',
 ]
 
 /**

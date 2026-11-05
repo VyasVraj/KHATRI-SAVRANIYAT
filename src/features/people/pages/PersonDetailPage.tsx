@@ -34,7 +34,11 @@ export function PersonDetailPage() {
   const { data: person, isLoading, error } = usePerson(personId)
   const softDelete = useSoftDeletePerson()
 
-  const canEdit = Boolean(user && person && (person.created_by === user.id || person.user_id === user.id))
+  // Authorized editing: Admin, Self, Family Head, or Family Manager (enforced by RLS & DB view)
+  const canEdit = Boolean(
+    (person as unknown as { can_edit?: boolean })?.can_edit ??
+    (user && person && person.user_id === user.id)
+  )
 
   async function handleSoftDelete() {
     if (!personId) return

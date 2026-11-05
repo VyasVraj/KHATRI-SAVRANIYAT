@@ -124,6 +124,7 @@ export type Database = {
           gotra: string | null
           id: string
           kul: string | null
+          manager_user_id?: string | null
           members_privacy: Database["public"]["Enums"]["privacy_level"]
           nukh: string | null
           profile_privacy: Database["public"]["Enums"]["privacy_level"]
@@ -144,6 +145,7 @@ export type Database = {
           gotra?: string | null
           id?: string
           kul?: string | null
+          manager_user_id?: string | null
           members_privacy?: Database["public"]["Enums"]["privacy_level"]
           nukh?: string | null
           profile_privacy?: Database["public"]["Enums"]["privacy_level"]
@@ -164,6 +166,7 @@ export type Database = {
           gotra?: string | null
           id?: string
           kul?: string | null
+          manager_user_id?: string | null
           members_privacy?: Database["public"]["Enums"]["privacy_level"]
           nukh?: string | null
           profile_privacy?: Database["public"]["Enums"]["privacy_level"]
@@ -563,6 +566,18 @@ export type Database = {
           created_at: string
           updated_at: string
           deleted_at: string | null
+          date_of_birth?: string | null
+          birth_place?: string | null
+          email_contact?: string | null
+          phone?: string | null
+          phone_secondary?: string | null
+          user_id?: string | null
+          created_by?: string | null
+          profile_privacy?: Database["public"]["Enums"]["privacy_level"] | null
+          contact_privacy?: Database["public"]["Enums"]["privacy_level"] | null
+          dob_privacy?: Database["public"]["Enums"]["privacy_level"] | null
+          is_same_family?: boolean | null
+          can_edit?: boolean | null
         }
         Relationships: []
       }
@@ -666,8 +681,13 @@ export type Database = {
         | "SUPER_ADMIN"
         | "ADMIN"
         | "COMMUNITY_MODERATOR"
+        | "COMMUNITY_MUKHI"
+        | "ASSISTANT_MUKHI"
         | "COMMITTEE_MEMBER"
         | "FAMILY_HEAD"
+        | "FAMILY_MANAGER"
+        | "FAMILY_MEMBER"
+        | "COMMUNITY_MEMBER"
         | "MEMBER"
         | "GUEST"
       verification_status: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED"
@@ -851,8 +871,13 @@ export const Constants = {
         "SUPER_ADMIN",
         "ADMIN",
         "COMMUNITY_MODERATOR",
+        "COMMUNITY_MUKHI",
+        "ASSISTANT_MUKHI",
         "COMMITTEE_MEMBER",
         "FAMILY_HEAD",
+        "FAMILY_MANAGER",
+        "FAMILY_MEMBER",
+        "COMMUNITY_MEMBER",
         "MEMBER",
         "GUEST",
       ],

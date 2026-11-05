@@ -93,6 +93,18 @@ export const ROLE_CONFIG: Record<
     badgeClasses: 'bg-sky-100 text-sky-800 border-sky-200',
     badgeDotClass: 'bg-sky-600',
   },
+  COMMUNITY_MUKHI: {
+    label: 'Community Mukhi',
+    description: 'Community leadership, claim/verification review, family moderation, and governance.',
+    badgeClasses: 'bg-sky-100 text-sky-800 border-sky-200',
+    badgeDotClass: 'bg-sky-600',
+  },
+  ASSISTANT_MUKHI: {
+    label: 'Assistant Mukhi',
+    description: 'Delegated community moderation and verification review operations.',
+    badgeClasses: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+    badgeDotClass: 'bg-cyan-600',
+  },
   COMMITTEE_MEMBER: {
     label: 'Committee Member',
     description: 'Community committee member with heightened event and announcement access.',
@@ -104,6 +116,24 @@ export const ROLE_CONFIG: Record<
     description: 'Head of household with full management privileges over their registered family unit.',
     badgeClasses: 'bg-amber-100 text-amber-800 border-amber-200',
     badgeDotClass: 'bg-amber-600',
+  },
+  FAMILY_MANAGER: {
+    label: 'Family Manager',
+    description: 'Assigned operational manager with full profile and roster editing privileges for their family.',
+    badgeClasses: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    badgeDotClass: 'bg-emerald-600',
+  },
+  FAMILY_MEMBER: {
+    label: 'Family Member',
+    description: 'Active member of a specific family with full own-family visibility.',
+    badgeClasses: 'bg-blue-100 text-blue-800 border-blue-200',
+    badgeDotClass: 'bg-blue-500',
+  },
+  COMMUNITY_MEMBER: {
+    label: 'Community Member',
+    description: 'Registered community member with profile, participation, and eligible claim access.',
+    badgeClasses: 'bg-slate-100 text-slate-800 border-slate-200',
+    badgeDotClass: 'bg-slate-500',
   },
   MEMBER: {
     label: 'Member',
@@ -122,9 +152,14 @@ export const ROLE_CONFIG: Record<
 export const ALL_USER_ROLES: UserRole[] = [
   'SUPER_ADMIN',
   'ADMIN',
+  'COMMUNITY_MUKHI',
   'COMMUNITY_MODERATOR',
+  'ASSISTANT_MUKHI',
   'COMMITTEE_MEMBER',
   'FAMILY_HEAD',
+  'FAMILY_MANAGER',
+  'FAMILY_MEMBER',
+  'COMMUNITY_MEMBER',
   'MEMBER',
   'GUEST',
 ]
