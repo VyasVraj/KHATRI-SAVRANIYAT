@@ -1,0 +1,1819 @@
+{
+  "metadata": {
+    "source": "Brahm Kshatriya Gotra & Nukh List (English transliteration)",
+    "source_pdf": "Brahm_Kshatriya_Gotra_Nukh_List_English.pdf",
+    "total_gotras": 29,
+    "total_nukhs": 147,
+    "pages": 2
+  },
+  "gotras": [
+    {
+      "id": "agastya",
+      "name": "Agastya",
+      "slug": "agastya",
+      "base_name": "Agastya",
+      "display_order": 1,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "agastya_arora",
+          "name": "Arora (Arora)",
+          "base_name": "Arora",
+          "aliases": [
+            "Arora"
+          ]
+        },
+        {
+          "id": "agastya_asalavanta",
+          "name": "Asalavanta (Asalavanta)",
+          "base_name": "Asalavanta",
+          "aliases": [
+            "Asalavanta"
+          ]
+        },
+        {
+          "id": "agastya_gajubha",
+          "name": "Gajubha",
+          "base_name": "Gajubha",
+          "aliases": [
+            "Gajubha"
+          ]
+        },
+        {
+          "id": "agastya_tatiya",
+          "name": "Tatiya",
+          "base_name": "Tatiya",
+          "aliases": [
+            "Tatiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "utri",
+      "name": "Utri",
+      "slug": "utri",
+      "base_name": "Utri",
+      "display_order": 2,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "utri_asara",
+          "name": "Asara (Asara)",
+          "base_name": "Asara",
+          "aliases": [
+            "Asara"
+          ]
+        },
+        {
+          "id": "utri_mamalutara",
+          "name": "Mamalutara",
+          "base_name": "Mamalutara",
+          "aliases": [
+            "Mamalutara"
+          ]
+        },
+        {
+          "id": "utri_dingama",
+          "name": "Dingama",
+          "base_name": "Dingama",
+          "aliases": [
+            "Dingama"
+          ]
+        },
+        {
+          "id": "utri_baval",
+          "name": "Baval",
+          "base_name": "Baval",
+          "aliases": [
+            "Baval"
+          ]
+        },
+        {
+          "id": "utri_dungana",
+          "name": "Dungana",
+          "base_name": "Dungana",
+          "aliases": [
+            "Dungana"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "badarayana",
+      "name": "Badarayana",
+      "slug": "badarayana",
+      "base_name": "Badarayana",
+      "display_order": 3,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "badarayana_bariya",
+          "name": "Bariya (Bungadiya)",
+          "base_name": "Bariya",
+          "aliases": [
+            "Bariya",
+            "Bungadiya"
+          ]
+        },
+        {
+          "id": "badarayana_boradiya",
+          "name": "Boradiya",
+          "base_name": "Boradiya",
+          "aliases": [
+            "Boradiya"
+          ]
+        },
+        {
+          "id": "badarayana_rakhuna",
+          "name": "Rakhuna",
+          "base_name": "Rakhuna",
+          "aliases": [
+            "Rakhuna"
+          ]
+        },
+        {
+          "id": "badarayana_rakhana",
+          "name": "Rakhana",
+          "base_name": "Rakhana",
+          "aliases": [
+            "Rakhana"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bhamaraya",
+      "name": "Bhamaraya",
+      "slug": "bhamaraya",
+      "base_name": "Bhamaraya",
+      "display_order": 4,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "bhamaraya_vesamiya",
+          "name": "Vesamiya (Vesamiya, Bosamiya)",
+          "base_name": "Vesamiya",
+          "aliases": [
+            "Vesamiya",
+            "Bosamiya"
+          ]
+        },
+        {
+          "id": "bhamaraya_barva",
+          "name": "Barva",
+          "base_name": "Barva",
+          "aliases": [
+            "Barva"
+          ]
+        },
+        {
+          "id": "bhamaraya_papor_iya",
+          "name": "Papor iya",
+          "base_name": "Papor iya",
+          "aliases": [
+            "Papor iya"
+          ]
+        },
+        {
+          "id": "bhamaraya_parya",
+          "name": "Parya (Padiya)",
+          "base_name": "Parya",
+          "aliases": [
+            "Parya",
+            "Padiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bharadwaj",
+      "name": "Bharadwaj",
+      "slug": "bharadwaj",
+      "base_name": "Bharadwaj",
+      "display_order": 5,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "bharadwaj_bhut",
+          "name": "Bhut (Nirmal)",
+          "base_name": "Bhut",
+          "aliases": [
+            "Bhut",
+            "Nirmal"
+          ]
+        },
+        {
+          "id": "bharadwaj_bheva",
+          "name": "Bheva",
+          "base_name": "Bheva",
+          "aliases": [
+            "Bheva"
+          ]
+        },
+        {
+          "id": "bharadwaj_bhudda",
+          "name": "Bhudda",
+          "base_name": "Bhudda",
+          "aliases": [
+            "Bhudda"
+          ]
+        },
+        {
+          "id": "bharadwaj_kakar",
+          "name": "Kakar (Kokil)",
+          "base_name": "Kakar",
+          "aliases": [
+            "Kakar",
+            "Kokil"
+          ]
+        },
+        {
+          "id": "bharadwaj_bhedan",
+          "name": "Bhedan (Bheda)",
+          "base_name": "Bhedan",
+          "aliases": [
+            "Bhedan",
+            "Bheda"
+          ]
+        },
+        {
+          "id": "bharadwaj_bhul",
+          "name": "Bhul",
+          "base_name": "Bhul",
+          "aliases": [
+            "Bhul"
+          ]
+        },
+        {
+          "id": "bharadwaj_bhadar",
+          "name": "Bhadar (Bhadar)",
+          "base_name": "Bhadar",
+          "aliases": [
+            "Bhadar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tandira",
+      "name": "Tandira",
+      "slug": "tandira",
+      "base_name": "Tandira",
+      "display_order": 6,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "tandira_tadad_otha",
+          "name": "Tadad Otha",
+          "base_name": "Tadad Otha",
+          "aliases": [
+            "Tadad Otha"
+          ]
+        },
+        {
+          "id": "tandira_dhora",
+          "name": "Dhora",
+          "base_name": "Dhora",
+          "aliases": [
+            "Dhora"
+          ]
+        },
+        {
+          "id": "tandira_ida",
+          "name": "Ida",
+          "base_name": "Ida",
+          "aliases": [
+            "Ida"
+          ]
+        },
+        {
+          "id": "tandira_dadiya",
+          "name": "Dadiya",
+          "base_name": "Dadiya",
+          "aliases": [
+            "Dadiya"
+          ]
+        },
+        {
+          "id": "tandira_dangana",
+          "name": "Dangana",
+          "base_name": "Dangana",
+          "aliases": [
+            "Dangana"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parashar",
+      "name": "Parashar",
+      "slug": "parashar",
+      "base_name": "Parashar",
+      "display_order": 7,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "parashar_panjabhut",
+          "name": "Panjabhut",
+          "base_name": "Panjabhut",
+          "aliases": [
+            "Panjabhut"
+          ]
+        },
+        {
+          "id": "parashar_padhar",
+          "name": "Padhar",
+          "base_name": "Padhar",
+          "aliases": [
+            "Padhar"
+          ]
+        },
+        {
+          "id": "parashar_mamata",
+          "name": "Mamata (Mamatara)",
+          "base_name": "Mamata",
+          "aliases": [
+            "Mamata",
+            "Mamatara"
+          ]
+        },
+        {
+          "id": "parashar_bhitar_mehera",
+          "name": "Bhitar Mehera",
+          "base_name": "Bhitar Mehera",
+          "aliases": [
+            "Bhitar Mehera"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jamadagni",
+      "name": "Jamadagni",
+      "slug": "jamadagni",
+      "base_name": "Jamadagni",
+      "display_order": 8,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "jamadagni_godhiya",
+          "name": "Godhiya (Godiya)",
+          "base_name": "Godhiya",
+          "aliases": [
+            "Godhiya",
+            "Godiya"
+          ]
+        },
+        {
+          "id": "jamadagni_joshihaar",
+          "name": "Joshihaar (Joshihaar)",
+          "base_name": "Joshihaar",
+          "aliases": [
+            "Joshihaar"
+          ]
+        },
+        {
+          "id": "jamadagni_joshihar",
+          "name": "Joshihar",
+          "base_name": "Joshihar",
+          "aliases": [
+            "Joshihar"
+          ]
+        },
+        {
+          "id": "jamadagni_jajal",
+          "name": "Jajal",
+          "base_name": "Jajal",
+          "aliases": [
+            "Jajal"
+          ]
+        },
+        {
+          "id": "jamadagni_jogi",
+          "name": "Jogi",
+          "base_name": "Jogi",
+          "aliases": [
+            "Jogi"
+          ]
+        },
+        {
+          "id": "jamadagni_jariya",
+          "name": "Jariya",
+          "base_name": "Jariya",
+          "aliases": [
+            "Jariya"
+          ]
+        },
+        {
+          "id": "jamadagni_jagar",
+          "name": "Jagar",
+          "base_name": "Jagar",
+          "aliases": [
+            "Jagar"
+          ]
+        },
+        {
+          "id": "jamadagni_lulla",
+          "name": "Lulla",
+          "base_name": "Lulla",
+          "aliases": [
+            "Lulla"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dhananjaya",
+      "name": "Dhananjaya",
+      "slug": "dhananjaya",
+      "base_name": "Dhananjaya",
+      "display_order": 9,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "dhananjaya_dhanga",
+          "name": "Dhanga",
+          "base_name": "Dhanga",
+          "aliases": [
+            "Dhanga"
+          ]
+        },
+        {
+          "id": "dhananjaya_dhare",
+          "name": "Dhare",
+          "base_name": "Dhare",
+          "aliases": [
+            "Dhare"
+          ]
+        },
+        {
+          "id": "dhananjaya_dhanadiya",
+          "name": "Dhanadiya (Dhanadiya)",
+          "base_name": "Dhanadiya",
+          "aliases": [
+            "Dhanadiya"
+          ]
+        },
+        {
+          "id": "dhananjaya_bara",
+          "name": "Bara (Bada)",
+          "base_name": "Bara",
+          "aliases": [
+            "Bara",
+            "Bada"
+          ]
+        },
+        {
+          "id": "dhananjaya_hans_jamat",
+          "name": "Hans Jamat (Hans Jamat)",
+          "base_name": "Hans Jamat",
+          "aliases": [
+            "Hans Jamat"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "darvashayana",
+      "name": "Darvashayana (Dayavahana)",
+      "slug": "darvashayana",
+      "base_name": "Darvashayana",
+      "display_order": 10,
+      "page": 1,
+      "aliases": [
+        "Dayavahana"
+      ],
+      "nukhs": [
+        {
+          "id": "darvashayana_dubal",
+          "name": "Dubal (Dubdan)",
+          "base_name": "Dubal",
+          "aliases": [
+            "Dubal",
+            "Dubdan"
+          ]
+        },
+        {
+          "id": "darvashayana_kosara",
+          "name": "Kosara",
+          "base_name": "Kosara",
+          "aliases": [
+            "Kosara"
+          ]
+        },
+        {
+          "id": "darvashayana_dadhara",
+          "name": "Dadhara (Dadariya)",
+          "base_name": "Dadhara",
+          "aliases": [
+            "Dadhara",
+            "Dadariya"
+          ]
+        },
+        {
+          "id": "darvashayana_dulera",
+          "name": "Dulera",
+          "base_name": "Dulera",
+          "aliases": [
+            "Dulera"
+          ]
+        },
+        {
+          "id": "darvashayana_damariya",
+          "name": "Damariya (Damariya)",
+          "base_name": "Damariya",
+          "aliases": [
+            "Damariya"
+          ]
+        },
+        {
+          "id": "darvashayana_dhariya",
+          "name": "Dhariya",
+          "base_name": "Dhariya",
+          "aliases": [
+            "Dhariya"
+          ]
+        },
+        {
+          "id": "darvashayana_gadya",
+          "name": "Gadya",
+          "base_name": "Gadya",
+          "aliases": [
+            "Gadya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "raghuna",
+      "name": "Raghuna",
+      "slug": "raghuna",
+      "base_name": "Raghuna",
+      "display_order": 11,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "raghuna_rasputara",
+          "name": "Rasputara",
+          "base_name": "Rasputara",
+          "aliases": [
+            "Rasputara"
+          ]
+        },
+        {
+          "id": "raghuna_raspoda",
+          "name": "Raspoda",
+          "base_name": "Raspoda",
+          "aliases": [
+            "Raspoda"
+          ]
+        },
+        {
+          "id": "raghuna_raja",
+          "name": "Raja",
+          "base_name": "Raja",
+          "aliases": [
+            "Raja"
+          ]
+        },
+        {
+          "id": "raghuna_khara",
+          "name": "Khara (Kharara)",
+          "base_name": "Khara",
+          "aliases": [
+            "Khara",
+            "Kharara"
+          ]
+        },
+        {
+          "id": "raghuna_sasiya",
+          "name": "Sasiya",
+          "base_name": "Sasiya",
+          "aliases": [
+            "Sasiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sudarshan",
+      "name": "Sudarshan",
+      "slug": "sudarshan",
+      "base_name": "Sudarshan",
+      "display_order": 12,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "sudarshan_sonisher",
+          "name": "Sonisher (Soniser Soniser)",
+          "base_name": "Sonisher",
+          "aliases": [
+            "Sonisher",
+            "Soniser Soniser"
+          ]
+        },
+        {
+          "id": "sudarshan_sita",
+          "name": "Sita (Sota)",
+          "base_name": "Sita",
+          "aliases": [
+            "Sita",
+            "Sota"
+          ]
+        },
+        {
+          "id": "sudarshan_sodiya",
+          "name": "Sodiya (Sodiya)",
+          "base_name": "Sodiya",
+          "aliases": [
+            "Sodiya"
+          ]
+        },
+        {
+          "id": "sudarshan_damara",
+          "name": "Damara (Damara)",
+          "base_name": "Damara",
+          "aliases": [
+            "Damara"
+          ]
+        },
+        {
+          "id": "sudarshan_chava_jamavara",
+          "name": "Chava Jamavara",
+          "base_name": "Chava Jamavara",
+          "aliases": [
+            "Chava Jamavara"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shandilya",
+      "name": "Shandilya",
+      "slug": "shandilya",
+      "base_name": "Shandilya",
+      "display_order": 13,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "shandilya_sanicharya",
+          "name": "Sanicharya (Sanicharya)",
+          "base_name": "Sanicharya",
+          "aliases": [
+            "Sanicharya"
+          ]
+        },
+        {
+          "id": "shandilya_sonapar",
+          "name": "Sonapar (Sonapar)",
+          "base_name": "Sonapar",
+          "aliases": [
+            "Sonapar"
+          ]
+        },
+        {
+          "id": "shandilya_sidhava",
+          "name": "Sidhava",
+          "base_name": "Sidhava",
+          "aliases": [
+            "Sidhava"
+          ]
+        },
+        {
+          "id": "shandilya_sodhi",
+          "name": "Sodhi (Sodha)",
+          "base_name": "Sodhi",
+          "aliases": [
+            "Sodhi",
+            "Sodha"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shankhpal",
+      "name": "Shankhpal",
+      "slug": "shankhpal",
+      "base_name": "Shankhpal",
+      "display_order": 14,
+      "page": 1,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "shankhpal_sorathiya",
+          "name": "Sorathiya",
+          "base_name": "Sorathiya",
+          "aliases": [
+            "Sorathiya"
+          ]
+        },
+        {
+          "id": "shankhpal_soneji",
+          "name": "Soneji (Soneja)",
+          "base_name": "Soneji",
+          "aliases": [
+            "Soneji",
+            "Soneja"
+          ]
+        },
+        {
+          "id": "shankhpal_dangara",
+          "name": "Dangara (Dangara)",
+          "base_name": "Dangara",
+          "aliases": [
+            "Dangara"
+          ]
+        },
+        {
+          "id": "shankhpal_desar",
+          "name": "Desar",
+          "base_name": "Desar",
+          "aliases": [
+            "Desar"
+          ]
+        },
+        {
+          "id": "shankhpal_gadiya",
+          "name": "Gadiya",
+          "base_name": "Gadiya",
+          "aliases": [
+            "Gadiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kashyap",
+      "name": "Kashyap (Kashyapa)",
+      "slug": "kashyap",
+      "base_name": "Kashyap",
+      "display_order": 15,
+      "page": 1,
+      "aliases": [
+        "Kashyapa"
+      ],
+      "nukhs": [
+        {
+          "id": "kashyap_kathambhan",
+          "name": "Kathambhan (Kath Vada, Kathiya)",
+          "base_name": "Kathambhan",
+          "aliases": [
+            "Kathambhan",
+            "Kath Vada",
+            "Kathiya"
+          ]
+        },
+        {
+          "id": "kashyap_kandhara",
+          "name": "Kandhara",
+          "base_name": "Kandhara",
+          "aliases": [
+            "Kandhara"
+          ]
+        },
+        {
+          "id": "kashyap_harun",
+          "name": "Harun (Majhadiya)",
+          "base_name": "Harun",
+          "aliases": [
+            "Harun",
+            "Majhadiya"
+          ]
+        },
+        {
+          "id": "kashyap_hanja",
+          "name": "Hanja (Hanjadiya)",
+          "base_name": "Hanja",
+          "aliases": [
+            "Hanja",
+            "Hanjadiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kamuk",
+      "name": "Kamuk",
+      "slug": "kamuk",
+      "base_name": "Kamuk",
+      "display_order": 16,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "kamuk_keshari",
+          "name": "Keshari",
+          "base_name": "Keshari",
+          "aliases": [
+            "Keshari"
+          ]
+        },
+        {
+          "id": "kamuk_kariya",
+          "name": "Kariya (Kidiya)",
+          "base_name": "Kariya",
+          "aliases": [
+            "Kariya",
+            "Kidiya"
+          ]
+        },
+        {
+          "id": "kamuk_tokala",
+          "name": "Tokala (Tikli)",
+          "base_name": "Tokala",
+          "aliases": [
+            "Tokala",
+            "Tikli"
+          ]
+        },
+        {
+          "id": "kamuk_tangara",
+          "name": "Tangara",
+          "base_name": "Tangara",
+          "aliases": [
+            "Tangara"
+          ]
+        },
+        {
+          "id": "kamuk_daka",
+          "name": "Daka",
+          "base_name": "Daka",
+          "aliases": [
+            "Daka"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "krishna",
+      "name": "Krishna (Shishan)",
+      "slug": "krishna",
+      "base_name": "Krishna",
+      "display_order": 17,
+      "page": 2,
+      "aliases": [
+        "Shishan"
+      ],
+      "nukhs": [
+        {
+          "id": "krishna_karotala",
+          "name": "Karotala",
+          "base_name": "Karotala",
+          "aliases": [
+            "Karotala"
+          ]
+        },
+        {
+          "id": "krishna_karbaliya",
+          "name": "Karbaliya",
+          "base_name": "Karbaliya",
+          "aliases": [
+            "Karbaliya"
+          ]
+        },
+        {
+          "id": "krishna_khubhar",
+          "name": "Khubhar (Khubadiya)",
+          "base_name": "Khubhar",
+          "aliases": [
+            "Khubhar",
+            "Khubadiya"
+          ]
+        },
+        {
+          "id": "krishna_khuba",
+          "name": "Khuba (Khuda)",
+          "base_name": "Khuba",
+          "aliases": [
+            "Khuba",
+            "Khuda"
+          ]
+        },
+        {
+          "id": "krishna_khubhariya",
+          "name": "Khubhariya",
+          "base_name": "Khubhariya",
+          "aliases": [
+            "Khubhariya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "karna",
+      "name": "Karna",
+      "slug": "karna",
+      "base_name": "Karna",
+      "display_order": 18,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "karna_kidi",
+          "name": "Kidi (Kiri)",
+          "base_name": "Kidi",
+          "aliases": [
+            "Kidi",
+            "Kiri"
+          ]
+        },
+        {
+          "id": "karna_vaniya",
+          "name": "Vaniya (Vagiya)",
+          "base_name": "Vaniya",
+          "aliases": [
+            "Vaniya",
+            "Vagiya"
+          ]
+        },
+        {
+          "id": "karna_davani",
+          "name": "Davani",
+          "base_name": "Davani",
+          "aliases": [
+            "Davani"
+          ]
+        },
+        {
+          "id": "karna_dand",
+          "name": "Dand (Dandana)",
+          "base_name": "Dand",
+          "aliases": [
+            "Dand",
+            "Dandana"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kaushik",
+      "name": "Kaushik",
+      "slug": "kaushik",
+      "base_name": "Kaushik",
+      "display_order": 19,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "kaushik_kakadya",
+          "name": "Kakadya",
+          "base_name": "Kakadya",
+          "aliases": [
+            "Kakadya"
+          ]
+        },
+        {
+          "id": "kaushik_kaku",
+          "name": "Kaku (Kakava, Kakupota)",
+          "base_name": "Kaku",
+          "aliases": [
+            "Kaku",
+            "Kakava",
+            "Kakupota"
+          ]
+        },
+        {
+          "id": "kaushik_kakara",
+          "name": "Kakara",
+          "base_name": "Kakara",
+          "aliases": [
+            "Kakara"
+          ]
+        },
+        {
+          "id": "kaushik_lakhanhar",
+          "name": "Lakhanhar",
+          "base_name": "Lakhanhar",
+          "aliases": [
+            "Lakhanhar"
+          ]
+        },
+        {
+          "id": "kaushik_katakiya",
+          "name": "Katakiya",
+          "base_name": "Katakiya",
+          "aliases": [
+            "Katakiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gargya",
+      "name": "Gargya",
+      "slug": "gargya",
+      "base_name": "Gargya",
+      "display_order": 20,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "gargya_gajkaran",
+          "name": "Gajkaran (Gaj Karan)",
+          "base_name": "Gajkaran",
+          "aliases": [
+            "Gajkaran",
+            "Gaj Karan"
+          ]
+        },
+        {
+          "id": "gargya_gumara",
+          "name": "Gumara",
+          "base_name": "Gumara",
+          "aliases": [
+            "Gumara"
+          ]
+        },
+        {
+          "id": "gargya_vankala",
+          "name": "Vankala",
+          "base_name": "Vankala",
+          "aliases": [
+            "Vankala"
+          ]
+        },
+        {
+          "id": "gargya_chhuchha",
+          "name": "Chhuchha (Chhuchha)",
+          "base_name": "Chhuchha",
+          "aliases": [
+            "Chhuchha"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gautam",
+      "name": "Gautam",
+      "slug": "gautam",
+      "base_name": "Gautam",
+      "display_order": 21,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "gautam_shirach",
+          "name": "Shirach",
+          "base_name": "Shirach",
+          "aliases": [
+            "Shirach"
+          ]
+        },
+        {
+          "id": "gautam_goratola",
+          "name": "Goratola",
+          "base_name": "Goratola",
+          "aliases": [
+            "Goratola"
+          ]
+        },
+        {
+          "id": "gautam_gila",
+          "name": "Gila",
+          "base_name": "Gila",
+          "aliases": [
+            "Gila"
+          ]
+        },
+        {
+          "id": "gautam_madhur",
+          "name": "Madhur",
+          "base_name": "Madhur",
+          "aliases": [
+            "Madhur"
+          ]
+        },
+        {
+          "id": "gautam_madhu",
+          "name": "Madhu",
+          "base_name": "Madhu",
+          "aliases": [
+            "Madhu"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mandhata",
+      "name": "Mandhata",
+      "slug": "mandhata",
+      "base_name": "Mandhata",
+      "display_order": 22,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "mandhata_mamudar",
+          "name": "Mamudar",
+          "base_name": "Mamudar",
+          "aliases": [
+            "Mamudar"
+          ]
+        },
+        {
+          "id": "mandhata_mavariya",
+          "name": "Mavariya (Mavarda)",
+          "base_name": "Mavariya",
+          "aliases": [
+            "Mavariya",
+            "Mavarda"
+          ]
+        },
+        {
+          "id": "mandhata_mavadiya",
+          "name": "Mavadiya (Mavadasya)",
+          "base_name": "Mavadiya",
+          "aliases": [
+            "Mavadiya",
+            "Mavadasya"
+          ]
+        },
+        {
+          "id": "mandhata_mayadhak",
+          "name": "Mayadhak",
+          "base_name": "Mayadhak",
+          "aliases": [
+            "Mayadhak"
+          ]
+        },
+        {
+          "id": "mandhata_mayadhara",
+          "name": "Mayadhara",
+          "base_name": "Mayadhara",
+          "aliases": [
+            "Mayadhara"
+          ]
+        },
+        {
+          "id": "mandhata_mohanvacha",
+          "name": "Mohanvacha",
+          "base_name": "Mohanvacha",
+          "aliases": [
+            "Mohanvacha"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mudgal",
+      "name": "Mudgal",
+      "slug": "mudgal",
+      "base_name": "Mudgal",
+      "display_order": 23,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "mudgal_makariya",
+          "name": "Makariya (Makadiya, Manak)",
+          "base_name": "Makariya",
+          "aliases": [
+            "Makariya",
+            "Makadiya",
+            "Manak"
+          ]
+        },
+        {
+          "id": "mudgal_makori",
+          "name": "Makori",
+          "base_name": "Makori",
+          "aliases": [
+            "Makori"
+          ]
+        },
+        {
+          "id": "mudgal_medhiya",
+          "name": "Medhiya (Medhya)",
+          "base_name": "Medhiya",
+          "aliases": [
+            "Medhiya",
+            "Medhya"
+          ]
+        },
+        {
+          "id": "mudgal_mahhar",
+          "name": "Mahhar",
+          "base_name": "Mahhar",
+          "aliases": [
+            "Mahhar"
+          ]
+        },
+        {
+          "id": "mudgal_ranara",
+          "name": "Ranara",
+          "base_name": "Ranara",
+          "aliases": [
+            "Ranara"
+          ]
+        },
+        {
+          "id": "mudgal_meher",
+          "name": "Meher (Mera)",
+          "base_name": "Meher",
+          "aliases": [
+            "Meher",
+            "Mera"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "naradijana",
+      "name": "Naradijana",
+      "slug": "naradijana",
+      "base_name": "Naradijana",
+      "display_order": 24,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "naradijana_nansi",
+          "name": "Nansi",
+          "base_name": "Nansi",
+          "aliases": [
+            "Nansi"
+          ]
+        },
+        {
+          "id": "naradijana_nemana",
+          "name": "Nemana",
+          "base_name": "Nemana",
+          "aliases": [
+            "Nemana"
+          ]
+        },
+        {
+          "id": "naradijana_naisar",
+          "name": "Naisar",
+          "base_name": "Naisar",
+          "aliases": [
+            "Naisar"
+          ]
+        },
+        {
+          "id": "naradijana_neno",
+          "name": "Neno",
+          "base_name": "Neno",
+          "aliases": [
+            "Neno"
+          ]
+        },
+        {
+          "id": "naradijana_nan",
+          "name": "Nan (Nayan)",
+          "base_name": "Nan",
+          "aliases": [
+            "Nan",
+            "Nayan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vaman",
+      "name": "Vaman",
+      "slug": "vaman",
+      "base_name": "Vaman",
+      "display_order": 25,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "vaman_vadhala",
+          "name": "Vadhala",
+          "base_name": "Vadhala",
+          "aliases": [
+            "Vadhala"
+          ]
+        },
+        {
+          "id": "vaman_davadiya",
+          "name": "Davadiya",
+          "base_name": "Davadiya",
+          "aliases": [
+            "Davadiya"
+          ]
+        },
+        {
+          "id": "vaman_dod",
+          "name": "Dod (Doshara)",
+          "base_name": "Dod",
+          "aliases": [
+            "Dod",
+            "Doshara"
+          ]
+        },
+        {
+          "id": "vaman_dadiya",
+          "name": "Dadiya",
+          "base_name": "Dadiya",
+          "aliases": [
+            "Dadiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vamdev",
+      "name": "Vamdev",
+      "slug": "vamdev",
+      "base_name": "Vamdev",
+      "display_order": 26,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "vamdev_khede",
+          "name": "Khede (Vare)",
+          "base_name": "Khede",
+          "aliases": [
+            "Khede",
+            "Vare"
+          ]
+        },
+        {
+          "id": "vamdev_lamariya",
+          "name": "Lamariya",
+          "base_name": "Lamariya",
+          "aliases": [
+            "Lamariya"
+          ]
+        },
+        {
+          "id": "vamdev_leya",
+          "name": "Leya",
+          "base_name": "Leya",
+          "aliases": [
+            "Leya"
+          ]
+        },
+        {
+          "id": "vamdev_luladiya",
+          "name": "Luladiya",
+          "base_name": "Luladiya",
+          "aliases": [
+            "Luladiya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vatsa",
+      "name": "Vatsa",
+      "slug": "vatsa",
+      "base_name": "Vatsa",
+      "display_order": 27,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "vatsa_vama",
+          "name": "Vama",
+          "base_name": "Vama",
+          "aliases": [
+            "Vama"
+          ]
+        },
+        {
+          "id": "vatsa_vajari",
+          "name": "Vajari",
+          "base_name": "Vajari",
+          "aliases": [
+            "Vajari"
+          ]
+        },
+        {
+          "id": "vatsa_kidi",
+          "name": "Kidi",
+          "base_name": "Kidi",
+          "aliases": [
+            "Kidi"
+          ]
+        },
+        {
+          "id": "vatsa_vali",
+          "name": "Vali (Veli)",
+          "base_name": "Vali",
+          "aliases": [
+            "Vali",
+            "Veli"
+          ]
+        },
+        {
+          "id": "vatsa_chamariya",
+          "name": "Chamariya",
+          "base_name": "Chamariya",
+          "aliases": [
+            "Chamariya"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vashishtha",
+      "name": "Vashishtha",
+      "slug": "vashishtha",
+      "base_name": "Vashishtha",
+      "display_order": 28,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "vashishtha_valin",
+          "name": "Valin (Valara)",
+          "base_name": "Valin",
+          "aliases": [
+            "Valin",
+            "Valara"
+          ]
+        },
+        {
+          "id": "vashishtha_chhapara",
+          "name": "Chhapara",
+          "base_name": "Chhapara",
+          "aliases": [
+            "Chhapara"
+          ]
+        },
+        {
+          "id": "vashishtha_dangana",
+          "name": "Dangana",
+          "base_name": "Dangana",
+          "aliases": [
+            "Dangana"
+          ]
+        },
+        {
+          "id": "vashishtha_mel",
+          "name": "Mel (Meri)",
+          "base_name": "Mel",
+          "aliases": [
+            "Mel",
+            "Meri"
+          ]
+        },
+        {
+          "id": "vashishtha_jil_jhina",
+          "name": "Jil Jhina",
+          "base_name": "Jil Jhina",
+          "aliases": [
+            "Jil Jhina"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gotra_not_known",
+      "name": "Gotra not known",
+      "slug": "gotra_not_known",
+      "base_name": "Gotra not known",
+      "display_order": 29,
+      "page": 2,
+      "aliases": [],
+      "nukhs": [
+        {
+          "id": "gotra_not_known_acharya",
+          "name": "Acharya",
+          "base_name": "Acharya",
+          "aliases": [
+            "Acharya"
+          ]
+        },
+        {
+          "id": "gotra_not_known_pipaliya",
+          "name": "Pipaliya",
+          "base_name": "Pipaliya",
+          "aliases": [
+            "Pipaliya"
+          ]
+        },
+        {
+          "id": "gotra_not_known_gana",
+          "name": "Gana",
+          "base_name": "Gana",
+          "aliases": [
+            "Gana"
+          ]
+        },
+        {
+          "id": "gotra_not_known_gondi_odha",
+          "name": "Gondi Odha",
+          "base_name": "Gondi Odha",
+          "aliases": [
+            "Gondi Odha"
+          ]
+        },
+        {
+          "id": "gotra_not_known_saraya",
+          "name": "Saraya",
+          "base_name": "Saraya",
+          "aliases": [
+            "Saraya"
+          ]
+        },
+        {
+          "id": "gotra_not_known_harasaya",
+          "name": "Harasaya",
+          "base_name": "Harasaya",
+          "aliases": [
+            "Harasaya"
+          ]
+        },
+        {
+          "id": "gotra_not_known_chhatakpur",
+          "name": "Chhatakpur",
+          "base_name": "Chhatakpur",
+          "aliases": [
+            "Chhatakpur"
+          ]
+        },
+        {
+          "id": "gotra_not_known_gungava",
+          "name": "Gungava",
+          "base_name": "Gungava",
+          "aliases": [
+            "Gungava"
+          ]
+        }
+      ]
+    }
+  ],
+  "map": {
+    "Agastya": [
+      "Arora (Arora)",
+      "Asalavanta (Asalavanta)",
+      "Gajubha",
+      "Tatiya"
+    ],
+    "Utri": [
+      "Asara (Asara)",
+      "Mamalutara",
+      "Dingama",
+      "Baval",
+      "Dungana"
+    ],
+    "Badarayana": [
+      "Bariya (Bungadiya)",
+      "Boradiya",
+      "Rakhuna",
+      "Rakhana"
+    ],
+    "Bhamaraya": [
+      "Vesamiya (Vesamiya, Bosamiya)",
+      "Barva",
+      "Papor iya",
+      "Parya (Padiya)"
+    ],
+    "Bharadwaj": [
+      "Bhut (Nirmal)",
+      "Bheva",
+      "Bhudda",
+      "Kakar (Kokil)",
+      "Bhedan (Bheda)",
+      "Bhul",
+      "Bhadar (Bhadar)"
+    ],
+    "Tandira": [
+      "Tadad Otha",
+      "Dhora",
+      "Ida",
+      "Dadiya",
+      "Dangana"
+    ],
+    "Parashar": [
+      "Panjabhut",
+      "Padhar",
+      "Mamata (Mamatara)",
+      "Bhitar Mehera"
+    ],
+    "Jamadagni": [
+      "Godhiya (Godiya)",
+      "Joshihaar (Joshihaar)",
+      "Joshihar",
+      "Jajal",
+      "Jogi",
+      "Jariya",
+      "Jagar",
+      "Lulla"
+    ],
+    "Dhananjaya": [
+      "Dhanga",
+      "Dhare",
+      "Dhanadiya (Dhanadiya)",
+      "Bara (Bada)",
+      "Hans Jamat (Hans Jamat)"
+    ],
+    "Darvashayana (Dayavahana)": [
+      "Dubal (Dubdan)",
+      "Kosara",
+      "Dadhara (Dadariya)",
+      "Dulera",
+      "Damariya (Damariya)",
+      "Dhariya",
+      "Gadya"
+    ],
+    "Darvashayana": [
+      "Dubal (Dubdan)",
+      "Kosara",
+      "Dadhara (Dadariya)",
+      "Dulera",
+      "Damariya (Damariya)",
+      "Dhariya",
+      "Gadya"
+    ],
+    "Dayavahana": [
+      "Dubal (Dubdan)",
+      "Kosara",
+      "Dadhara (Dadariya)",
+      "Dulera",
+      "Damariya (Damariya)",
+      "Dhariya",
+      "Gadya"
+    ],
+    "Raghuna": [
+      "Rasputara",
+      "Raspoda",
+      "Raja",
+      "Khara (Kharara)",
+      "Sasiya"
+    ],
+    "Sudarshan": [
+      "Sonisher (Soniser Soniser)",
+      "Sita (Sota)",
+      "Sodiya (Sodiya)",
+      "Damara (Damara)",
+      "Chava Jamavara"
+    ],
+    "Shandilya": [
+      "Sanicharya (Sanicharya)",
+      "Sonapar (Sonapar)",
+      "Sidhava",
+      "Sodhi (Sodha)"
+    ],
+    "Shankhpal": [
+      "Sorathiya",
+      "Soneji (Soneja)",
+      "Dangara (Dangara)",
+      "Desar",
+      "Gadiya"
+    ],
+    "Kashyap (Kashyapa)": [
+      "Kathambhan (Kath Vada, Kathiya)",
+      "Kandhara",
+      "Harun (Majhadiya)",
+      "Hanja (Hanjadiya)"
+    ],
+    "Kashyap": [
+      "Kathambhan (Kath Vada, Kathiya)",
+      "Kandhara",
+      "Harun (Majhadiya)",
+      "Hanja (Hanjadiya)"
+    ],
+    "Kashyapa": [
+      "Kathambhan (Kath Vada, Kathiya)",
+      "Kandhara",
+      "Harun (Majhadiya)",
+      "Hanja (Hanjadiya)"
+    ],
+    "Kamuk": [
+      "Keshari",
+      "Kariya (Kidiya)",
+      "Tokala (Tikli)",
+      "Tangara",
+      "Daka"
+    ],
+    "Krishna (Shishan)": [
+      "Karotala",
+      "Karbaliya",
+      "Khubhar (Khubadiya)",
+      "Khuba (Khuda)",
+      "Khubhariya"
+    ],
+    "Krishna": [
+      "Karotala",
+      "Karbaliya",
+      "Khubhar (Khubadiya)",
+      "Khuba (Khuda)",
+      "Khubhariya"
+    ],
+    "Shishan": [
+      "Karotala",
+      "Karbaliya",
+      "Khubhar (Khubadiya)",
+      "Khuba (Khuda)",
+      "Khubhariya"
+    ],
+    "Karna": [
+      "Kidi (Kiri)",
+      "Vaniya (Vagiya)",
+      "Davani",
+      "Dand (Dandana)"
+    ],
+    "Kaushik": [
+      "Kakadya",
+      "Kaku (Kakava, Kakupota)",
+      "Kakara",
+      "Lakhanhar",
+      "Katakiya"
+    ],
+    "Gargya": [
+      "Gajkaran (Gaj Karan)",
+      "Gumara",
+      "Vankala",
+      "Chhuchha (Chhuchha)"
+    ],
+    "Gautam": [
+      "Shirach",
+      "Goratola",
+      "Gila",
+      "Madhur",
+      "Madhu"
+    ],
+    "Mandhata": [
+      "Mamudar",
+      "Mavariya (Mavarda)",
+      "Mavadiya (Mavadasya)",
+      "Mayadhak",
+      "Mayadhara",
+      "Mohanvacha"
+    ],
+    "Mudgal": [
+      "Makariya (Makadiya, Manak)",
+      "Makori",
+      "Medhiya (Medhya)",
+      "Mahhar",
+      "Ranara",
+      "Meher (Mera)"
+    ],
+    "Naradijana": [
+      "Nansi",
+      "Nemana",
+      "Naisar",
+      "Neno",
+      "Nan (Nayan)"
+    ],
+    "Vaman": [
+      "Vadhala",
+      "Davadiya",
+      "Dod (Doshara)",
+      "Dadiya"
+    ],
+    "Vamdev": [
+      "Khede (Vare)",
+      "Lamariya",
+      "Leya",
+      "Luladiya"
+    ],
+    "Vatsa": [
+      "Vama",
+      "Vajari",
+      "Kidi",
+      "Vali (Veli)",
+      "Chamariya"
+    ],
+    "Vashishtha": [
+      "Valin (Valara)",
+      "Chhapara",
+      "Dangana",
+      "Mel (Meri)",
+      "Jil Jhina"
+    ],
+    "Gotra not known": [
+      "Acharya",
+      "Pipaliya",
+      "Gana",
+      "Gondi Odha",
+      "Saraya",
+      "Harasaya",
+      "Chhatakpur",
+      "Gungava"
+    ],
+    "Vashistha": [
+      "Valin (Valara)",
+      "Chhapara",
+      "Dangana",
+      "Mel (Meri)",
+      "Jil Jhina"
+    ],
+    "Atri": [
+      "Asara (Asara)",
+      "Mamalutara",
+      "Dingama",
+      "Baval",
+      "Dungana"
+    ]
+  }
+}

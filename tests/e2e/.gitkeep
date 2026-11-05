@@ -1,0 +1,6 @@
+/**
+ * E2E tests — placeholder structure
+ *
+ * End-to-end tests live here. These test full user workflows
+ * in a real browser environment. Tool selection (Playwright) in Phase 15.
+ */

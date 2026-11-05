@@ -1,0 +1,26 @@
+/**
+ * Verification Feature Domain Public API (Phase 9)
+ */
+
+export * from './types'
+export * from './types/quality.types'
+export * from './types/duplicate.types'
+export * from './schemas/verification.schemas'
+export * from './services/verification.service'
+export * from './services/verification.review.service'
+export * from './services/dataQuality.service'
+export * from './services/duplicateDetection.service'
+export * from './hooks/useVerification'
+export * from './hooks/useVerificationReview'
+export * from './hooks/useDuplicateDetection'
+export * from './components/VerificationBadge'
+export * from './components/VerificationSubmitModal'
+export * from './components/PersonVerificationSection'
+export * from './components/FamilyVerificationSection'
+export * from './components/VerificationReviewRejectModal'
+export * from './components/VerificationReviewDetailModal'
+export * from './components/DataQualityIndicator'
+export * from './components/DuplicateReviewModal'
+export * from './components/DuplicateFlagsQueueSection'
+export * from './components/PersonDuplicateWarningBanner'
+export * from './pages/VerificationReviewQueuePage'

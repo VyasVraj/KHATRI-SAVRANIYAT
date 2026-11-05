@@ -1,0 +1,6 @@
+/**
+ * Load tests — placeholder structure
+ *
+ * Load tests live here. Implemented in Phase 16.
+ * Target workloads: 100, 500, 1000, 2000, 5000, 9000 concurrent users.
+ */

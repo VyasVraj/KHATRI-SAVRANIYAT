@@ -1,0 +1,14 @@
+/**
+ * Security tests — placeholder structure
+ *
+ * Security tests live here. These specifically test:
+ * - RLS policies (positive AND negative cases)
+ * - Authorization boundaries
+ * - IDOR prevention
+ * - Privilege escalation prevention
+ * - Privacy enforcement
+ *
+ * RULE: Every RLS policy must have both a positive test
+ * (user CAN access own data) and a negative test
+ * (user CANNOT access another user's private data).
+ */

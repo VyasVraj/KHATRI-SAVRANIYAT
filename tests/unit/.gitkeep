@@ -1,0 +1,10 @@
+/**
+ * Unit tests — placeholder structure
+ *
+ * Unit tests live here organized by domain.
+ * Tests for src/utils, src/lib, src/hooks belong in this directory.
+ *
+ * Naming convention: <subject>.test.ts or <subject>.test.tsx
+ *
+ * Run: npm test
+ */

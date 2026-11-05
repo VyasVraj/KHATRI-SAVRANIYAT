@@ -1,0 +1,22 @@
+# Normalize line endings on checkout
+# Ensures consistent LF on all platforms
+
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Keep JSON normalized
+*.json text eol=lf
+*.jsonc text eol=lf
+
+# Keep lock files normalized
+package-lock.json text eol=lf

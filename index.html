@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="KhatriSarvaniyat" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Defensive security headers via meta where applicable -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- Content Security Policy baseline for document context (Note: frame-ancestors and X-Frame-Options are HTTP response headers) -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; worker-src 'self'; base-uri 'self';"
+    />
+
+    <!-- SEO -->
+    <meta name="description" content="KHATRI SARVANIYAT — A platform for community family census, family trees, directories and connections." />
+    <meta name="theme-color" content="#4338ca" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="KHATRI SARVANIYAT" />
+    <meta property="og:description" content="KHATRI SARVANIYAT — Connect with your community. Preserve your family heritage." />
+
+    <!-- Preconnect to Supabase (configured at runtime) -->
+
+    <title>KHATRI SARVANIYAT</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

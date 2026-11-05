@@ -1,0 +1,7 @@
+{
+  "status": "pass",
+  "version": "0.1.0",
+  "service": "community-roots",
+  "release": "production",
+  "description": "Community Roots Static Web Application"
+}
