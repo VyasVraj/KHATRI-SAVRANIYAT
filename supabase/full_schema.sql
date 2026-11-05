@@ -16850,7 +16850,7 @@ AS $$
     SELECT 1
     FROM public.profiles
     WHERE id = auth.uid()
-      AND role IN ('ADMIN', 'SUPER_ADMIN')
+      AND role::text IN ('ADMIN', 'SUPER_ADMIN')
       AND is_active = TRUE
   );
 $$;
@@ -16866,7 +16866,7 @@ AS $$
     SELECT 1
     FROM public.profiles
     WHERE id = auth.uid()
-      AND role IN ('ADMIN', 'SUPER_ADMIN', 'COMMUNITY_MODERATOR', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI')
+      AND role::text IN ('ADMIN', 'SUPER_ADMIN', 'COMMUNITY_MODERATOR', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI')
       AND is_active = TRUE
   );
 $$;
