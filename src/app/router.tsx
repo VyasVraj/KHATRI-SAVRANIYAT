@@ -161,6 +161,20 @@ const router = createBrowserRouter([
                 Component: m.FamilyTreePage,
               })),
           },
+          {
+            path: '/families/:familyId/tree',
+            lazy: () =>
+              import('@/features/tree/pages/FamilyTreePage').then((m) => ({
+                Component: m.FamilyTreePage,
+              })),
+          },
+          {
+            path: '/tree',
+            lazy: () =>
+              import('@/features/tree/pages/FamilyTreePage').then((m) => ({
+                Component: m.FamilyTreePage,
+              })),
+          },
           // Families routes (Phase 3)
           {
             path: ROUTES.FAMILIES,

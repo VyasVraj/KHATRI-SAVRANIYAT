@@ -332,14 +332,15 @@ describe('CLIENT-PRIVACY-1: PersonDetail Protected Data Rendering Security', () 
     )
   }
 
-  it('NEVER renders full DOB (exact day and month) to a normal member viewing other person', () => {
+  it('NEVER renders full DOB (exact day and month) or birth year to a normal member viewing other person', () => {
     const html = renderPersonDetail('MEMBER', 'unrelated-user-123')
     // Full date formatted as "15 June 1985" or ISO "1985-06-15" must NOT be rendered
     expect(html).not.toContain('15 June 1985')
     expect(html).not.toContain('June 15, 1985')
-    // Safe year and age must be rendered
-    expect(html).toContain('1985')
-    expect(html).toContain('Date of birth (Year)')
+    // Per updated family privacy rules: other families cannot see birthdays or dates of birth
+    expect(html).not.toContain('Date of birth')
+    // Only calculated age is rendered
+    expect(html).toContain('Calculated age')
     expect(html).toContain('41 years')
   })
 

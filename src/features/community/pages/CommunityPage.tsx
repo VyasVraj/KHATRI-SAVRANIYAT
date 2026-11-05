@@ -559,7 +559,7 @@ export function CommunityPage() {
       {/* Navigation Tabs Bar */}
       <div className="border-b border-slate-200">
         <nav
-          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-1 scrollbar-thin scroll-smooth touch-pan-x scroll-p-2"
+          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-1 no-scrollbar scroll-smooth touch-pan-x scroll-p-2"
           aria-label="Community Hub Tabs"
           role="tablist"
           onKeyDown={handleTabKeyDown}

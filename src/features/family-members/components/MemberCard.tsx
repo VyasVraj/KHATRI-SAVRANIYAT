@@ -45,6 +45,15 @@ export function MemberCard({
     : 'Unknown Person'
   const roleLabel = FAMILY_ROLE_LABELS[member.role] ?? member.role
 
+  // Only the active designated head displays 'Head of Family'.
+  // If a member is not active head, avoid showing 'Head of Family' even if DB role has legacy 'HEAD'.
+  const displayRoleLabel =
+    !isHead && member.role === 'HEAD'
+      ? 'Family Member'
+      : roleLabel
+  // Prevent duplicate 'Head of Family' badge if member already has the crown head badge
+  const showRoleBadge = !isHead || (isHead && member.role !== 'HEAD')
+
   return (
     <article
       data-testid={`member-card-${member.id}`}
@@ -72,17 +81,19 @@ export function MemberCard({
                 className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
               >
                 <Crown className="h-3 w-3" aria-hidden="true" />
-                Ghar Mukhi (Head of Family)
+                Head of Family
               </span>
             )}
 
             {/* Role Badge */}
-            <span
-              data-testid="role-badge"
-              className="inline-flex items-center rounded-full bg-navy-100 px-2.5 py-0.5 text-xs font-medium text-navy-700"
-            >
-              {roleLabel}
-            </span>
+            {showRoleBadge && (
+              <span
+                data-testid="role-badge"
+                className="inline-flex items-center rounded-full bg-navy-100 px-2.5 py-0.5 text-xs font-medium text-navy-700"
+              >
+                {displayRoleLabel}
+              </span>
+            )}
 
             {/* Former Member Badge */}
             {isFormer && (

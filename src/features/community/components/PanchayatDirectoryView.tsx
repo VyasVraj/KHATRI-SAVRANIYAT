@@ -42,18 +42,18 @@ export const PanchayatDirectoryView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="rounded-2xl border border-purple-200 dark:border-purple-900/40 bg-gradient-to-r from-purple-50/80 via-white to-blue-50/50 dark:from-purple-950/20 dark:via-slate-900 dark:to-blue-950/10 p-5 sm:p-6 shadow-xs">
+      <div className="rounded-2xl border border-purple-900/40 bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 p-5 sm:p-6 text-white shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white shadow-xs">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white shadow-xs shrink-0">
                 <Crown className="h-5 w-5" />
               </span>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 sm:text-2xl">
+              <h2 className="text-xl font-bold text-white sm:text-2xl">
                 {t('panchayat.directory_title', 'Panchayat Governance & Leadership')}
               </h2>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 max-w-2xl">
+            <p className="text-sm text-purple-100/90 max-w-2xl leading-relaxed">
               {t(
                 'panchayat.directory_subtitle',
                 'Central executive council, regional zonal Mukhis, and senior advisory Panch guiding Samaj constitutional governance.'

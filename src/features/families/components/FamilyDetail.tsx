@@ -114,17 +114,9 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
             </Button>
           )}
 
-          {currentHead ? (
+          {members.length > 0 ? (
             <Link
-              to={`/people/${currentHead.person_id}/tree`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-navy-800"
-            >
-              <GitBranch className="h-3.5 w-3.5" />
-              <span>{t('census.view_tree')}</span>
-            </Link>
-          ) : members.length > 0 ? (
-            <Link
-              to={`/people/${members[0].person_id}/tree`}
+              to={ROUTES.FAMILY_TREE(family.id)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-navy-800"
             >
               <GitBranch className="h-3.5 w-3.5" />
@@ -168,7 +160,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
               <div className="flex items-center gap-2">
                 <Link
-                  to={`/tree?familyId=${family.id}`}
+                  to={ROUTES.FAMILY_TREE(family.id)}
                   className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-50 transition-colors"
                 >
                   <GitBranch className="h-3.5 w-3.5" />
@@ -186,7 +178,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-navy-200 bg-white p-5 text-center">
-            <p className="text-sm font-semibold text-navy-800">No Ghar Mukhi Designated</p>
+            <p className="text-sm font-semibold text-navy-800">No Head of Family Designated</p>
             <p className="text-xs text-navy-500 mt-0.5">
               Assign a head from the membership roster below to complete the census representation.
             </p>
@@ -207,7 +199,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
         <div className="rounded-xl border border-navy-100 bg-white p-3.5 shadow-2xs">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
-            Ghar Mukhi
+            Head of Family
           </span>
           <p className="text-sm font-bold text-navy-900 mt-1">
             {currentHead ? (

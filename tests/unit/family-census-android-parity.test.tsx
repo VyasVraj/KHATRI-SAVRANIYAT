@@ -253,7 +253,7 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
   })
 
   describe('FamilyDetail (Screen 14 & 15 Parity)', () => {
-    it('renders Ghar Mukhi (Head of Family) Highlight Card when head is designated', () => {
+    it('renders Head of Family Highlight Card when head is designated', () => {
       const html = renderWithProviders(
         React.createElement(FamilyDetail, {
           family: MOCK_FAMILY,
@@ -261,14 +261,14 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
         })
       )
 
-      expect(html).toContain('Ghar Mukhi (Head of Family)')
+      expect(html).toContain('Head of Family')
       expect(html).toContain('Chandru Vaswani')
       expect(html).toContain('Primary representative for this family census registry')
       expect(html).toContain('View Profile')
       expect(html).toContain('href="/people/person-1"')
     })
 
-    it('renders alert when no Ghar Mukhi is designated', () => {
+    it('renders alert when no Head of Family is designated', () => {
       vi.spyOn(useFamilyMembersHook, 'useFamilyMembers').mockReturnValue({
         data: [MOCK_SPOUSE_MEMBER], // No member with is_head = true
         isLoading: false,
@@ -282,7 +282,7 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
         })
       )
 
-      expect(html).toContain('No Ghar Mukhi Designated')
+      expect(html).toContain('No Head of Family Designated')
       expect(html).toContain('Assign a head from the membership roster below')
     })
 
@@ -296,12 +296,12 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
 
       expect(html).toContain('Roster Members')
       expect(html).toContain('2 People')
-      expect(html).toContain('Ghar Mukhi')
+      expect(html).toContain('Head of Family')
       expect(html).toContain('Designated')
       expect(html).toContain('Lineage Records')
       expect(html).toContain('Complete (2/2)')
       expect(html).toContain('View Family Tree')
-      expect(html).toContain('href="/tree?familyId=fam-101"')
+      expect(html).toContain('href="/families/fam-101/tree"')
     })
 
     it('strictly hides privacy settings section from regular MEMBER role (ANDROID-2 lock)', () => {
@@ -358,7 +358,7 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
   })
 
   describe('MemberCard Component (Screen 15 Parity)', () => {
-    it('renders Ghar Mukhi badge and relationship link for family head', () => {
+    it('renders Head of Family badge and relationship link for family head', () => {
       const html = renderToStaticMarkup(
         React.createElement(MemberCard, {
           member: MOCK_HEAD_MEMBER,
@@ -367,7 +367,7 @@ describe('ANDROID-5: Family Census Android Flows & Parity', () => {
       )
 
       expect(html).toContain('data-testid="head-badge"')
-      expect(html).toContain('Ghar Mukhi (Head of Family)')
+      expect(html).toContain('Head of Family')
       expect(html).toContain('Chandru Vaswani')
       expect(html).toContain('href="/people/person-1#relationships"')
       expect(html).toContain('Relationships →')

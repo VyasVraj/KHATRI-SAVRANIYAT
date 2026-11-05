@@ -487,7 +487,7 @@ export async function transferFamilyHead(
   if (existingHead) {
     const { error: demoteError } = await supabase
       .from('family_members')
-      .update({ is_head: false })
+      .update({ is_head: false, role: 'EXTENDED' })
       .eq('id', existingHead.id)
 
     if (demoteError) {
@@ -516,7 +516,7 @@ export async function transferFamilyHead(
     if (existingHead) {
       await supabase
         .from('family_members')
-        .update({ is_head: true })
+        .update({ is_head: true, role: 'HEAD' })
         .eq('id', existingHead.id)
     }
 

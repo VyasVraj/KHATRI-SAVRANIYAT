@@ -71,16 +71,21 @@ describe('Schema Integration: Enum value coverage', () => {
   })
 
   describe('user_role enum', () => {
-    it('contains all 7 deployed values', () => {
+    it('contains all deployed values', () => {
       const values = Constants.public.Enums.user_role
       expect(values).toContain('SUPER_ADMIN')
       expect(values).toContain('ADMIN')
       expect(values).toContain('COMMUNITY_MODERATOR')
+      expect(values).toContain('COMMUNITY_MUKHI')
+      expect(values).toContain('ASSISTANT_MUKHI')
       expect(values).toContain('COMMITTEE_MEMBER')
       expect(values).toContain('FAMILY_HEAD')
+      expect(values).toContain('FAMILY_MANAGER')
+      expect(values).toContain('FAMILY_MEMBER')
+      expect(values).toContain('COMMUNITY_MEMBER')
       expect(values).toContain('MEMBER')
       expect(values).toContain('GUEST')
-      expect(values).toHaveLength(7)
+      expect(values).toHaveLength(12)
     })
 
     it('type Enums<"user_role"> is compatible with UserRole manual alias', () => {

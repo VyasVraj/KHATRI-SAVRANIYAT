@@ -43,6 +43,8 @@ export const ROUTES = {
   FAMILY_CREATE: '/families/new',
   FAMILY_DETAIL: (id: string) => `/families/${id}`,
   FAMILY_EDIT: (id: string) => `/families/${id}/edit`,
+  FAMILY_TREE: (id: string) => `/families/${id}/tree`,
+  TREE: '/tree',
   // Admin & Moderation (Phase 8 Subtask 3, Phase 9 Subtask 3, Phase 13 Subtasks 2-4)
   ADMIN: '/admin',
   ADMIN_USERS: '/admin/users',
@@ -113,8 +115,6 @@ export const PRIVACY_MANAGEMENT_ROLES: ReadonlyArray<import('@/types').UserRole>
   'SUPER_ADMIN',
   'ADMIN',
   'COMMUNITY_MODERATOR',
-  'COMMUNITY_MUKHI',
-  'ASSISTANT_MUKHI',
 ]
 
 /**
