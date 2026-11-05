@@ -18017,7 +18017,7 @@ CREATE OR REPLACE FUNCTION public.create_family_with_head(
   p_new_person_middle_name TEXT DEFAULT NULL,
   p_new_person_last_name TEXT DEFAULT NULL,
   p_new_person_maiden_name TEXT DEFAULT NULL,
-  p_new_person_gender public.gender_type DEFAULT 'MALE',
+  p_new_person_gender public.gender DEFAULT 'MALE',
   p_new_person_dob DATE DEFAULT NULL,
   p_new_person_birth_place TEXT DEFAULT NULL
 )
@@ -18423,6 +18423,6 @@ $$;
 -- -----------------------------------------------------------------------------
 GRANT EXECUTE ON FUNCTION public.is_same_family_member(UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_person_protected_details(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_family_with_head(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, public.privacy_level, public.privacy_level, UUID, TEXT, TEXT, TEXT, TEXT, public.gender_type, DATE, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_family_with_head(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, public.privacy_level, public.privacy_level, UUID, TEXT, TEXT, TEXT, TEXT, public.gender, DATE, TEXT) TO authenticated;
 
 COMMIT;
