@@ -32,17 +32,16 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Resolve family head person ID
-  SELECT head_person_id, created_by INTO v_head_person_id, v_creator_id
+  -- Resolve family creator
+  SELECT created_by INTO v_creator_id
   FROM public.families
   WHERE id = NEW.family_id;
 
-  IF v_head_person_id IS NULL THEN
-    SELECT person_id INTO v_head_person_id
-    FROM public.family_members
-    WHERE family_id = NEW.family_id AND is_head = TRUE AND left_at IS NULL
-    LIMIT 1;
-  END IF;
+  -- Resolve family head person ID from active head member in family_members
+  SELECT person_id INTO v_head_person_id
+  FROM public.family_members
+  WHERE family_id = NEW.family_id AND is_head = TRUE AND left_at IS NULL
+  LIMIT 1;
 
   -- If head is unknown or this member IS the head, no relative edge to head needed
   IF v_head_person_id IS NULL OR v_head_person_id = NEW.person_id THEN
@@ -120,12 +119,20 @@ DECLARE
   v_p_b UUID;
 BEGIN
   FOR rec IN
-    SELECT fm.family_id, fm.person_id, fm.role, f.head_person_id, f.created_by
+    SELECT
+      fm.family_id,
+      fm.person_id,
+      fm.role,
+      head_fm.person_id AS head_person_id,
+      f.created_by
     FROM public.family_members fm
     JOIN public.families f ON f.id = fm.family_id
+    JOIN public.family_members head_fm ON head_fm.family_id = fm.family_id
+      AND head_fm.is_head = TRUE
+      AND head_fm.left_at IS NULL
     WHERE fm.left_at IS NULL
       AND fm.is_head = FALSE
-      AND (f.head_person_id IS NOT NULL AND f.head_person_id <> fm.person_id)
+      AND head_fm.person_id <> fm.person_id
   LOOP
     v_head_id := rec.head_person_id;
     v_creator := rec.created_by;
