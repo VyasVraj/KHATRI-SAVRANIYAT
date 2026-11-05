@@ -36,12 +36,11 @@ export function FamilyDetailPage() {
 
   const { data: members = [] } = useFamilyMembers(familyId, { includeFormer: false })
 
-  // Management capabilities based on designated Manager, Creator (when manager unset), Head, or Admin roles
+  // Management capabilities based on designated Manager, Creator, Head, or Admin roles
   const isManager = Boolean(
     user &&
     family &&
-    (family.manager_user_id === user.id ||
-      (!family.manager_user_id && family.created_by === user.id))
+    (family.manager_user_id === user.id || family.created_by === user.id)
   )
   const isHead = Boolean(
     user && members.some((m) => m.is_head && m.person?.user_id === user.id)

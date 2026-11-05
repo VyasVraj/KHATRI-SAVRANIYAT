@@ -60,10 +60,14 @@ export function FamilyListPage() {
     }
   }, [location.state])
 
-  // Split into "My Families" (created by current user) vs all
+  // Split into "My Families" (created by or managed by current user) vs all
   const myFamilies = useMemo(() => {
     if (!user?.id) return []
-    return families.filter((f) => f.created_by === user.id)
+    return families.filter((f) => {
+      const isCreator = f.created_by === user.id
+      const isManager = f.manager_user_id === user.id
+      return isCreator || isManager
+    })
   }, [families, user?.id])
 
   // Select base list according to active tab

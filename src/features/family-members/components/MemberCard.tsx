@@ -74,6 +74,15 @@ export function MemberCard({
               {personName}
             </Link>
 
+            {member.person?.age != null && (
+              <span
+                data-testid="member-age"
+                className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-200"
+              >
+                {member.person.age} yrs
+              </span>
+            )}
+
             {/* Head of Family Badge */}
             {isHead && (
               <span

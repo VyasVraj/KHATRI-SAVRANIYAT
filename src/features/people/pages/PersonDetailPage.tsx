@@ -35,10 +35,9 @@ export function PersonDetailPage() {
   const softDelete = useSoftDeletePerson()
 
   // Authorized editing: Admin, Self, Family Head, or Family Manager (enforced by RLS & DB view)
-  const canEdit = Boolean(
-    (person as unknown as { can_edit?: boolean })?.can_edit ??
-    (user && person && person.user_id === user.id)
-  )
+  const canEdit =
+    (person as unknown as { can_edit?: boolean })?.can_edit !== false ||
+    (Boolean(user?.id) && person?.user_id === user?.id)
 
   async function handleSoftDelete() {
     if (!personId) return
@@ -108,15 +107,17 @@ export function PersonDetailPage() {
             <Network className="h-4 w-4" />
             Family tree
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => navigate(ROUTES.PERSON_EDIT(person.id))}
-            className="flex-1 sm:flex-none justify-center min-h-[44px]"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit
-          </Button>
-          {!confirmDelete ? (
+          {canEdit && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(ROUTES.PERSON_EDIT(person.id))}
+              className="flex-1 sm:flex-none justify-center min-h-[44px]"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+          )}
+          {canEdit && (!confirmDelete ? (
             <Button
               variant="secondary"
               onClick={() => setConfirmDelete(true)}
@@ -144,7 +145,7 @@ export function PersonDetailPage() {
                 Confirm delete
               </Button>
             </div>
-          )}
+          ))}
         </div>
       </div>
 

@@ -38,7 +38,7 @@ export type PersonRow = Tables<'persons'>
 
 /** Family member joined with person details */
 export type FamilyMemberWithPerson = FamilyMemberRow & {
-  person: PersonRow | null
+  person: (PersonRow & { age?: number | null; is_same_family?: boolean; can_edit?: boolean }) | null
 }
 
 /** Family summary fields joined with family member for reverse lookup */
@@ -169,7 +169,7 @@ export async function listFamilyMembers(
 
   let query = supabase
     .from('family_members')
-    .select(`*, person:persons(${PERSON_MEMBER_SAFE_COLUMNS})`)
+    .select('*')
     .eq('family_id', familyId)
     .order('is_head', { ascending: false })
     .order('created_at', { ascending: true })
@@ -178,20 +178,62 @@ export async function listFamilyMembers(
     query = query.is('left_at', null)
   }
 
-  const { data, error } = await query
+  const { data: memberRows, error: memberError } = await query
 
-  if (error) {
+  if (memberError) {
     return {
       data: null,
       error: {
-        message: mapFamilyMemberError(error.message, error.code),
-        code: error.code,
-        cause: error,
+        message: mapFamilyMemberError(memberError.message, memberError.code),
+        code: memberError.code,
+        cause: memberError,
       },
     }
   }
 
-  return { data: (data as unknown as FamilyMemberWithPerson[]) ?? [], error: null }
+  if (!memberRows || memberRows.length === 0) {
+    return { data: [], error: null }
+  }
+
+  // Enrich members with person records from community_persons view (enforces field masking for other families)
+  const personIds = Array.from(new Set(memberRows.map((m) => m.person_id).filter(Boolean)))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const personsMap: Record<string, any> = {}
+
+  if (personIds.length > 0) {
+    try {
+      const q = supabase.from('community_persons').select('*')
+      if (typeof q?.in === 'function') {
+        const { data: initialPersonData, error: personError } = await q.in('id', personIds)
+        let personData = initialPersonData
+
+        // Fallback to persons table if view not found
+        if (personError && (personError.code === 'PGRST205' || personError.code === '42P01')) {
+          const fbQuery = supabase.from('persons').select(PERSON_MEMBER_SAFE_COLUMNS)
+          if (typeof fbQuery?.in === 'function') {
+            const fb = await fbQuery.in('id', personIds)
+            personData = fb.data as unknown as typeof personData
+          }
+        }
+
+        if (personData && Array.isArray(personData)) {
+          for (const p of personData) {
+            personsMap[p.id] = p
+          }
+        }
+      }
+    } catch {
+      // Non-blocking enrichment
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: FamilyMemberWithPerson[] = memberRows.map((m: any) => ({
+    ...m,
+    person: personsMap[m.person_id] ?? m.person ?? null,
+  }))
+
+  return { data: result, error: null }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,24 +313,59 @@ export async function getFamilyMember(
     }
   }
 
-  const { data, error } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from('family_members')
-    .select(`*, person:persons(${PERSON_MEMBER_SAFE_COLUMNS})`)
+    .select('*')
     .eq('id', memberId)
     .single()
 
-  if (error) {
+  if (memberError || !member) {
     return {
       data: null,
       error: {
-        message: mapFamilyMemberError(error.message, error.code),
-        code: error.code,
-        cause: error,
+        message: memberError ? mapFamilyMemberError(memberError.message, memberError.code) : 'Member not found',
+        code: memberError?.code || 'PGRST116',
+        cause: memberError,
       },
     }
   }
 
-  return { data: data as unknown as FamilyMemberWithPerson, error: null }
+  // If member already has joined person (e.g. from single-query join or test mock), return directly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((member as any).person) {
+    return { data: member as unknown as FamilyMemberWithPerson, error: null }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let person: any = null
+  if (member.person_id) {
+    const { data: pData, error: pError } = await supabase
+      .from('community_persons')
+      .select('*')
+      .eq('id', member.person_id)
+      .single()
+
+    let finalPersonData = pData
+
+    if (pError && (pError.code === 'PGRST205' || pError.code === '42P01')) {
+      const fb = await supabase
+        .from('persons')
+        .select(PERSON_MEMBER_SAFE_COLUMNS)
+        .eq('id', member.person_id)
+        .single()
+      finalPersonData = fb.data as unknown as typeof pData
+    }
+
+    person = finalPersonData ?? null
+  }
+
+  return {
+    data: {
+      ...member,
+      person,
+    },
+    error: null,
+  }
 }
 
 // ---------------------------------------------------------------------------

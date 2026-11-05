@@ -164,23 +164,27 @@ export function PersonDetail({ person, canEdit = false, onAvatarUpdated }: Perso
               )}
             </>
           )}
-          <DetailRow label="Date of death" value={formatDate(person.date_of_death)} />
+          {canViewProtected && person.date_of_death && (
+            <DetailRow label="Date of death" value={formatDate(person.date_of_death)} />
+          )}
         </dl>
       </section>
 
       {/* Community identity */}
-      <section aria-labelledby="community-heading">
-        <h3
-          id="community-heading"
-          className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400"
-        >
-          Community identity
-        </h3>
-        <dl>
-          <DetailRow label="Gotra" value={person.gotra} />
-          <DetailRow label="Nukh" value={person.nukh} />
-        </dl>
-      </section>
+      {canViewProtected && (person.gotra || person.nukh) && (
+        <section aria-labelledby="community-heading">
+          <h3
+            id="community-heading"
+            className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400"
+          >
+            Community identity
+          </h3>
+          <dl>
+            <DetailRow label="Gotra" value={person.gotra} />
+            <DetailRow label="Nukh" value={person.nukh} />
+          </dl>
+        </section>
+      )}
 
       {/* Contact */}
       <section aria-labelledby="contact-heading">
