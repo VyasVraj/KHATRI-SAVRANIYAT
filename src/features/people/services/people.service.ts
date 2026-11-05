@@ -483,6 +483,9 @@ function mapPersonError(message: string, code?: string): string {
   if (code === '42501') {
     return 'You do not have permission to perform this action.'
   }
+  if (code === '42P17') {
+    return 'Database policy error (RLS recursion). Please execute the latest migration fix in Supabase SQL editor.'
+  }
   if (code === 'PGRST116') {
     return 'Person not found.'
   }
@@ -495,6 +498,9 @@ function mapPersonError(message: string, code?: string): string {
   const lower = message.toLowerCase()
   if (lower.includes('network') || lower.includes('fetch')) {
     return 'Network error. Please check your connection and try again.'
+  }
+  if (message && message !== 'Failed to create person.') {
+    return message
   }
   return 'Something went wrong. Please try again.'
 }

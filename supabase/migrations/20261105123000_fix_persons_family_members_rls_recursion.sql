@@ -1,23 +1,17 @@
 -- =============================================================================
 -- Migration: 20261105123000_fix_persons_family_members_rls_recursion.sql
--- Purpose:   Break mutual RLS recursion between public.persons and public.family_members
---
--- CAUSE OF RECURSION:
--- 1. persons_select_creator evaluated: EXISTS (SELECT 1 FROM family_members ...)
--- 2. family_members_select_own evaluated: EXISTS (SELECT 1 FROM persons ...)
--- 3. In PostgreSQL, this mutual cross-table subquery inside RLS policies triggers:
---    ERROR: 42P17: infinite recursion detected in policy for relation "persons"
---
--- SOLUTION:
--- Wrap the subqueries in SECURITY DEFINER helper functions (is_own_person and
--- is_person_in_my_created_family). As SECURITY DEFINER functions with SET search_path = public,
--- their internal table reads bypass row security on the target relation, eliminating
--- the cyclical RLS policy cascade while preserving exact authorization logic.
+-- Purpose:
+--   1. Fix mutual RLS recursion between public.persons and public.family_members
+--   2. Reset and seed master public.gotras and public.nukhs to exactly match the
+--      authoritative 29 Brahm Kshatriya Gotras and 147 Nukhs from the PDF.
 -- =============================================================================
 
 BEGIN;
 
--- 1. Helper function: check if a person record belongs to auth.uid()
+-- -----------------------------------------------------------------------------
+-- 1. SECURITY DEFINER Authorization Helpers to Break RLS Mutual Recursion
+-- -----------------------------------------------------------------------------
+
 CREATE OR REPLACE FUNCTION public.is_own_person(p_person_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -35,7 +29,6 @@ $$;
 COMMENT ON FUNCTION public.is_own_person(UUID) IS
   'SECURITY DEFINER helper: checks if person record belongs to auth.uid() without triggering RLS recursion.';
 
--- 2. Helper function: check if person is in a family created by auth.uid()
 CREATE OR REPLACE FUNCTION public.is_person_in_my_created_family(p_person_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -54,7 +47,10 @@ $$;
 COMMENT ON FUNCTION public.is_person_in_my_created_family(UUID) IS
   'SECURITY DEFINER helper: checks if person is in a family created by auth.uid() without triggering RLS recursion.';
 
--- 3. Replace family_members_select_own policy using the SECURITY DEFINER helper
+-- -----------------------------------------------------------------------------
+-- 2. Update Policies on family_members & persons
+-- -----------------------------------------------------------------------------
+
 DROP POLICY IF EXISTS "family_members_select_own" ON public.family_members;
 CREATE POLICY "family_members_select_own"
   ON public.family_members
@@ -63,7 +59,6 @@ CREATE POLICY "family_members_select_own"
     auth.uid() IS NOT NULL AND public.is_own_person(family_members.person_id)
   );
 
--- 4. Replace persons_select_creator policy using the SECURITY DEFINER helper
 DROP POLICY IF EXISTS "persons_select_creator" ON public.persons;
 CREATE POLICY "persons_select_creator"
   ON public.persons
@@ -76,7 +71,69 @@ CREATE POLICY "persons_select_creator"
     )
   );
 
--- 5. Explicitly grant SELECT to authenticated and anon roles for core census tables
+-- -----------------------------------------------------------------------------
+-- 3. Reset and Populate Authoritative 29 Brahm Kshatriya Gotras & 147 Nukhs
+-- -----------------------------------------------------------------------------
+
+-- Temporarily drop or update foreign keys if needed
+DELETE FROM public.nukhs;
+DELETE FROM public.gotras;
+
+DO $$
+DECLARE
+  r RECORD;
+  v_gid UUID;
+  v_nukh TEXT;
+BEGIN
+  FOR r IN
+    SELECT g.name AS g_name, g.disp_order, g.nukhs
+    FROM (VALUES
+      ('Agastya', 1, ARRAY['Arora (Arora)', 'Asalavanta (Asalavanta)', 'Gajubha', 'Tatiya']),
+      ('Utri', 2, ARRAY['Asara (Asara)', 'Mamalutara', 'Dingama', 'Baval', 'Dungana']),
+      ('Badarayana', 3, ARRAY['Bariya (Bungadiya)', 'Boradiya', 'Rakhuna', 'Rakhana']),
+      ('Bhamaraya', 4, ARRAY['Vesamiya (Vesamiya, Bosamiya)', 'Barva', 'Papor iya', 'Parya (Padiya)']),
+      ('Bharadwaj', 5, ARRAY['Bhut (Nirmal)', 'Bheva', 'Bhudda', 'Kakar (Kokil)', 'Bhedan (Bheda)', 'Bhul', 'Bhadar (Bhadar)']),
+      ('Tandira', 6, ARRAY['Tadad Otha', 'Dhora', 'Ida', 'Dadiya', 'Dangana']),
+      ('Parashar', 7, ARRAY['Panjabhut', 'Padhar', 'Mamata (Mamatara)', 'Bhitar Mehera']),
+      ('Jamadagni', 8, ARRAY['Godhiya (Godiya)', 'Joshihaar (Joshihaar)', 'Joshihar', 'Jajal', 'Jogi', 'Jariya', 'Jagar', 'Lulla']),
+      ('Dhananjaya', 9, ARRAY['Dhanga', 'Dhare', 'Dhanadiya (Dhanadiya)', 'Bara (Bada)', 'Hans Jamat (Hans Jamat)']),
+      ('Darvashayana (Dayavahana)', 10, ARRAY['Dubal (Dubdan)', 'Kosara', 'Dadhara (Dadariya)', 'Dulera', 'Damariya (Damariya)', 'Dhariya', 'Gadya']),
+      ('Raghuna', 11, ARRAY['Rasputara', 'Raspoda', 'Raja', 'Khara (Kharara)', 'Sasiya']),
+      ('Sudarshan', 12, ARRAY['Sonisher (Soniser Soniser)', 'Sita (Sota)', 'Sodiya (Sodiya)', 'Damara (Damara)', 'Chava Jamavara']),
+      ('Shandilya', 13, ARRAY['Sanicharya (Sanicharya)', 'Sonapar (Sonapar)', 'Sidhava', 'Sodhi (Sodha)']),
+      ('Shankhpal', 14, ARRAY['Sorathiya', 'Soneji (Soneja)', 'Dangara (Dangara)', 'Desar', 'Gadiya']),
+      ('Kashyap (Kashyapa)', 15, ARRAY['Kathambhan (Kath Vada, Kathiya)', 'Kandhara', 'Harun (Majhadiya)', 'Hanja (Hanjadiya)']),
+      ('Kamuk', 16, ARRAY['Keshari', 'Kariya (Kidiya)', 'Tokala (Tikli)', 'Tangara', 'Daka']),
+      ('Krishna (Shishan)', 17, ARRAY['Karotala', 'Karbaliya', 'Khubhar (Khubadiya)', 'Khuba (Khuda)', 'Khubhariya']),
+      ('Karna', 18, ARRAY['Kidi (Kiri)', 'Vaniya (Vagiya)', 'Davani', 'Dand (Dandana)']),
+      ('Kaushik', 19, ARRAY['Kakadya', 'Kaku (Kakava, Kakupota)', 'Kakara', 'Lakhanhar', 'Katakiya']),
+      ('Gargya', 20, ARRAY['Gajkaran (Gaj Karan)', 'Gumara', 'Vankala', 'Chhuchha (Chhuchha)']),
+      ('Gautam', 21, ARRAY['Shirach', 'Goratola', 'Gila', 'Madhur', 'Madhu']),
+      ('Mandhata', 22, ARRAY['Mamudar', 'Mavariya (Mavarda)', 'Mavadiya (Mavadasya)', 'Mayadhak', 'Mayadhara', 'Mohanvacha']),
+      ('Mudgal', 23, ARRAY['Makariya (Makadiya, Manak)', 'Makori', 'Medhiya (Medhya)', 'Mahhar', 'Ranara', 'Meher (Mera)']),
+      ('Naradijana', 24, ARRAY['Nansi', 'Nemana', 'Naisar', 'Neno', 'Nan (Nayan)']),
+      ('Vaman', 25, ARRAY['Vadhala', 'Davadiya', 'Dod (Doshara)', 'Dadiya']),
+      ('Vamdev', 26, ARRAY['Khede (Vare)', 'Lamariya', 'Leya', 'Luladiya']),
+      ('Vatsa', 27, ARRAY['Vama', 'Vajari', 'Kidi', 'Vali (Veli)', 'Chamariya']),
+      ('Vashishtha', 28, ARRAY['Valin (Valara)', 'Chhapara', 'Dangana', 'Mel (Meri)', 'Jil Jhina']),
+      ('Gotra not known', 29, ARRAY['Acharya', 'Pipaliya', 'Gana', 'Gondi Odha', 'Saraya', 'Harasaya', 'Chhatakpur', 'Gungava'])
+    ) AS g(name, disp_order, nukhs)
+  LOOP
+    INSERT INTO public.gotras (name, display_order)
+    VALUES (r.g_name, r.disp_order)
+    RETURNING id INTO v_gid;
+
+    FOREACH v_nukh IN ARRAY r.nukhs
+    LOOP
+      INSERT INTO public.nukhs (gotra_id, name)
+      VALUES (v_gid, v_nukh);
+    END LOOP;
+  END LOOP;
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- 4. Grants on Core Tables
+-- -----------------------------------------------------------------------------
 GRANT SELECT ON TABLE public.persons TO anon, authenticated;
 GRANT SELECT ON TABLE public.families TO anon, authenticated;
 GRANT SELECT ON TABLE public.family_members TO anon, authenticated;

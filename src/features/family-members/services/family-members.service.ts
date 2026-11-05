@@ -545,6 +545,9 @@ function mapFamilyMemberError(message: string, code?: string): string {
   if (code === '42501') {
     return 'You do not have permission to manage members of this family.'
   }
+  if (code === '42P17') {
+    return 'Database policy error (RLS recursion): please apply the latest RLS migration fix.'
+  }
   if (code === '23505') {
     const lower = message.toLowerCase()
     if (lower.includes('idx_family_members_one_head') || lower.includes('one_head')) {
@@ -561,6 +564,9 @@ function mapFamilyMemberError(message: string, code?: string): string {
   const lower = message.toLowerCase()
   if (lower.includes('network') || lower.includes('fetch')) {
     return 'Network error. Please check your connection and try again.'
+  }
+  if (message && message !== 'Failed to add member to family.') {
+    return message
   }
   return 'Something went wrong. Please try again.'
 }

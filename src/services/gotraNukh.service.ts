@@ -125,31 +125,27 @@ export function useGotraNukhRegistry() {
     queryClient
   )
 
-  // Verify that the query returned authoritative Brahm Kshatriya data from the PDF (e.g. contains Utri, Badarayana, or Tandira).
-  // If database contains legacy generic seed data (e.g. Alambayan, Angiras, Bhrigu), enforce the authentic Brahm Kshatriya PDF dataset.
-  const isAuthoritativePdfData = Boolean(
-    query.data?.gotras?.some(
-      (g) => g === 'Utri' || g === 'Badarayana' || g === 'Bhamaraya' || g === 'Tandira'
-    )
-  )
+  // Enforce the authentic 29 Brahm Kshatriya PDF dataset strictly
+  const validGotras = query.data?.gotras?.filter((g) =>
+    (GOTRAS as readonly string[]).includes(g)
+  ) ?? []
 
-  const gotras =
-    isAuthoritativePdfData && query.data?.gotras && query.data.gotras.length > 0
-      ? query.data.gotras
-      : [...GOTRAS]
+  const gotras = validGotras.length === 29 ? validGotras : [...GOTRAS]
 
   const gotraNukhMap =
-    isAuthoritativePdfData && query.data?.gotraNukhMap && Object.keys(query.data.gotraNukhMap).length > 0
+    query.data?.gotraNukhMap && Object.keys(query.data.gotraNukhMap).length >= 29
       ? query.data.gotraNukhMap
       : { ...GOTRA_NUKH_MAP }
 
   const getNukhsForGotra = (gotra?: string | null): string[] => {
     if (!gotra) return []
-    // Direct match from map
-    if (gotraNukhMap[gotra]?.length) return gotraNukhMap[gotra]
-    // Canonical resolver match
     const canonical = resolveCanonicalGotra(gotra)
-    if (canonical && gotraNukhMap[canonical]?.length) {
+    if (!canonical) return []
+    // Authoritative PDF dataset from gotraNukh.ts is the primary source of truth
+    if (GOTRA_NUKH_MAP[canonical]?.length) {
+      return GOTRA_NUKH_MAP[canonical]
+    }
+    if (gotraNukhMap[canonical]?.length) {
       return gotraNukhMap[canonical]
     }
     return resolveNukhsForGotra(gotra)
