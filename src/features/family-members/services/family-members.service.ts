@@ -347,6 +347,75 @@ export async function updateFamilyMember(
     }
   }
 
+  // Synchronize canonical interpersonal relationships with Family Head
+  if (data && parseResult.data.role && data.person_id) {
+    try {
+      const { data: familyHead } = await supabase
+        .from('family_members')
+        .select('person_id')
+        .eq('family_id', data.family_id)
+        .eq('is_head', true)
+        .is('left_at', null)
+        .maybeSingle()
+
+      const headPersonId = familyHead?.person_id
+      const memberPersonId = data.person_id
+
+      if (headPersonId && headPersonId !== memberPersonId) {
+        // Soft-delete previous active relationship between head and member
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const relsTable = () => (supabase.from as any)('relationships')
+        await relsTable()
+          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .is('deleted_at', null)
+          .or(
+            `and(person_a_id.eq.${headPersonId},person_b_id.eq.${memberPersonId}),and(person_a_id.eq.${memberPersonId},person_b_id.eq.${headPersonId})`
+          )
+
+        if (!data.left_at) {
+          const authUser = (await supabase.auth.getUser()).data.user
+          const newRole = parseResult.data.role
+
+          if (newRole === 'SPOUSE') {
+            const pA = headPersonId < memberPersonId ? headPersonId : memberPersonId
+            const pB = headPersonId < memberPersonId ? memberPersonId : headPersonId
+            await relsTable().insert({
+              person_a_id: pA,
+              person_b_id: pB,
+              relationship_type: 'SPOUSE',
+              created_by: authUser?.id ?? null,
+            })
+          } else if (newRole === 'CHILD') {
+            await relsTable().insert({
+              person_a_id: headPersonId,
+              person_b_id: memberPersonId,
+              relationship_type: 'PARENT',
+              created_by: authUser?.id ?? null,
+            })
+          } else if (newRole === 'PARENT') {
+            await relsTable().insert({
+              person_a_id: memberPersonId,
+              person_b_id: headPersonId,
+              relationship_type: 'PARENT',
+              created_by: authUser?.id ?? null,
+            })
+          } else if (newRole === 'SIBLING') {
+            const pA = headPersonId < memberPersonId ? headPersonId : memberPersonId
+            const pB = headPersonId < memberPersonId ? memberPersonId : headPersonId
+            await relsTable().insert({
+              person_a_id: pA,
+              person_b_id: pB,
+              relationship_type: 'SIBLING',
+              created_by: authUser?.id ?? null,
+            })
+          }
+        }
+      }
+    } catch {
+      // Non-blocking: database trigger trg_sync_family_member_relationship also ensures consistency
+    }
+  }
+
   return { data, error: null }
 }
 

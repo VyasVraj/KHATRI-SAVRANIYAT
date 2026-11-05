@@ -50,6 +50,18 @@ export function useAddFamilyMember() {
       void queryClient.invalidateQueries({
         queryKey: ['family-members', 'list', input.family_id],
       })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-members'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-tree'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['relationships'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families', input.family_id],
+      })
     },
   })
 }
@@ -85,6 +97,21 @@ export function useUpdateFamilyMember(familyId: string) {
       void queryClient.invalidateQueries({
         queryKey: ['family-members', 'detail', memberId],
       })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-members'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-tree'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['relationships'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families', familyId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families'],
+      })
     },
   })
 }
@@ -111,6 +138,18 @@ export function useRemoveFamilyMember(familyId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ['family-members', 'list', familyId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-members'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-tree'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['relationships'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families', familyId],
       })
     },
   })
@@ -141,7 +180,19 @@ export function useTransferFamilyHead(familyId: string) {
         queryKey: ['family-members', 'list', familyId],
       })
       void queryClient.invalidateQueries({
+        queryKey: ['family-members'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['family-tree'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['relationships'],
+      })
+      void queryClient.invalidateQueries({
         queryKey: ['families', familyId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families'],
       })
     },
   })

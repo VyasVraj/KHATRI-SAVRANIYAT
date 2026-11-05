@@ -10,7 +10,6 @@ import { useState, useEffect } from 'react'
 import { X, AlertCircle } from 'lucide-react'
 import type { FamilyMemberWithPerson } from '../services/family-members.service'
 import { useUpdateFamilyMember } from '../hooks/useFamilyMemberMutations'
-import { FAMILY_ROLE_LABELS } from '@/constants/app'
 import type { FamilyRole } from '@/types'
 import { Button } from '@/components/forms/Button'
 
@@ -132,11 +131,43 @@ export function EditMemberModal({
               disabled={updateMutation.isPending}
               className="w-full rounded border border-navy-300 bg-white px-3 py-2 text-sm text-navy-900 transition-colors focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-400"
             >
-              {Object.entries(FAMILY_ROLE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+              <option value="SPOUSE">Spouse</option>
+              <option value="CHILD">
+                {member.person?.gender === 'MALE'
+                  ? 'Son (Child)'
+                  : member.person?.gender === 'FEMALE'
+                    ? 'Daughter (Child)'
+                    : 'Child (Son / Daughter)'}
+              </option>
+              <option value="PARENT">
+                {member.person?.gender === 'MALE'
+                  ? 'Father (Parent)'
+                  : member.person?.gender === 'FEMALE'
+                    ? 'Mother (Parent)'
+                    : 'Parent (Father / Mother)'}
+              </option>
+              <option value="SIBLING">
+                {member.person?.gender === 'MALE'
+                  ? 'Brother (Sibling)'
+                  : member.person?.gender === 'FEMALE'
+                    ? 'Sister (Sibling)'
+                    : 'Sibling (Brother / Sister)'}
+              </option>
+              <option value="GRANDPARENT">
+                {member.person?.gender === 'MALE'
+                  ? 'Grandfather (Grandparent)'
+                  : member.person?.gender === 'FEMALE'
+                    ? 'Grandmother (Grandparent)'
+                    : 'Grandparent'}
+              </option>
+              <option value="GRANDCHILD">
+                {member.person?.gender === 'MALE'
+                  ? 'Grandson (Grandchild)'
+                  : member.person?.gender === 'FEMALE'
+                    ? 'Granddaughter (Grandchild)'
+                    : 'Grandchild'}
+              </option>
+              <option value="EXTENDED">Extended Family</option>
             </select>
           </div>
 

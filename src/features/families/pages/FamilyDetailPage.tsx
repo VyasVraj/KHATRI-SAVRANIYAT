@@ -14,6 +14,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { useFamily } from '../hooks/useFamily'
+import { useFamilyRealtime } from '../hooks/useFamilyRealtime'
 import { useSoftDeleteFamily } from '../hooks/useFamilyMutations'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { FamilyDetail } from '../components/FamilyDetail'
@@ -29,6 +30,7 @@ export function FamilyDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: family, isLoading, error } = useFamily(familyId)
+  useFamilyRealtime(familyId)
   const softDelete = useSoftDeleteFamily()
   const { user, profile } = useAuthContext()
 

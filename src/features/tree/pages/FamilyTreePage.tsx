@@ -25,6 +25,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Network, AlertCircle, Loader2, Users } from 'lucide-react'
 import { usePerson } from '@/features/people/hooks/usePerson'
 import { useFamily } from '@/features/families/hooks/useFamily'
+import { useFamilyRealtime } from '@/features/families/hooks/useFamilyRealtime'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { FamilyTreeCanvas } from '../components/FamilyTreeCanvas'
 import { Button } from '@/components/forms/Button'
@@ -69,6 +70,9 @@ export function FamilyTreePage() {
     isLoading: isFamilyLoading,
     error: familyError,
   } = useFamily(isValidFamilyId ? rawFamilyId : undefined)
+
+  // Real-time synchronization across multiple tabs and sessions
+  useFamilyRealtime(isValidFamilyId ? rawFamilyId : undefined)
 
   // 2. Fetch family members to resolve the active head or primary person
   const {

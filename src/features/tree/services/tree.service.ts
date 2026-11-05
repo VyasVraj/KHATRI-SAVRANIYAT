@@ -176,6 +176,79 @@ export async function getPersonTreeGraph(
     frontier = Array.from(nextFrontierSet)
   }
 
+  // 2b. Synchronize with active family roster to guarantee Family Tree and Roster consistency
+  try {
+    const { data: familyMemberships } = await supabase
+      .from('family_members')
+      .select('family_id, is_head, role')
+      .eq('person_id', rootPersonId)
+      .is('left_at', null)
+
+    const rootFamilyIds = (familyMemberships ?? []).map((m) => m.family_id)
+
+    if (rootFamilyIds.length > 0) {
+      const { data: familyMembersList } = await supabase
+        .from('family_members')
+        .select('id, family_id, person_id, role, is_head')
+        .in('family_id', rootFamilyIds)
+        .is('left_at', null)
+
+      const isRootHead = (familyMemberships ?? []).some((m) => m.is_head)
+
+      for (const fm of familyMembersList ?? []) {
+        if (fm.person_id === rootPersonId) continue
+
+        const hasDirectEdge = Array.from(discoveredRelationships.values()).some(
+          (r) =>
+            (r.person_a_id === rootPersonId && r.person_b_id === fm.person_id) ||
+            (r.person_a_id === fm.person_id && r.person_b_id === rootPersonId)
+        )
+
+        if (!hasDirectEdge && isRootHead && fm.role) {
+          let edgeType: RelationshipRow['relationship_type'] | null = null
+          let pA = rootPersonId
+          let pB = fm.person_id
+
+          if (fm.role === 'SPOUSE') {
+            edgeType = 'SPOUSE'
+            if (pA > pB) { pA = fm.person_id; pB = rootPersonId }
+          } else if (fm.role === 'CHILD') {
+            edgeType = 'PARENT'
+            pA = rootPersonId
+            pB = fm.person_id
+          } else if (fm.role === 'PARENT') {
+            edgeType = 'PARENT'
+            pA = fm.person_id
+            pB = rootPersonId
+          } else if (fm.role === 'SIBLING') {
+            edgeType = 'SIBLING'
+            if (pA > pB) { pA = fm.person_id; pB = rootPersonId }
+          }
+
+          if (edgeType && discoveredRelationships.size < MAX_TREE_EDGES) {
+            const virtualId = `fm-rel-${fm.id}`
+            const virtualRel: RelationshipRow = {
+              id: virtualId,
+              person_a_id: pA,
+              person_b_id: pB,
+              relationship_type: edgeType,
+              notes: 'Family Roster Synchronized Relationship',
+              verification_status: 'VERIFIED',
+              created_by: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              deleted_at: null,
+            }
+            discoveredRelationships.set(virtualId, virtualRel)
+            discoveredPersonIds.add(fm.person_id)
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+
   // 3. Batch-fetch all discovered person profiles
   const allPersonIds = Array.from(discoveredPersonIds)
   const personsMap = new Map<string, PersonSummary>()

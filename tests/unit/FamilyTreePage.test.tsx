@@ -23,6 +23,9 @@ vi.mock('@/features/tree/hooks/useFamilyTree')
 vi.mock('@/features/families/hooks/useFamily', () => ({
   useFamily: () => ({ data: undefined, isLoading: false, error: null }),
 }))
+vi.mock('@/features/families/hooks/useFamilyRealtime', () => ({
+  useFamilyRealtime: () => undefined,
+}))
 vi.mock('@/features/family-members/hooks/useFamilyMembers', () => ({
   useFamilyMembers: () => ({ data: [], isLoading: false, error: null }),
 }))
