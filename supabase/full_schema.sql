@@ -17919,10 +17919,60 @@ CREATE POLICY "families_select_community"
 COMMENT ON POLICY "families_select_community" ON public.families IS
   'Allows authenticated community members to discover all active, non-archived, non-deleted families in the directory.';
 
+-- Update handle_family_privacy_update_guard to permit SQL migrations/admin operations
+CREATE OR REPLACE FUNCTION public.handle_family_privacy_update_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Detect modifications to either family privacy column
+  IF (NEW.profile_privacy IS DISTINCT FROM OLD.profile_privacy) OR
+     (NEW.members_privacy IS DISTINCT FROM OLD.members_privacy) THEN
+
+    -- Verify caller authorization when called from an authenticated user session
+    IF auth.uid() IS NOT NULL AND NOT public.can_manage_privacy_settings() THEN
+      RAISE EXCEPTION 'Unauthorized: Normal users cannot modify family privacy settings. Only an authorized Mukhi or Administrator may modify privacy settings.'
+        USING ERRCODE = '42501';
+    END IF;
+
+    -- Record immutable audit log entry if an authenticated session exists
+    IF auth.uid() IS NOT NULL THEN
+      PERFORM public.log_audit_event(
+        'ADMIN_ACTION'::public.audit_action,
+        'family',
+        NEW.id,
+        jsonb_build_object(
+          'profile_privacy', OLD.profile_privacy,
+          'members_privacy', OLD.members_privacy
+        ),
+        jsonb_build_object(
+          'profile_privacy', NEW.profile_privacy,
+          'members_privacy', NEW.members_privacy
+        ),
+        jsonb_build_object(
+          'action_type', 'PRIVACY_SETTING_CHANGED',
+          'actor_role', public.get_my_role()
+        )
+      );
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Temporarily disable the privacy update guard trigger for migration normalization
+ALTER TABLE public.families DISABLE TRIGGER trg_family_privacy_update_guard;
+
 -- Backfill pre-existing families created with PRIVATE to COMMUNITY
 UPDATE public.families
 SET profile_privacy = 'COMMUNITY', members_privacy = 'COMMUNITY'
 WHERE profile_privacy = 'PRIVATE' OR profile_privacy IS NULL;
+
+-- Re-enable the privacy update guard trigger immediately after normalization
+ALTER TABLE public.families ENABLE TRIGGER trg_family_privacy_update_guard;
 
 -- -----------------------------------------------------------------------------
 -- 2. Family Members Discovery RLS Policy on public.family_members
