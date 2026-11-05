@@ -29,6 +29,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useFamilyMembers } from '../hooks/useFamilyMembers'
+import { useFamily } from '@/features/families/hooks/useFamily'
 import { addFamilyMember } from '../services/family-members.service'
 import { createPerson } from '@/features/people/services/people.service'
 import type { CreatePersonInput } from '@/features/people/schemas/people.schemas'
@@ -125,6 +126,7 @@ export function AddMemberModal({
 }: AddMemberModalProps) {
   const queryClient = useQueryClient()
   const { user } = useAuthContext()
+  const { data: family } = useFamily(familyId)
   const { data: members = [], refetch: refetchMembers } = useFamilyMembers(familyId)
   const { data: persons = [], isLoading: isLoadingPersons, refetch: refetchPersons } = usePersonList({ limit: 100 })
 
@@ -171,19 +173,20 @@ export function AddMemberModal({
     setFirstName('')
     setMiddleName('')
     // Default last name to head's last name or family surname if known
-    setLastName(activeHead?.person?.last_name || '')
+    setLastName(activeHead?.person?.last_name || family?.family_name || '')
     setMaidenName('')
     setGender(getAutoGender(relationship, activeHead?.person?.gender))
     setDateOfBirth('')
-    setBirthPlace('')
+    const defaultLocation = [family?.city, family?.state].filter(Boolean).join(', ') || activeHead?.person?.birth_place || ''
+    setBirthPlace(defaultLocation)
     setBloodGroup('')
-    setGotra(activeHead?.person?.gotra || '')
-    setNukh(activeHead?.person?.nukh || '')
+    setGotra(activeHead?.person?.gotra || family?.gotra || '')
+    setNukh(activeHead?.person?.nukh || family?.nukh || '')
     setSelectedPersonId('')
     setPersonSearch('')
     setErrorMessage(null)
     setDuplicateWarning(null)
-  }, [relationship, activeHead])
+  }, [relationship, activeHead, family])
 
   // Auto-update gender when relationship changes
   const handleRelationshipChange = (newRel: MemberRelationship) => {
@@ -309,6 +312,18 @@ export function AddMemberModal({
 
       // 1. Create person if new
       if (mode === 'new') {
+        const finalGotra =
+          sanitizeOptional(gotra) ||
+          sanitizeOptional(activeHead?.person?.gotra) ||
+          sanitizeOptional(family?.gotra)
+        const finalNukh =
+          sanitizeOptional(nukh) ||
+          sanitizeOptional(activeHead?.person?.nukh) ||
+          sanitizeOptional(family?.nukh)
+        const finalBirthPlace =
+          sanitizeOptional(birthPlace) ||
+          ([family?.city, family?.state].filter(Boolean).join(', ') || null)
+
         const createRes = await createPerson(
           {
             first_name: firstName.trim(),
@@ -317,10 +332,10 @@ export function AddMemberModal({
             maiden_name: sanitizeOptional(maidenName),
             gender,
             date_of_birth: normalizeDateInput(dateOfBirth),
-            birth_place: sanitizeOptional(birthPlace),
+            birth_place: finalBirthPlace,
             blood_group: (sanitizeOptional(bloodGroup) as CreatePersonInput['blood_group']) ?? null,
-            gotra: sanitizeOptional(gotra),
-            nukh: sanitizeOptional(nukh),
+            gotra: finalGotra,
+            nukh: finalNukh,
             profile_privacy: 'PRIVATE',
             contact_privacy: 'PRIVATE',
             dob_privacy: 'PRIVATE',

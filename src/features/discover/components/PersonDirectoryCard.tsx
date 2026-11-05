@@ -34,7 +34,9 @@ function formatLifespan(
   dob: string | null,
   dod: string | null,
   status: string,
-  dobYear?: number | null
+  dobYear?: number | null,
+  age?: number | null,
+  isAuthorized?: boolean
 ): string | null {
   const birthYear = dobYear ? String(dobYear) : (dob ? dob.slice(0, 4) : null)
   const deathYear = dod ? dod.slice(0, 4) : null
@@ -47,6 +49,12 @@ function formatLifespan(
   }
   if (deathYear) {
     return `d. ${deathYear}`
+  }
+  if (age != null) {
+    return status === 'DECEASED' ? `Age ${age} (Deceased)` : `Age: ${age} yrs`
+  }
+  if (isAuthorized) {
+    return 'Birth year: Not recorded'
   }
   return null
 }
@@ -64,7 +72,24 @@ export function PersonDirectoryCard({
     .join(' ')
 
   const initials = getInitials(person.first_name, person.last_name)
-  const lifespan = formatLifespan(person.date_of_birth, person.date_of_death, person.status, person.dob_year)
+  
+  // Authorized viewer (same family or elevated permissions)
+  const isAuthorized = !!(
+    person.is_same_family ||
+    person.gotra ||
+    person.nukh ||
+    person.dob_year ||
+    person.city
+  )
+
+  const lifespan = formatLifespan(
+    person.date_of_birth,
+    person.date_of_death,
+    person.status,
+    person.dob_year,
+    person.age,
+    isAuthorized
+  )
 
   const lineageBadges = [
     person.gotra ? `Gotra: ${person.gotra}` : null,
@@ -134,18 +159,23 @@ export function PersonDirectoryCard({
           </div>
         </div>
 
-        {/* Location (City / State) */}
-        {(person.city || person.state || person.birth_place) && (
+        {/* Location (City / State / Birthplace) */}
+        {(person.city || person.state || person.birth_place) ? (
           <div className="mt-3 flex items-center gap-1.5 text-xs text-navy-600">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-navy-400" aria-hidden="true" />
             <span className="truncate">
               {[person.city, person.state].filter(Boolean).join(', ') || person.birth_place}
             </span>
           </div>
-        )}
+        ) : isAuthorized ? (
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-navy-400">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-navy-300" aria-hidden="true" />
+            <span className="truncate italic">Location: Not recorded</span>
+          </div>
+        ) : null}
 
         {/* Lineage (Gotra, Nukh, Kul) */}
-        {lineageBadges.length > 0 && (
+        {lineageBadges.length > 0 ? (
           <div className="mt-2.5 flex flex-wrap gap-1 text-[11px] text-navy-600">
             {lineageBadges.map((badge, idx) => (
               <span
@@ -156,7 +186,11 @@ export function PersonDirectoryCard({
               </span>
             ))}
           </div>
-        )}
+        ) : isAuthorized ? (
+          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-navy-400">
+            <span className="italic">Lineage: Not recorded</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Bottom Footer: Status, Verification, and Quick Actions */}

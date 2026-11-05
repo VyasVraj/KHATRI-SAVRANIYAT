@@ -12,9 +12,14 @@
  * - Zero clipping across cards, drawers, and modal dialogs.
  */
 
-import React from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { AlertCircle, RefreshCw, Search } from 'lucide-react'
 import { useGotraNukhRegistry } from '@/services/gotraNukh.service'
+import {
+  resolveCanonicalGotra,
+  resolveCanonicalNukh,
+  isValidNukhForGotra,
+} from '@/constants/gotraNukh'
 
 export interface GotraNukhSelectProps {
   selectedGotra?: string | null
@@ -44,12 +49,29 @@ export const GotraNukhSelect: React.FC<GotraNukhSelectProps> = ({
   nukhId = 'select-nukh',
 }) => {
   const { gotras, getNukhsForGotra, isLoading, isError, error, refetch } = useGotraNukhRegistry()
-  const availableNukhs = selectedGotra ? getNukhsForGotra(selectedGotra) : []
+  const [nukhSearch, setNukhSearch] = useState('')
+
+  const resolvedGotra = resolveCanonicalGotra(selectedGotra) || selectedGotra || ''
+  const availableNukhs = useMemo(
+    () => (resolvedGotra ? getNukhsForGotra(resolvedGotra) : []),
+    [resolvedGotra, getNukhsForGotra]
+  )
+  const resolvedNukh = resolveCanonicalNukh(resolvedGotra, selectedNukh) || selectedNukh || ''
+
+  const filteredNukhs = useMemo(() => {
+    if (!nukhSearch.trim()) return availableNukhs
+    const q = nukhSearch.toLowerCase().trim()
+    return availableNukhs.filter((n) => n.toLowerCase().includes(q))
+  }, [availableNukhs, nukhSearch])
 
   const handleGotraChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
     onGotraChange(val)
-    onNukhChange('') // Reset Nukh when Gotra changes
+    setNukhSearch('')
+    // Changing Gotra resets Nukh selection if the previous Nukh is not valid for the new Gotra
+    if (selectedNukh && !isValidNukhForGotra(val, selectedNukh)) {
+      onNukhChange('')
+    }
   }
 
   const handleNukhChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -80,7 +102,7 @@ export const GotraNukhSelect: React.FC<GotraNukhSelectProps> = ({
   }
 
   const isGotraDisabled = disabled || isLoading
-  const isNukhDisabled = disabled || isLoading || !selectedGotra
+  const isNukhDisabled = disabled || isLoading || !resolvedGotra
 
   return (
     <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${className}`}>
@@ -91,7 +113,7 @@ export const GotraNukhSelect: React.FC<GotraNukhSelectProps> = ({
         </label>
         <select
           id={gotraId}
-          value={selectedGotra || ''}
+          value={resolvedGotra}
           onChange={handleGotraChange}
           disabled={isGotraDisabled}
           aria-invalid={Boolean(gotraError)}
@@ -124,14 +146,28 @@ export const GotraNukhSelect: React.FC<GotraNukhSelectProps> = ({
         )}
       </div>
 
-      {/* Nukh Selection */}
+      {/* Nukh Selection with optional Quick Search */}
       <div className="space-y-1">
-        <label htmlFor={nukhId} className="block text-sm font-medium text-navy-700">
-          Nukh {required && <span className="text-red-500">*</span>}
-        </label>
+        <div className="flex items-center justify-between">
+          <label htmlFor={nukhId} className="block text-sm font-medium text-navy-700">
+            Nukh {required && <span className="text-red-500">*</span>}
+          </label>
+          {availableNukhs.length > 5 && !isNukhDisabled && (
+            <div className="relative flex items-center">
+              <Search className="absolute left-1.5 h-3 w-3 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={nukhSearch}
+                onChange={(e) => setNukhSearch(e.target.value)}
+                placeholder="Filter Nukh..."
+                className="h-6 w-28 rounded border border-navy-200 pl-5 pr-1.5 text-[11px] text-navy-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
+              />
+            </div>
+          )}
+        </div>
         <select
           id={nukhId}
-          value={selectedNukh || ''}
+          value={resolvedNukh}
           onChange={handleNukhChange}
           disabled={isNukhDisabled}
           aria-invalid={Boolean(nukhError)}
@@ -149,7 +185,10 @@ export const GotraNukhSelect: React.FC<GotraNukhSelectProps> = ({
           ) : (
             <>
               <option value="">— Select Nukh —</option>
-              {availableNukhs.map((n) => (
+              {resolvedNukh && !filteredNukhs.includes(resolvedNukh) && (
+                <option value={resolvedNukh}>{resolvedNukh}</option>
+              )}
+              {filteredNukhs.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>

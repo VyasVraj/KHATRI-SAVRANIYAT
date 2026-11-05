@@ -40,7 +40,7 @@ import type {
 
 /** Safe projection for directory queries and community_persons view (server-authoritative) */
 export const PERSON_DIRECTORY_COLUMNS =
-  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, age, city, state, date_of_death, gotra, kul, nukh, status, verification_status'
+  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, age, birth_place, city, state, date_of_death, gotra, kul, nukh, status, verification_status, is_same_family'
 
 const PERSON_VIEW_COLUMNS = PERSON_DIRECTORY_COLUMNS
 

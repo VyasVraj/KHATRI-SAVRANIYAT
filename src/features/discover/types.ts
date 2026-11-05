@@ -74,6 +74,7 @@ export interface PersonDiscoveryResult {
   status: PersonStatus
   verification_status: VerificationStatus
   profile_privacy?: PrivacyLevel
+  is_same_family?: boolean
 }
 
 // ---------------------------------------------------------------------------

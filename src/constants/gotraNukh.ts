@@ -62,24 +62,56 @@ export function resolveCanonicalGotra(gotra?: string | null): string | null {
   // Direct exact match
   if (GOTRA_NUKH_MAP[trimmed]) return trimmed
 
+  const basePart = trimmed.split('(')[0]?.trim()
+  if (basePart && GOTRA_NUKH_MAP[basePart]) return basePart
+
   const normalized = normalizeForComparison(trimmed)
+  const normalizedBase = basePart ? normalizeForComparison(basePart) : ''
 
   // Known phonetic aliases and transliteration variants
   const KNOWN_ALIASES: Record<string, string> = {
-    vashistha: 'Vashishtha',
-    vasistha: 'Vashishtha',
-    vasishtha: 'Vashishtha',
-    kashyap: 'Kashyap (Kashyapa)',
-    kashyapa: 'Kashyap (Kashyapa)',
-    darvashayana: 'Darvashayana (Dayavahana)',
-    dayavahana: 'Darvashayana (Dayavahana)',
-    krishna: 'Krishna (Shishan)',
-    shishan: 'Krishna (Shishan)',
+    vashistha: 'Vashistha',
+    vashishtha: 'Vashistha',
+    vasistha: 'Vashistha',
+    vasishtha: 'Vashistha',
+    kashyap: 'Kashyap',
+    kashyapa: 'Kashyap',
+    kashyapkashyapa: 'Kashyap',
+    darvashayana: 'Dakhshayan',
+    dayavahana: 'Dakhshayan',
+    dakhshayan: 'Dakhshayan',
+    krishna: 'Krishna',
+    shishan: 'Krishna',
+    krishnashishan: 'Krishna',
+    utri: 'Uttari',
+    uttari: 'Uttari',
+    badarayana: 'Badrayan',
+    badrayan: 'Badrayan',
+    bhamaraya: 'Bhabhroya',
+    bhabhroya: 'Bhabhroya',
+    tandira: 'Taitar',
+    taitar: 'Taitar',
+    jamadagni: 'Jamdagni',
+    jamdagni: 'Jamdagni',
+    dhananjaya: 'Dhananjay',
+    dhananjay: 'Dhananjay',
+    raghuna: 'Rahugan',
+    rahugana: 'Rahugan',
+    rahugan: 'Rahugan',
+    karna: 'Karno',
+    karno: 'Karno',
+    naradijana: 'Narniyojan',
+    narniyojan: 'Narniyojan',
     garg: 'Gargya',
     garga: 'Gargya',
+    gotranotknown: 'Unrecorded / Not Known',
+    unrecordednotknown: 'Unrecorded / Not Known',
   }
   if (KNOWN_ALIASES[normalized] && GOTRA_NUKH_MAP[KNOWN_ALIASES[normalized]]) {
     return KNOWN_ALIASES[normalized]
+  }
+  if (normalizedBase && KNOWN_ALIASES[normalizedBase] && GOTRA_NUKH_MAP[KNOWN_ALIASES[normalizedBase]]) {
+    return KNOWN_ALIASES[normalizedBase]
   }
 
   // Case-insensitive or alias match
@@ -174,4 +206,36 @@ export function isValidNukhForGotra(gotra?: string | null, nukh?: string | null)
   }
 
   return false
+}
+
+/**
+ * Resolves a given Nukh to its canonical name under the specified Gotra.
+ * If the Nukh is an alternate spelling in parentheses or alias, returns the canonical PDF entry.
+ */
+export function resolveCanonicalNukh(gotra?: string | null, nukh?: string | null): string | null {
+  if (!gotra || !nukh) return null
+  const canonicalGotra = resolveCanonicalGotra(gotra)
+  if (!canonicalGotra) return null
+
+  const availableNukhs = getNukhsForGotra(canonicalGotra)
+  const trimmed = nukh.trim()
+  if (!trimmed) return null
+
+  if (availableNukhs.includes(trimmed)) return trimmed
+
+  const normTarget = normalizeForComparison(trimmed)
+  for (const n of availableNukhs) {
+    if (normalizeForComparison(n) === normTarget) return n
+
+    const baseName = n.split('(')[0]?.trim()
+    if (baseName && normalizeForComparison(baseName) === normTarget) return n
+
+    const match = n.match(/\(([^)]+)\)/)
+    if (match && match[1]) {
+      const aliases = match[1].split(',').map((a) => normalizeForComparison(a.trim()))
+      if (aliases.includes(normTarget)) return n
+    }
+  }
+
+  return trimmed
 }
