@@ -560,3 +560,146 @@ describe('People Service — softDeletePerson', () => {
     expect(result.error?.message).toBe('You do not have permission to perform this action.')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Deceased Status Lifecycle & Date Validation (Section 3 & 8)
+// ---------------------------------------------------------------------------
+
+describe('People Service — Deceased Person Registration and Life-Cycle Status (Section 3 & 8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('Case A: Registers a living person without Date of Death (status omitted to use DB default ACTIVE)', async () => {
+    const { mockInsert } = buildInsertChain({ data: MOCK_PERSON_ROW, error: null })
+
+    const result = await createPerson(
+      {
+        first_name: 'Jayesh',
+        last_name: 'Vyas',
+        date_of_birth: '1967-11-07',
+      },
+      MOCK_USER_ID
+    )
+
+    expect(result.error).toBeNull()
+    const insertPayload = vi.mocked(mockInsert).mock.calls[0][0]
+    expect(insertPayload.status).toBeUndefined()
+    expect(insertPayload.date_of_death).toBeUndefined()
+  })
+
+  it('Case B: Registers a deceased person with Date of Death (automatically sets status to DECEASED)', async () => {
+    const { mockInsert } = buildInsertChain({
+      data: { ...MOCK_PERSON_ROW, status: 'DECEASED', date_of_death: '2005-11-08' },
+      error: null,
+    })
+
+    const result = await createPerson(
+      {
+        first_name: 'Jayesh',
+        last_name: 'Vyas',
+        date_of_birth: '1925-01-01',
+        date_of_death: '2005-11-08',
+      },
+      MOCK_USER_ID
+    )
+
+    expect(result.error).toBeNull()
+    const insertPayload = vi.mocked(mockInsert).mock.calls[0][0]
+    expect(insertPayload.status).toBe('DECEASED')
+    expect(insertPayload.date_of_death).toBe('2005-11-08')
+  })
+
+  it('Case C: Edits a living person and enters Date of Death (sets status to DECEASED)', async () => {
+    const { mockUpdate } = buildUpdateSingleChain({
+      data: { ...MOCK_PERSON_ROW, status: 'DECEASED', date_of_death: '2005-11-08' },
+      error: null,
+    })
+
+    const result = await updatePerson('person-uuid-001', {
+      date_of_death: '2005-11-08',
+    })
+
+    expect(result.error).toBeNull()
+    const updatePayload = vi.mocked(mockUpdate).mock.calls[0][0]
+    expect(updatePayload.status).toBe('DECEASED')
+    expect(updatePayload.date_of_death).toBe('2005-11-08')
+  })
+
+  it('Case D: Edits an existing deceased person (preserves DECEASED status and existing death date)', async () => {
+    const { mockUpdate } = buildUpdateSingleChain({
+      data: { ...MOCK_PERSON_ROW, first_name: 'Jayeshkumar', status: 'DECEASED' },
+      error: null,
+    })
+
+    const result = await updatePerson('person-uuid-001', {
+      first_name: 'Jayeshkumar',
+      date_of_death: '2005-11-08',
+    })
+
+    expect(result.error).toBeNull()
+    const updatePayload = vi.mocked(mockUpdate).mock.calls[0][0]
+    expect(updatePayload.status).toBe('DECEASED')
+    expect(updatePayload.first_name).toBe('Jayeshkumar')
+  })
+
+  it('Case E: Corrects an incorrect Date of Death by clearing it (restores status to ACTIVE)', async () => {
+    const { mockUpdate } = buildUpdateSingleChain({
+      data: { ...MOCK_PERSON_ROW, date_of_death: null, status: 'ACTIVE' },
+      error: null,
+    })
+
+    const result = await updatePerson('person-uuid-001', {
+      date_of_death: null,
+    })
+
+    expect(result.error).toBeNull()
+    const updatePayload = vi.mocked(mockUpdate).mock.calls[0][0]
+    expect(updatePayload.status).toBe('ACTIVE')
+    expect(updatePayload.date_of_death).toBeNull()
+  })
+
+  it('Validation: Rejects a death date earlier than birth date', async () => {
+    const result = await createPerson(
+      {
+        first_name: 'Jayesh',
+        last_name: 'Vyas',
+        date_of_birth: '2000-01-01',
+        date_of_death: '1990-01-01',
+      },
+      MOCK_USER_ID
+    )
+
+    expect(result.data).toBeNull()
+    expect(result.error?.message).toContain('Date of death cannot be earlier than date of birth')
+  })
+
+  it('Validation: Rejects a future death date', async () => {
+    const result = await createPerson(
+      {
+        first_name: 'Jayesh',
+        last_name: 'Vyas',
+        date_of_birth: '1990-01-01',
+        date_of_death: '2099-01-01',
+      },
+      MOCK_USER_ID
+    )
+
+    expect(result.data).toBeNull()
+    expect(result.error?.message).toContain('Date of death cannot be in the future')
+  })
+
+  it('Validation: Rejects a future birth date', async () => {
+    const result = await createPerson(
+      {
+        first_name: 'Jayesh',
+        last_name: 'Vyas',
+        date_of_birth: '2099-01-01',
+      },
+      MOCK_USER_ID
+    )
+
+    expect(result.data).toBeNull()
+    expect(result.error?.message).toContain('Date of birth cannot be in the future')
+  })
+})

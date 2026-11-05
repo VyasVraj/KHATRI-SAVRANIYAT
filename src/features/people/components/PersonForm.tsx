@@ -41,31 +41,63 @@ import type { PrivacyLevel } from '@/types'
 
 const PRIVACY_ENUM = z.enum(['PRIVATE', 'FAMILY', 'CONNECTIONS', 'COMMUNITY', 'PUBLIC'])
 
+function getTodayIso(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /** Form-level schema: all optional fields accept string (HTML input value) */
-const personFormSchema = z.object({
-  first_name: z
-    .string({ required_error: 'First name is required' })
-    .min(1, 'First name is required')
-    .max(100, 'First name must not exceed 100 characters'),
-  last_name: z
-    .string({ required_error: 'Last name is required' })
-    .min(1, 'Last name is required')
-    .max(100, 'Last name must not exceed 100 characters'),
-  middle_name: z.string().max(100).optional(),
-  maiden_name: z.string().max(100).optional(),
-  gender: z.string().optional(),
-  date_of_birth: z.string().optional(),
-  date_of_death: z.string().optional(),
-  birth_place: z.string().max(200).optional(),
-  gotra: z.string().max(100).optional(),
-  nukh: z.string().max(100).optional(),
-  email_contact: z.string().optional(),
-  phone: z.string().max(30).optional(),
-  phone_secondary: z.string().max(30).optional(),
-  profile_privacy: PRIVACY_ENUM.default('PRIVATE'),
-  contact_privacy: PRIVACY_ENUM.default('PRIVATE'),
-  dob_privacy: PRIVACY_ENUM.default('PRIVATE'),
-})
+const personFormSchema = z
+  .object({
+    first_name: z
+      .string({ required_error: 'First name is required' })
+      .min(1, 'First name is required')
+      .max(100, 'First name must not exceed 100 characters'),
+    last_name: z
+      .string({ required_error: 'Last name is required' })
+      .min(1, 'Last name is required')
+      .max(100, 'Last name must not exceed 100 characters'),
+    middle_name: z.string().max(100).optional(),
+    maiden_name: z.string().max(100).optional(),
+    gender: z.string().optional(),
+    date_of_birth: z
+      .string()
+      .optional()
+      .refine(
+        (val) => !val || val <= getTodayIso(),
+        'Date of birth cannot be in the future'
+      ),
+    date_of_death: z
+      .string()
+      .optional()
+      .refine(
+        (val) => !val || val <= getTodayIso(),
+        'Date of death cannot be in the future'
+      ),
+    birth_place: z.string().max(200).optional(),
+    gotra: z.string().max(100).optional(),
+    nukh: z.string().max(100).optional(),
+    email_contact: z.string().optional(),
+    phone: z.string().max(30).optional(),
+    phone_secondary: z.string().max(30).optional(),
+    profile_privacy: PRIVACY_ENUM.default('PRIVATE'),
+    contact_privacy: PRIVACY_ENUM.default('PRIVATE'),
+    dob_privacy: PRIVACY_ENUM.default('PRIVATE'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.date_of_birth && data.date_of_death) {
+      if (data.date_of_death < data.date_of_birth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of death cannot be earlier than date of birth.',
+          path: ['date_of_death'],
+        })
+      }
+    }
+  })
 
 type PersonFormValues = z.infer<typeof personFormSchema>
 
@@ -73,26 +105,29 @@ type PersonFormValues = z.infer<typeof personFormSchema>
 // Sanitization: convert empty string fields to undefined before calling service
 // ---------------------------------------------------------------------------
 
-function sanitizeOptional(v: string | undefined): string | null | undefined {
-  if (v === '' || v === undefined) return undefined
-  return v
+function sanitizeOptional(v: string | undefined, isEdit = false): string | null | undefined {
+  if (v === '' || v === null) return isEdit ? null : undefined
+  if (v === undefined) return undefined
+  const trimmed = v.trim()
+  return trimmed.length > 0 ? trimmed : isEdit ? null : undefined
 }
 
-function sanitizeFormValues(values: PersonFormValues): CreatePersonInput {
+function sanitizeFormValues(values: PersonFormValues, mode: 'create' | 'edit'): CreatePersonInput {
+  const isEdit = mode === 'edit'
   return {
     first_name: values.first_name.trim(),
     last_name: values.last_name.trim(),
-    middle_name: sanitizeOptional(values.middle_name),
-    maiden_name: sanitizeOptional(values.maiden_name),
-    gender: (sanitizeOptional(values.gender) as CreatePersonInput['gender']) ?? undefined,
-    date_of_birth: sanitizeOptional(values.date_of_birth),
-    date_of_death: sanitizeOptional(values.date_of_death),
-    birth_place: sanitizeOptional(values.birth_place),
-    gotra: sanitizeOptional(values.gotra),
-    nukh: sanitizeOptional(values.nukh),
-    email_contact: sanitizeOptional(values.email_contact),
-    phone: sanitizeOptional(values.phone),
-    phone_secondary: sanitizeOptional(values.phone_secondary),
+    middle_name: sanitizeOptional(values.middle_name, isEdit),
+    maiden_name: sanitizeOptional(values.maiden_name, isEdit),
+    gender: (sanitizeOptional(values.gender, isEdit) as CreatePersonInput['gender']) ?? undefined,
+    date_of_birth: sanitizeOptional(values.date_of_birth, isEdit),
+    date_of_death: sanitizeOptional(values.date_of_death, isEdit),
+    birth_place: sanitizeOptional(values.birth_place, isEdit),
+    gotra: sanitizeOptional(values.gotra, isEdit),
+    nukh: sanitizeOptional(values.nukh, isEdit),
+    email_contact: sanitizeOptional(values.email_contact, isEdit),
+    phone: sanitizeOptional(values.phone, isEdit),
+    phone_secondary: sanitizeOptional(values.phone_secondary, isEdit),
     profile_privacy: values.profile_privacy,
     contact_privacy: values.contact_privacy,
     dob_privacy: values.dob_privacy,
@@ -196,9 +231,10 @@ export function PersonForm({
 
   const selectedGotra = watch('gotra')
   const selectedNukh = watch('nukh')
+  const watchedDateOfDeath = watch('date_of_death')
 
   async function onFormSubmit(values: PersonFormValues) {
-    const sanitized = sanitizeFormValues(values)
+    const sanitized = sanitizeFormValues(values, mode)
     if (!isPrivacyManager) {
       if (mode === 'edit') {
         // Strip privacy fields completely on edit so regular users cannot mutate privacy
@@ -314,7 +350,11 @@ export function PersonForm({
           <Input
             label="Date of death"
             type="date"
-            hint="Leave blank for living persons"
+            hint={
+              watchedDateOfDeath
+                ? 'Person will be recorded as Deceased'
+                : 'Leave blank for living persons'
+            }
             error={errors.date_of_death?.message}
             {...register('date_of_death')}
           />

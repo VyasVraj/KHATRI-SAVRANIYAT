@@ -69,10 +69,19 @@ const genderField = z
   .nullable()
   .optional()
 
+function getTodayIso(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /** Deployed: date_of_birth DATE nullable — stored as ISO string */
 const dateOfBirthField = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be in YYYY-MM-DD format')
+  .refine((val) => val <= getTodayIso(), 'Date of birth cannot be in the future')
   .nullable()
   .optional()
 
@@ -80,6 +89,7 @@ const dateOfBirthField = z
 const dateOfDeathField = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of death must be in YYYY-MM-DD format')
+  .refine((val) => val <= getTodayIso(), 'Date of death cannot be in the future')
   .nullable()
   .optional()
 
@@ -188,6 +198,16 @@ export const createPersonSchema = z
     dob_privacy: privacyLevelField.optional().default('PRIVATE'),
   })
   .superRefine((data, ctx) => {
+    if (data.date_of_birth && data.date_of_death) {
+      if (data.date_of_death < data.date_of_birth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of death cannot be earlier than date of birth.',
+          path: ['date_of_death'],
+        })
+      }
+    }
+
     const trimmedGotra = data.gotra?.trim()
     const trimmedNukh = data.nukh?.trim()
 
@@ -259,6 +279,16 @@ export const updatePersonSchema = z
     'At least one field must be provided for update'
   )
   .superRefine((data, ctx) => {
+    if (data.date_of_birth && data.date_of_death) {
+      if (data.date_of_death < data.date_of_birth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of death cannot be earlier than date of birth.',
+          path: ['date_of_death'],
+        })
+      }
+    }
+
     const trimmedGotra = data.gotra?.trim()
     const trimmedNukh = data.nukh?.trim()
 

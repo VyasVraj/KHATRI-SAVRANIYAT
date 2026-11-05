@@ -18,7 +18,7 @@
 
 import { supabase } from '@/lib/supabase'
 import type { ApiResponse, PersonProtectedDetails } from '@/types'
-import type { Tables } from '@/types/database.types'
+import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
 import {
   createPersonSchema,
   updatePersonSchema,
@@ -74,13 +74,20 @@ export async function createPerson(
 
   const validated = parseResult.data
 
+  const insertPayload: TablesInsert<'persons'> = {
+    ...validated,
+    created_by: createdBy,
+    // user_id intentionally omitted — remains NULL per PERSON != USER boundary
+  }
+
+  // Case B: When Date of Death is entered, automatically set status to DECEASED
+  if (validated.date_of_death) {
+    insertPayload.status = 'DECEASED'
+  }
+
   const { data, error } = await supabase
     .from('persons')
-    .insert({
-      ...validated,
-      created_by: createdBy,
-      // user_id intentionally omitted — remains NULL per PERSON != USER boundary
-    })
+    .insert(insertPayload)
     .select()
     .single()
 
@@ -178,9 +185,20 @@ export async function updatePerson(
 
   const validated = parseResult.data
 
+  const updatePayload: TablesUpdate<'persons'> = { ...validated }
+
+  // Case B & C: When Date of Death is entered, automatically set status to DECEASED
+  if (validated.date_of_death) {
+    updatePayload.status = 'DECEASED'
+  } else if (input.date_of_death === null || validated.date_of_death === null) {
+    // Case E: If Date of Death is explicitly cleared/removed, restore to ACTIVE
+    updatePayload.date_of_death = null
+    updatePayload.status = 'ACTIVE'
+  }
+
   const { data, error } = await supabase
     .from('persons')
-    .update(validated)
+    .update(updatePayload)
     .eq('id', personId)
     .is('deleted_at', null)
     .select()

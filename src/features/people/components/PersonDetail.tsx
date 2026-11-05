@@ -91,9 +91,16 @@ export function PersonDetail({ person, canEdit = false, onAvatarUpdated }: Perso
             shape="circle"
           />
           <div className="min-w-0 flex-1">
-            <h2 id="person-name-heading" className="text-xl font-semibold text-navy-900 truncate">
-              {fullName}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 id="person-name-heading" className="text-xl font-semibold text-navy-900 truncate">
+                {fullName}
+              </h2>
+              {person.status === 'DECEASED' && (
+                <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-300">
+                  Deceased
+                </span>
+              )}
+            </div>
             {person.maiden_name && (
               <p className="mt-0.5 text-sm text-navy-500 truncate">née {person.maiden_name}</p>
             )}
