@@ -4,7 +4,7 @@
  * Phase 2 — Subtask 3
  *
  * Validates that the frontend Supabase client types align with the deployed
- * Phase 1 schema (community-family-platform / ixhvsprwjalgcyievsrg).
+ * schema (KHATRI SARVANIYAT / aodbcxpzpxyatiikqeic).
  *
  * Test categories:
  *   1. Enum value coverage — all 8 deployed enums are reachable and exhaustive

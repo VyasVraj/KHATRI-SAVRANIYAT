@@ -7,7 +7,7 @@
  * CLASSIFICATION: REAL REMOTE INTEGRATION TESTS
  *
  * These tests make actual HTTPS requests to the deployed Supabase project
- * (community-family-platform / ixhvsprwjalgcyievsrg).
+ * (KHATRI SARVANIYAT / aodbcxpzpxyatiikqeic).
  *
  * These are NOT type-contract tests. They communicate with the live database.
  * ─────────────────────────────────────────────────────────────────────────────
