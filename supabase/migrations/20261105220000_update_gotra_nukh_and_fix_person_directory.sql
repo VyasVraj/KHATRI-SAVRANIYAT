@@ -4,8 +4,10 @@
 -- 1. Updates Gotra & Nukh master directory to the authoritative 29 Gotras and 148 Nukhs
 --    from "Brahma Khatri Gotra and Nukh Directory.pdf".
 -- 2. Normalizes existing historical Gotra/Nukh spellings on persons and families.
--- 3. Backfills Gotra, Nukh, and Location from families to family_members/persons.
--- 4. Recreates public.community_persons security barrier view with proper CASCADE drop,
+-- 3. Cleans up old mismatched Nukh rows and seeds all 148 official Nukhs.
+-- 4. Upgrades validate_gotra_nukh() with intelligent base name & alias resolution.
+-- 5. Backfills Gotra, Nukh, and Location from families to family_members/persons.
+-- 6. Recreates public.community_persons security barrier view with proper CASCADE drop,
 --    ensuring strict family-based privacy (other-family users see only name & age,
 --    while own-family & admin see full verified details, lineage, and location fallbacks).
 -- =============================================================================
@@ -13,6 +15,8 @@
 -- Step 1: Temporarily disable guard triggers for master updates
 ALTER TABLE IF EXISTS public.gotras DISABLE TRIGGER trg_guard_gotra_master_integrity;
 ALTER TABLE IF EXISTS public.nukhs DISABLE TRIGGER trg_guard_nukh_master_integrity;
+ALTER TABLE IF EXISTS public.persons DISABLE TRIGGER trg_validate_person_gotra_nukh;
+ALTER TABLE IF EXISTS public.families DISABLE TRIGGER trg_validate_family_gotra_nukh;
 
 -- Step 2: Update existing historical Gotra spellings across persons and families
 UPDATE public.persons SET gotra = 'Krishna' WHERE lower(gotra) IN ('krishna (shishan)', 'shishan');
@@ -117,7 +121,8 @@ INSERT INTO public.gotras (name, display_order) VALUES ('Vashistha', 28)
 INSERT INTO public.gotras (name, display_order) VALUES ('Unrecorded / Not Known', 29)
   ON CONFLICT ((lower(name))) DO UPDATE SET name = EXCLUDED.name, display_order = EXCLUDED.display_order;
 
--- Step 4: Upsert the Authoritative 148 Nukhs into public.nukhs
+-- Step 4: Safely replace outdated Nukhs in public.nukhs with authoritative 148 entries
+DELETE FROM public.nukhs;
 INSERT INTO public.nukhs (gotra_id, name)
   SELECT g.id, 'Arora (Aroda)' FROM public.gotras g WHERE lower(g.name) = lower('Agastya')
   ON CONFLICT (gotra_id, (lower(name))) DO UPDATE SET name = EXCLUDED.name;
@@ -563,11 +568,83 @@ INSERT INTO public.nukhs (gotra_id, name)
   SELECT g.id, 'Gugya' FROM public.gotras g WHERE lower(g.name) = lower('Unrecorded / Not Known')
   ON CONFLICT (gotra_id, (lower(name))) DO UPDATE SET name = EXCLUDED.name;
 
--- Step 5: Re-enable guard triggers
+-- Step 5: Upgrade validate_gotra_nukh() trigger function with intelligent matching
+CREATE OR REPLACE FUNCTION public.validate_gotra_nukh()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_gotra_id UUID;
+  v_canonical_gotra TEXT;
+  v_canonical_nukh TEXT;
+BEGIN
+  -- Normalize empty strings to NULL
+  NEW.gotra := NULLIF(trim(NEW.gotra), '');
+  NEW.nukh := NULLIF(trim(NEW.nukh), '');
+
+  -- If both are NULL, allow
+  IF NEW.gotra IS NULL AND NEW.nukh IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- If Nukh is provided without Gotra, reject
+  IF NEW.gotra IS NULL AND NEW.nukh IS NOT NULL THEN
+    RAISE EXCEPTION 'INVALID_GOTRA_NUKH: Nukh cannot be specified without a valid Gotra.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Validate Gotra exists in public.gotras (matching canonical name or case-insensitive or base name)
+  SELECT id, name INTO v_gotra_id, v_canonical_gotra
+  FROM public.gotras
+  WHERE lower(name) = lower(NEW.gotra)
+     OR lower(split_part(name, ' (', 1)) = lower(split_part(NEW.gotra, ' (', 1))
+  ORDER BY CASE WHEN lower(name) = lower(NEW.gotra) THEN 1 ELSE 2 END
+  LIMIT 1;
+
+  IF v_gotra_id IS NULL THEN
+    RAISE EXCEPTION 'INVALID_GOTRA_NUKH: "%" is not a registered Gotra.', NEW.gotra USING ERRCODE = '22023';
+  END IF;
+
+  -- Canonicalize stored Gotra spelling from master table
+  NEW.gotra := v_canonical_gotra;
+
+  -- If Nukh is provided, validate it belongs to that Gotra and canonicalize stored Nukh spelling
+  IF NEW.nukh IS NOT NULL THEN
+    SELECT name INTO v_canonical_nukh
+    FROM public.nukhs
+    WHERE gotra_id = v_gotra_id
+      AND (
+        lower(name) = lower(NEW.nukh)
+        OR lower(split_part(name, ' (', 1)) = lower(split_part(NEW.nukh, ' (', 1))
+        OR (position('(' in name) > 0 AND lower(substring(name from '\(([^)]+)\)')) = lower(NEW.nukh))
+        OR (position('(' in NEW.nukh) > 0 AND lower(substring(NEW.nukh from '\(([^)]+)\)')) = lower(name))
+        OR lower(name) LIKE '%' || lower(split_part(NEW.nukh, ' (', 1)) || '%'
+      )
+    ORDER BY
+      CASE WHEN lower(name) = lower(NEW.nukh) THEN 1 ELSE 2 END,
+      created_at ASC
+    LIMIT 1;
+
+    IF v_canonical_nukh IS NULL THEN
+      RAISE EXCEPTION 'INVALID_GOTRA_NUKH: Nukh "%" does not belong to Gotra "%".', NEW.nukh, v_canonical_gotra USING ERRCODE = '22023';
+    END IF;
+
+    -- Canonicalize stored Nukh spelling from master table
+    NEW.nukh := v_canonical_nukh;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Step 6: Re-enable guard triggers
 ALTER TABLE IF EXISTS public.gotras ENABLE TRIGGER trg_guard_gotra_master_integrity;
 ALTER TABLE IF EXISTS public.nukhs ENABLE TRIGGER trg_guard_nukh_master_integrity;
+ALTER TABLE IF EXISTS public.persons ENABLE TRIGGER trg_validate_person_gotra_nukh;
+ALTER TABLE IF EXISTS public.families ENABLE TRIGGER trg_validate_family_gotra_nukh;
 
--- Step 6: Backfill Gotra, Nukh, City, State, Birth Place on persons from active family memberships
+-- Step 7: Backfill Gotra, Nukh, City, State, Birth Place on persons from active family memberships
 -- where individual person record has missing Gotra or Nukh
 UPDATE public.persons p
 SET
@@ -581,7 +658,7 @@ WHERE fm.person_id = p.id
   AND f.deleted_at IS NULL
   AND (p.gotra IS NULL OR p.nukh IS NULL OR p.birth_place IS NULL);
 
--- Step 7: Drop and recreate public.community_persons security barrier view
+-- Step 8: Drop and recreate public.community_persons security barrier view
 DROP VIEW IF EXISTS public.community_persons CASCADE;
 
 CREATE VIEW public.community_persons
@@ -724,7 +801,7 @@ SELECT
 FROM public.persons p
 WHERE p.deleted_at IS NULL;
 
--- Step 8: Grants & Permissions
+-- Step 9: Grants & Permissions
 REVOKE ALL ON public.community_persons FROM PUBLIC;
 GRANT SELECT ON public.community_persons TO authenticated, anon;
 
