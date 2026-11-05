@@ -93,6 +93,7 @@ export function PersonEditPage() {
           middle_name: person.middle_name,
           maiden_name: person.maiden_name,
           gender: person.gender ?? undefined,
+          blood_group: (person as unknown as { blood_group?: CreatePersonInput['blood_group'] })?.blood_group ?? undefined,
           date_of_birth: person.date_of_birth,
           date_of_death: person.date_of_death,
           birth_place: person.birth_place,

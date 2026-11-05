@@ -31,6 +31,7 @@ import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useFamilyMembers } from '../hooks/useFamilyMembers'
 import { addFamilyMember } from '../services/family-members.service'
 import { createPerson } from '@/features/people/services/people.service'
+import type { CreatePersonInput } from '@/features/people/schemas/people.schemas'
 import { createRelationship, canonicalizeRelationshipEndpoints } from '@/features/relationships/services/relationships.service'
 import { findPersonDuplicateCandidates } from '@/features/verification/services/duplicateDetection.service'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
@@ -38,6 +39,7 @@ import { Button } from '@/components/forms/Button'
 import { Input } from '@/components/forms/Input'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { CitySelector } from '@/components/forms/CitySelector'
+import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
 import type { FamilyRole } from '@/types'
 import type { Tables } from '@/types/database.types'
 
@@ -150,6 +152,7 @@ export function AddMemberModal({
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [birthPlace, setBirthPlace] = useState('')
+  const [bloodGroup, setBloodGroup] = useState('')
   const [gotra, setGotra] = useState('')
   const [nukh, setNukh] = useState('')
 
@@ -173,6 +176,7 @@ export function AddMemberModal({
     setGender(getAutoGender(relationship, activeHead?.person?.gender))
     setDateOfBirth('')
     setBirthPlace('')
+    setBloodGroup('')
     setGotra(activeHead?.person?.gotra || '')
     setNukh(activeHead?.person?.nukh || '')
     setSelectedPersonId('')
@@ -314,6 +318,7 @@ export function AddMemberModal({
             gender,
             date_of_birth: normalizeDateInput(dateOfBirth),
             birth_place: sanitizeOptional(birthPlace),
+            blood_group: (sanitizeOptional(bloodGroup) as CreatePersonInput['blood_group']) ?? null,
             gotra: sanitizeOptional(gotra),
             nukh: sanitizeOptional(nukh),
             profile_privacy: 'PRIVATE',
@@ -581,8 +586,8 @@ export function AddMemberModal({
               />
             </div>
 
-            {/* Identity: Gender (pre-selected based on relation), DOB, Birthplace */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Identity: Gender (pre-selected based on relation), DOB, Blood Group, Birthplace */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <label htmlFor="member-gender" className="block text-sm font-medium text-navy-700">
                   Gender
@@ -605,6 +610,25 @@ export function AddMemberModal({
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
               />
+
+              <div className="space-y-1">
+                <label htmlFor="member-blood-group" className="block text-sm font-medium text-navy-700">
+                  Blood Group
+                </label>
+                <select
+                  id="member-blood-group"
+                  value={bloodGroup}
+                  onChange={(e) => setBloodGroup(e.target.value)}
+                  className="w-full rounded border border-navy-300 px-3 py-2 text-sm text-navy-900 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
+                >
+                  <option value="">Select Blood Group</option>
+                  {BLOOD_GROUP_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <CitySelector
                 label="Birth Place"

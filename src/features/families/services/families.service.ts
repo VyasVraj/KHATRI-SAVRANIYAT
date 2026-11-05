@@ -143,6 +143,7 @@ export interface CreateFamilyWithHeadInput {
     gender: 'MALE' | 'FEMALE' | 'OTHER'
     date_of_birth?: string | null
     birth_place?: string | null
+    blood_group?: string | null
   }
 }
 
@@ -187,6 +188,7 @@ export async function createFamilyWithHead(
     p_new_person_gender: input.new_person?.gender ?? 'MALE',
     p_new_person_dob: input.new_person?.date_of_birth ? input.new_person.date_of_birth.split('T')[0] : null,
     p_new_person_birth_place: input.new_person?.birth_place ?? null,
+    p_new_person_blood_group: input.new_person?.blood_group ?? null,
     p_selected_mukhi_id: input.selected_mukhi_id ?? null,
   }
 

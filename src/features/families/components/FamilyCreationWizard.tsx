@@ -40,6 +40,7 @@ import { createFamilyWithHead } from '../services/families.service'
 import { listPersonFamilies } from '@/features/family-members/services/family-members.service'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useExecutiveCommittee } from '@/features/community/hooks/useExecutiveCommittee'
+import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
 import { ROUTES, canManagePrivacy } from '@/constants/app'
 import type { Tables } from '@/types/database.types'
 import type { PrivacyLevel } from '@/types'
@@ -77,6 +78,7 @@ interface NewHeadFormValues {
   gender: 'MALE' | 'FEMALE' | 'OTHER'
   date_of_birth: string
   birth_place: string
+  blood_group: string
   gotra: string
   nukh: string
 }
@@ -160,6 +162,7 @@ export function FamilyCreationWizard() {
     gender: 'MALE',
     date_of_birth: '',
     birth_place: '',
+    blood_group: '',
     gotra: '',
     nukh: '',
   })
@@ -315,6 +318,7 @@ export function FamilyCreationWizard() {
                 gender: newHead.gender,
                 date_of_birth: sanitizeOptional(newHead.date_of_birth),
                 birth_place: sanitizeOptional(newHead.birth_place),
+                blood_group: sanitizeOptional(newHead.blood_group),
               }
             : undefined,
       }
@@ -602,7 +606,7 @@ export function FamilyCreationWizard() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
                   <label htmlFor="head-gender" className="block text-sm font-medium text-navy-700">
                     Gender
@@ -627,6 +631,25 @@ export function FamilyCreationWizard() {
                   value={newHead.date_of_birth}
                   onChange={(e) => setNewHead((prev) => ({ ...prev, date_of_birth: e.target.value }))}
                 />
+
+                <div className="space-y-1">
+                  <label htmlFor="head-blood-group" className="block text-sm font-medium text-navy-700">
+                    Blood Group
+                  </label>
+                  <select
+                    id="head-blood-group"
+                    value={newHead.blood_group}
+                    onChange={(e) => setNewHead((prev) => ({ ...prev, blood_group: e.target.value }))}
+                    className="h-10 w-full rounded-md border border-navy-300 px-3 py-2 text-sm text-navy-900 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  >
+                    <option value="">Select Blood Group</option>
+                    {BLOOD_GROUP_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <CitySelector
                   label="Birth Place"

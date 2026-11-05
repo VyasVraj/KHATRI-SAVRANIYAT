@@ -20,6 +20,7 @@
 import { z } from 'zod'
 import { sanitizeText } from '@/lib/sanitization'
 import { isValidGotra, isValidNukhForGotra } from '@/constants/gotraNukh'
+import { BLOOD_GROUPS } from '@/constants/bloodGroup'
 
 // ---------------------------------------------------------------------------
 // Shared field validators — derived from deployed schema constraints
@@ -66,6 +67,13 @@ const maidenNameField = z
 /** Deployed: gender enum ('MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY') nullable */
 const genderField = z
   .enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'])
+  .nullable()
+  .optional()
+
+/** Deployed: blood_group ('A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | 'UNKNOWN') nullable */
+const bloodGroupField = z
+  .enum(BLOOD_GROUPS)
+  .or(z.literal(''))
   .nullable()
   .optional()
 
@@ -182,6 +190,7 @@ export const createPersonSchema = z
     middle_name: middleNameField,
     maiden_name: maidenNameField,
     gender: genderField,
+    blood_group: bloodGroupField,
     date_of_birth: dateOfBirthField,
     date_of_death: dateOfDeathField,
     birth_place: birthPlaceField,
@@ -261,6 +270,7 @@ export const updatePersonSchema = z
     middle_name: middleNameField,
     maiden_name: maidenNameField,
     gender: genderField,
+    blood_group: bloodGroupField,
     date_of_birth: dateOfBirthField,
     date_of_death: dateOfDeathField,
     birth_place: birthPlaceField,
@@ -319,4 +329,5 @@ export const updatePersonSchema = z
     }
   })
 
-export type UpdatePersonInput = z.infer<typeof updatePersonSchema>
+export type UpdatePersonInput = z.input<typeof updatePersonSchema>
+export type UpdatePersonParsed = z.infer<typeof updatePersonSchema>

@@ -21,8 +21,13 @@ import type { PrivacyLevel } from '@/types'
 import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { getRespectiveMukhi } from '@/features/community/services/mukhi.service'
+import { formatBloodGroup } from '@/constants/bloodGroup'
 
-type PersonRow = Tables<'persons'>
+type PersonRow = Tables<'persons'> & {
+  blood_group?: string | null
+  age?: number | null
+  is_same_family?: boolean
+}
 
 /** Human-readable gender labels */
 const GENDER_LABELS: Record<string, string> = {
@@ -156,6 +161,7 @@ export function PersonDetail({ person, canEdit = false, onAvatarUpdated }: Perso
                 <DetailRow label="Calculated age" value={`${person.age} years`} />
               )}
               <DetailRow label="Birth place" value={person.birth_place} />
+              <DetailRow label="Blood Group" value={formatBloodGroup(person.blood_group)} />
             </>
           ) : (
             <>

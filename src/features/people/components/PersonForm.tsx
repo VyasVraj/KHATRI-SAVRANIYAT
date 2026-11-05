@@ -31,6 +31,7 @@ import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import { canManagePrivacy } from '@/constants/app'
+import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
 import type { PrivacyLevel } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,7 @@ const personFormSchema = z
     middle_name: z.string().max(100).optional(),
     maiden_name: z.string().max(100).optional(),
     gender: z.string().optional(),
+    blood_group: z.string().optional(),
     date_of_birth: z
       .string()
       .optional()
@@ -120,6 +122,7 @@ function sanitizeFormValues(values: PersonFormValues, mode: 'create' | 'edit'): 
     middle_name: sanitizeOptional(values.middle_name, isEdit),
     maiden_name: sanitizeOptional(values.maiden_name, isEdit),
     gender: (sanitizeOptional(values.gender, isEdit) as CreatePersonInput['gender']) ?? undefined,
+    blood_group: (sanitizeOptional(values.blood_group, isEdit) as CreatePersonInput['blood_group']) ?? undefined,
     date_of_birth: sanitizeOptional(values.date_of_birth, isEdit),
     date_of_death: sanitizeOptional(values.date_of_death, isEdit),
     birth_place: sanitizeOptional(values.birth_place, isEdit),
@@ -215,6 +218,7 @@ export function PersonForm({
       middle_name: toFieldValue(defaultValues?.middle_name),
       maiden_name: toFieldValue(defaultValues?.maiden_name),
       gender: defaultValues?.gender ?? '',
+      blood_group: toFieldValue((defaultValues as unknown as { blood_group?: string | null })?.blood_group),
       date_of_birth: toFieldValue(defaultValues?.date_of_birth),
       date_of_death: toFieldValue(defaultValues?.date_of_death),
       birth_place: toFieldValue(defaultValues?.birth_place),
@@ -331,6 +335,40 @@ export function PersonForm({
             {errors.gender && (
               <p id="gender-error" role="alert" className="text-xs text-red-600">
                 {errors.gender.message}
+              </p>
+            )}
+          </div>
+
+          {/* Blood Group — native select */}
+          <div className="space-y-1">
+            <label
+              htmlFor="blood_group"
+              className="block text-sm font-medium text-navy-700"
+            >
+              Blood Group
+            </label>
+            <select
+              id="blood_group"
+              aria-invalid={!!errors.blood_group}
+              aria-describedby={errors.blood_group ? 'blood-group-error' : undefined}
+              className={[
+                'w-full rounded border px-3 py-2 text-sm text-navy-900 bg-white',
+                'transition-colors focus:outline-none focus:ring-1',
+                errors.blood_group
+                  ? 'border-red-400 focus:border-red-500 focus:ring-red-400'
+                  : 'border-navy-300 focus:border-brand-500 focus:ring-brand-400',
+              ].join(' ')}
+              {...register('blood_group')}
+            >
+              {BLOOD_GROUP_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {errors.blood_group && (
+              <p id="blood-group-error" role="alert" className="text-xs text-red-600">
+                {errors.blood_group.message}
               </p>
             )}
           </div>
