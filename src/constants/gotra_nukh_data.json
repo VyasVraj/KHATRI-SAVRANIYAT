@@ -869,11 +869,11 @@
       ],
       "nukhs": [
         {
-          "id": "krishna_karotala",
-          "name": "Karotala",
-          "base_name": "Karotala",
+          "id": "krishna_karatela",
+          "name": "Karatela",
+          "base_name": "Karatela",
           "aliases": [
-            "Karotala"
+            "Karatela"
           ]
         },
         {
@@ -1696,21 +1696,21 @@
       "Daka"
     ],
     "Krishna (Shishan)": [
-      "Karotala",
+      "Karatela",
       "Karbaliya",
       "Khubhar (Khubadiya)",
       "Khuba (Khuda)",
       "Khubhariya"
     ],
     "Krishna": [
-      "Karotala",
+      "Karatela",
       "Karbaliya",
       "Khubhar (Khubadiya)",
       "Khuba (Khuda)",
       "Khubhariya"
     ],
     "Shishan": [
-      "Karotala",
+      "Karatela",
       "Karbaliya",
       "Khubhar (Khubadiya)",
       "Khuba (Khuda)",
