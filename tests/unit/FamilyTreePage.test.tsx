@@ -20,6 +20,12 @@ vi.mock('@/features/people/hooks/usePerson')
 vi.mock('@/features/people/hooks/usePersonMutations')
 vi.mock('@/features/auth/context/AuthContext')
 vi.mock('@/features/tree/hooks/useFamilyTree')
+vi.mock('@/features/families/hooks/useFamily', () => ({
+  useFamily: () => ({ data: undefined, isLoading: false, error: null }),
+}))
+vi.mock('@/features/family-members/hooks/useFamilyMembers', () => ({
+  useFamilyMembers: () => ({ data: [], isLoading: false, error: null }),
+}))
 vi.mock('@/features/relationships', () => ({
   PersonRelationshipsList: () => <div data-testid="mock-relationships-list" />,
 }))
@@ -129,8 +135,8 @@ describe('FamilyTreePage Component', () => {
       </MemoryRouter>
     )
 
-    expect(html).toContain('Invalid Person Identifier')
-    expect(html).toContain('The requested URL does not contain a valid person identifier.')
+    expect(html).toContain('Invalid Tree Identifier')
+    expect(html).toContain('The requested URL does not contain a valid person or family identifier.')
     expect(html).toContain('Back to census')
   })
 

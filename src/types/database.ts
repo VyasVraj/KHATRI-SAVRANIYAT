@@ -153,8 +153,9 @@ export interface PersonRow {
   user_id: string | null
   // Media / Avatar (Phase 11)
   avatar_url?: string | null
-  // Provenance
+  // Provenance & Management
   created_by: string | null
+  manager_user_id?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -213,8 +214,9 @@ export interface FamilyRow {
   // Privacy
   profile_privacy: PrivacyLevel
   members_privacy: PrivacyLevel
-  // Provenance
+  // Provenance & Management
   created_by: string | null
+  manager_user_id?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

@@ -224,7 +224,7 @@ describe('Phase 4 Lifecycle & Integration Flow', () => {
 
     expect(result.error).toBeNull()
     expect(result.data?.is_head).toBe(true)
-    expect(mockUpdateDemote).toHaveBeenCalledWith({ is_head: false })
+    expect(mockUpdateDemote).toHaveBeenCalledWith({ is_head: false, role: 'EXTENDED' })
     expect(mockUpdatePromote).toHaveBeenCalledWith({ is_head: true, role: 'HEAD' })
   })
 

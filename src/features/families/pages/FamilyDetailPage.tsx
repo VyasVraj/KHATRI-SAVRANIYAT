@@ -34,10 +34,12 @@ export function FamilyDetailPage() {
 
   const { data: members = [] } = useFamilyMembers(familyId, { includeFormer: false })
 
-  // Management capabilities based on Manager, Head, or Admin roles (Section 2 & 4)
-  // Creator alone does not retain management rights unless designated Manager or Head
+  // Management capabilities based on designated Manager, Creator (when manager unset), Head, or Admin roles
   const isManager = Boolean(
-    user && family && (family as unknown as { manager_user_id?: string | null }).manager_user_id === user.id
+    user &&
+    family &&
+    (family.manager_user_id === user.id ||
+      (!family.manager_user_id && family.created_by === user.id))
   )
   const isHead = Boolean(
     user && members.some((m) => m.is_head && m.person?.user_id === user.id)
@@ -46,6 +48,7 @@ export function FamilyDetailPage() {
     profile?.is_active &&
     (profile.role === 'ADMIN' ||
      profile.role === 'SUPER_ADMIN' ||
+     profile.role === 'COMMUNITY_MODERATOR' ||
      (ADMIN_ROLES as readonly string[]).includes(profile.role))
   )
   const canManageMembers = isManager || isHead || isModerator

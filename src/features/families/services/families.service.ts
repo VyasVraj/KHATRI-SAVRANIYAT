@@ -92,6 +92,7 @@ export async function createFamily(
     .insert({
       ...validated,
       created_by: createdBy,
+      manager_user_id: createdBy,
     })
     .select()
     .single()
