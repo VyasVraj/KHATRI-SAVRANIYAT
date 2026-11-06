@@ -11,13 +11,15 @@
  */
 
 import { useEffect } from 'react'
-import { X, MapPin, Phone, Shield, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, MapPin, Phone, Shield, CheckCircle2, AlertCircle, Edit2 } from 'lucide-react'
 import type { MukhiLeaderItem } from '../types'
 
 interface MukhiDetailsModalProps {
   mukhi: MukhiLeaderItem | null
   isOpen: boolean
   onClose: () => void
+  onEdit?: (mukhi: MukhiLeaderItem) => void
+  isAdmin?: boolean
 }
 
 function getInitials(name: string): string {
@@ -26,7 +28,13 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function MukhiDetailsModal({ mukhi, isOpen, onClose }: MukhiDetailsModalProps) {
+export function MukhiDetailsModal({
+  mukhi,
+  isOpen,
+  onClose,
+  onEdit,
+  isAdmin = false,
+}: MukhiDetailsModalProps) {
   useEffect(() => {
     if (!isOpen) return
 
@@ -117,6 +125,27 @@ export function MukhiDetailsModal({ mukhi, isOpen, onClose }: MukhiDetailsModalP
             )}
           </div>
 
+          {/* Gotra & Nukh Lineage */}
+          {(mukhi.gotra || mukhi.nukh) && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Community Lineage
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-slate-900 font-semibold text-xs">
+                {mukhi.gotra && (
+                  <span className="rounded-md bg-blue-50 px-2.5 py-1 text-blue-800 border border-blue-200">
+                    Gotra: {mukhi.gotra}
+                  </span>
+                )}
+                {mukhi.nukh && (
+                  <span className="rounded-md bg-indigo-50 px-2.5 py-1 text-indigo-800 border border-indigo-200">
+                    Nukh: {mukhi.nukh}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Mobile Number & Call Action */}
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -175,7 +204,20 @@ export function MukhiDetailsModal({ mukhi, isOpen, onClose }: MukhiDetailsModalP
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end">
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+          {isAdmin && onEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                onEdit(mukhi)
+              }}
+              className="min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            >
+              <Edit2 className="h-4 w-4" />
+              <span>Edit Mukhi</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

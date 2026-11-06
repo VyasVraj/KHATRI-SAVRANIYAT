@@ -14,17 +14,25 @@
  */
 
 import { useState } from 'react'
-import { Shield, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react'
+import { Shield, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Plus } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { PLATFORM_ADMIN_ROLES } from '@/constants/app'
 import { useMukhiDirectory } from '../hooks/useMukhiDirectory'
 import { MukhiCard } from './MukhiCard'
 import { MukhiFiltersBar } from './MukhiFiltersBar'
 import { MukhiDetailsModal } from './MukhiDetailsModal'
+import { MukhiFormModal } from './MukhiFormModal'
 import type { MukhiLeaderItem } from '../types'
 
 export function MukhiDirectoryView() {
   const { t } = useLanguage()
+  const { profile } = useAuthContext()
+  const isAdmin = Boolean(profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role))
+
   const [selectedMukhi, setSelectedMukhi] = useState<MukhiLeaderItem | null>(null)
+  const [isAddMukhiOpen, setIsAddMukhiOpen] = useState(false)
+  const [editingMukhi, setEditingMukhi] = useState<MukhiLeaderItem | null>(null)
 
   const {
     leaders,
@@ -66,6 +74,20 @@ export function MukhiDirectoryView() {
             )}
           </p>
         </div>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingMukhi(null)
+              setIsAddMukhiOpen(true)
+            }}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Mukhi</span>
+          </button>
+        )}
       </div>
 
       {/* Filters & Search Bar */}
@@ -135,6 +157,14 @@ export function MukhiDirectoryView() {
                 key={leader.id}
                 leader={leader}
                 onViewDetails={(selected) => setSelectedMukhi(selected)}
+                onEdit={
+                  isAdmin
+                    ? (selected) => {
+                        setEditingMukhi(selected)
+                        setIsAddMukhiOpen(true)
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -177,7 +207,25 @@ export function MukhiDirectoryView() {
       <MukhiDetailsModal
         mukhi={selectedMukhi}
         isOpen={Boolean(selectedMukhi)}
+        isAdmin={isAdmin}
         onClose={() => setSelectedMukhi(null)}
+        onEdit={(m) => {
+          setEditingMukhi(m)
+          setIsAddMukhiOpen(true)
+        }}
+      />
+
+      {/* Mukhi Form Modal (Add / Edit) */}
+      <MukhiFormModal
+        isOpen={isAddMukhiOpen}
+        mukhi={editingMukhi}
+        onClose={() => {
+          setIsAddMukhiOpen(false)
+          setEditingMukhi(null)
+        }}
+        onSuccess={() => {
+          refresh()
+        }}
       />
     </div>
   )

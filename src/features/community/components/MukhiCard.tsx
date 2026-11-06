@@ -18,6 +18,7 @@ import {
   User,
   ArrowRight,
   AlertCircle,
+  Edit2,
 } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
 import type { MukhiLeaderItem } from '../types'
@@ -26,6 +27,7 @@ interface MukhiCardProps {
   leader: MukhiLeaderItem
   onClick?: () => void
   onViewDetails?: (leader: MukhiLeaderItem) => void
+  onEdit?: (leader: MukhiLeaderItem) => void
   className?: string
 }
 
@@ -35,7 +37,7 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function MukhiCard({ leader, onClick, onViewDetails, className = '' }: MukhiCardProps) {
+export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = '' }: MukhiCardProps) {
   const { t } = useLanguage()
 
   const initials = getInitials(leader.name)
@@ -173,16 +175,32 @@ export function MukhiCard({ leader, onClick, onViewDetails, className = '' }: Mu
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={handleOpenDetails}
-          className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 active:bg-blue-200"
-          aria-label={`${t('mukhi.view_profile', 'View Profile')} for ${leader.name}`}
-        >
-          <User className="h-3.5 w-3.5" />
-          <span>{t('mukhi.view_profile', 'View Profile')}</span>
-          <ArrowRight className="h-3 w-3 ml-0.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleOpenDetails}
+            className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 active:bg-blue-200"
+            aria-label={`${t('mukhi.view_profile', 'View Profile')} for ${leader.name}`}
+          >
+            <User className="h-3.5 w-3.5" />
+            <span>{t('mukhi.view_profile', 'View Profile')}</span>
+            <ArrowRight className="h-3 w-3 ml-0.5" />
+          </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(leader)
+              }}
+              className="flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              aria-label={`Edit ${leader.name}`}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              <span>Edit</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

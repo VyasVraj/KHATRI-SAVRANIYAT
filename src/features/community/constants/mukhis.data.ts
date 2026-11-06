@@ -13,6 +13,8 @@ export interface CommunityMukhi {
   full_name: string
   gram: string
   mobile_number: string | null
+  gotra?: string | null
+  nukh?: string | null
   password_given_status: string | null
   form_received_status: string | null
   online_updated_status: string | null

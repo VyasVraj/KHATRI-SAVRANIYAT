@@ -138,6 +138,30 @@ export function CommunityPage() {
     }
   }
 
+  // Horizontal scroll container ref & wheel handler for large font sizes
+  const navRef = React.useRef<HTMLElement>(null)
+
+  const handleNavWheel = (e: React.WheelEvent<HTMLElement>) => {
+    if (navRef.current && (e.deltaY !== 0 || e.deltaX !== 0)) {
+      if (navRef.current.scrollWidth > navRef.current.clientWidth) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          navRef.current.scrollLeft += e.deltaY
+          e.preventDefault()
+        }
+      }
+    }
+  }
+
+  // Smooth auto-scroll active tab into view when activeTab changes
+  React.useEffect(() => {
+    if (activeTab) {
+      const activeEl = document.getElementById(`tab-${activeTab}`)
+      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+      }
+    }
+  }, [activeTab])
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
       {/* Page Header */}
@@ -505,9 +529,11 @@ export function CommunityPage() {
       </div>
 
       {/* Navigation Tabs Bar */}
-      <div className="border-b border-slate-200">
+      <div className="w-full max-w-full overflow-hidden border-b border-slate-200">
         <nav
-          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-1 no-scrollbar scroll-smooth touch-pan-x scroll-p-2"
+          ref={navRef}
+          onWheel={handleNavWheel}
+          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent scroll-smooth touch-pan-x"
           aria-label="Community Hub Tabs"
           role="tablist"
           onKeyDown={handleTabKeyDown}
@@ -524,7 +550,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'mukhi'
                 ? 'border-indigo-600 text-indigo-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Shield className="h-4 w-4" aria-hidden="true" />
@@ -551,8 +577,8 @@ export function CommunityPage() {
             className={[
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'announcements'
-                ? 'border-amber-600 text-amber-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                ? 'border-amber-600 text-amber-800 font-semibold'
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Bell className="h-4 w-4" aria-hidden="true" />
@@ -580,7 +606,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'events'
                 ? 'border-indigo-600 text-indigo-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Calendar className="h-4 w-4" aria-hidden="true" />
@@ -608,7 +634,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'birthdays'
                 ? 'border-rose-600 text-rose-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Cake className="h-4 w-4" aria-hidden="true" />
@@ -636,7 +662,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'panchang'
                 ? 'border-sky-600 text-sky-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Moon className="h-4 w-4" aria-hidden="true" />
@@ -663,16 +689,16 @@ export function CommunityPage() {
             className={[
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'circulars'
-                ? 'border-slate-900 text-slate-900 dark:border-slate-100 dark:text-slate-100 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                ? 'border-slate-900 text-slate-900 font-bold'
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <FileText className="h-4 w-4" aria-hidden="true" />
             <span>{t('circular.tab_circulars', 'Circulars')}</span>
             <span
-              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${
                 activeTab === 'circulars'
-                  ? 'bg-slate-900 text-white dark:bg-slate-800'
+                  ? 'bg-slate-900 text-white'
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
@@ -692,7 +718,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'committees'
                 ? 'border-blue-600 text-blue-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Award className="h-4 w-4" aria-hidden="true" />
@@ -720,7 +746,7 @@ export function CommunityPage() {
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
               activeTab === 'panchayat'
                 ? 'border-purple-600 text-purple-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                : 'border-transparent text-slate-600 hover:border-slate-400 hover:text-slate-900 font-medium',
             ].join(' ')}
           >
             <Crown className="h-4 w-4" aria-hidden="true" />

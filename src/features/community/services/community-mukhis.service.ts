@@ -28,7 +28,7 @@ export interface CommunityMukhiFilters {
 
 /** Directory-safe projection for community users */
 export const COMMUNITY_MUKHI_DIRECTORY_COLUMNS =
-  'id, source_serial_number, full_name, gram, mobile_number, is_active, linked_user_id, linked_person_id'
+  'id, source_serial_number, full_name, gram, mobile_number, gotra, nukh, is_active, linked_user_id, linked_person_id'
 
 /**
  * Hydrated fallback list with deterministic mock UUIDs for offline/pre-migration resilience
@@ -151,5 +151,186 @@ export async function getCommunityMukhi(id: string): Promise<ApiResponse<Communi
       (m) => m.id === id || String(m.source_serial_number) === id
     )
     return { data: fallback || null, error: null }
+  }
+}
+
+export interface UpsertCommunityMukhiInput {
+  id?: string
+  full_name: string
+  gram: string
+  mobile_number?: string | null
+  gotra?: string | null
+  nukh?: string | null
+  linked_person_id?: string | null
+  official_email?: string | null
+  authority_status?: string
+  is_active?: boolean
+}
+
+/**
+ * Upsert (create or update) an official Community Mukhi.
+ * Admin / Super Admin operation only.
+ */
+export async function upsertCommunityMukhi(
+  input: UpsertCommunityMukhiInput
+): Promise<ApiResponse<CommunityMukhi>> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: Record<string, any> = {
+      full_name: input.full_name.trim(),
+      gram: input.gram.trim(),
+      mobile_number: input.mobile_number?.trim() || null,
+      gotra: input.gotra?.trim() || null,
+      nukh: input.nukh?.trim() || null,
+      linked_person_id: input.linked_person_id || null,
+      official_email: input.official_email?.trim() || null,
+      is_active: input.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (input.authority_status) {
+      payload.authority_status = input.authority_status
+    }
+
+    if (input.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from as any)('community_mukhis')
+        .update(payload)
+        .eq('id', input.id)
+        .select()
+        .single()
+
+      if (error) {
+        return { data: null, error: { message: error.message, code: error.code } }
+      }
+      return { data: data as CommunityMukhi, error: null }
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from as any)('community_mukhis')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (error) {
+        return { data: null, error: { message: error.message, code: error.code } }
+      }
+      return { data: data as CommunityMukhi, error: null }
+    }
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Failed to save Mukhi record',
+      },
+    }
+  }
+}
+
+/**
+ * Check if a person is already registered as an official Mukhi in any region.
+ */
+export async function checkPersonAlreadyMukhi(
+  personId: string,
+  excludeMukhiId?: string
+): Promise<{ isMukhi: boolean; gram?: string; name?: string }> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q = (supabase.from as any)('community_mukhis')
+      .select('id, full_name, gram')
+      .eq('linked_person_id', personId)
+      .eq('is_active', true)
+
+    if (excludeMukhiId) {
+      q = q.neq('id', excludeMukhiId)
+    }
+
+    const { data } = await q.maybeSingle()
+    if (data) {
+      return { isMukhi: true, gram: data.gram, name: data.full_name }
+    }
+    return { isMukhi: false }
+  } catch {
+    return { isMukhi: false }
+  }
+}
+
+export interface MukhiPersonCandidate {
+  id: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  full_name: string
+  gender?: string | null
+  age?: number | null
+  dob_year?: number | null
+  birth_place?: string | null
+  city?: string | null
+  state?: string | null
+  gotra?: string | null
+  nukh?: string | null
+}
+
+/**
+ * Search existing census persons to autofill and link a Mukhi entry.
+ * Does NOT mutate public.persons or create duplicate person records.
+ */
+export async function searchPersonsForMukhiForm(
+  query: string
+): Promise<MukhiPersonCandidate[]> {
+  const q = query.trim()
+  if (!q || q.length < 2) return []
+
+  try {
+    const sanitized = q.replace(/[,()"\\]/g, ' ').replace(/\s+/g, ' ').trim()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('community_persons')
+      .select('id, first_name, middle_name, last_name, gender, age, dob_year, birth_place, city, state, gotra, nukh')
+      .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%,middle_name.ilike.%${sanitized}%,city.ilike.%${sanitized}%,birth_place.ilike.%${sanitized}%`)
+      .limit(10)
+
+    if (error || !data || data.length === 0) {
+      // Fallback query on persons table
+      const { data: pData } = await supabase
+        .from('persons')
+        .select('id, first_name, middle_name, last_name, gender, dob_year, birth_place, gotra, nukh')
+        .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%,middle_name.ilike.%${sanitized}%`)
+        .limit(10)
+
+      if (!pData) return []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (pData as any[]).map((p) => ({
+        id: p.id,
+        first_name: p.first_name,
+        middle_name: p.middle_name,
+        last_name: p.last_name,
+        full_name: [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' '),
+        gender: p.gender,
+        dob_year: p.dob_year,
+        birth_place: p.birth_place,
+        city: p.birth_place,
+        state: null,
+        gotra: p.gotra,
+        nukh: p.nukh,
+      }))
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((p) => ({
+      id: p.id,
+      first_name: p.first_name,
+      middle_name: p.middle_name,
+      last_name: p.last_name,
+      full_name: [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' '),
+      gender: p.gender,
+      age: p.age,
+      dob_year: p.dob_year,
+      birth_place: p.birth_place,
+      city: p.city,
+      state: p.state,
+      gotra: p.gotra,
+      nukh: p.nukh,
+    }))
+  } catch {
+    return []
   }
 }

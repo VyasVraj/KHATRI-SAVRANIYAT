@@ -663,27 +663,49 @@ export const CommitteeDirectoryView: React.FC = () => {
 
                 {/* Designation */}
                 <div>
-                  <label className="block font-semibold text-navy-700 mb-1">Designation *</label>
-                  <input
-                    type="text"
-                    list="designation-suggestions"
+                  <label htmlFor="committee-member-designation" className="block font-semibold text-navy-700 mb-1">
+                    Designation *
+                  </label>
+                  <select
+                    id="committee-member-designation"
                     value={editMember?.designation ?? ''}
                     onChange={(e) =>
                       setEditMember((prev) => ({ ...prev, designation: e.target.value }))
                     }
-                    placeholder="e.g. Vice President or Member"
                     required
-                    className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                  <datalist id="designation-suggestions">
-                    <option value="President" />
-                    <option value="Vice President" />
-                    <option value="General Secretary" />
-                    <option value="Secretary" />
-                    <option value="Treasurer" />
-                    <option value="Organization Secretary" />
-                    <option value="Member" />
-                  </datalist>
+                    className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                  >
+                    <option value="" disabled>Select Designation</option>
+                    {[
+                      'President',
+                      'Vice President',
+                      'General Secretary',
+                      'Secretary',
+                      'Treasurer',
+                      'Organization Secretary',
+                      'Joint Secretary',
+                      'Executive Member',
+                      'Member',
+                    ].map((pos) => (
+                      <option key={pos} value={pos}>
+                        {pos}
+                      </option>
+                    ))}
+                    {editMember?.designation &&
+                      ![
+                        'President',
+                        'Vice President',
+                        'General Secretary',
+                        'Secretary',
+                        'Treasurer',
+                        'Organization Secretary',
+                        'Joint Secretary',
+                        'Executive Member',
+                        'Member',
+                      ].includes(editMember.designation) && (
+                        <option value={editMember.designation}>{editMember.designation}</option>
+                      )}
+                  </select>
                 </div>
               </div>
 
