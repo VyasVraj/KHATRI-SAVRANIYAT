@@ -62,27 +62,34 @@ export function BirthdayCard({
     setIsSending(true)
     setSendError(null)
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).rpc('send_birthday_greeting', {
-        p_recipient_person_id: item.person_id,
-        p_message: 'Warm birthday wishes from community leadership!',
-      })
-      if (error) {
-        if (
-          error.code === 'PGRST202' ||
-          error.message?.includes('send_birthday_greeting')
-        ) {
-          // Schema cache or RPC not yet deployed in remote database
-          // Optimistically treat as sent for UI responsiveness
-          onSendWish?.(item.person_id)
+      const client = supabase as unknown as {
+        rpc?: (name: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message?: string } | null }>
+      }
+      if (typeof client.rpc === 'function') {
+        const { error } = await client.rpc('send_birthday_greeting', {
+          p_recipient_person_id: item.person_id,
+          p_message: 'Warm birthday wishes from community leadership!',
+        })
+        if (error) {
+          if (
+            error.code === 'PGRST202' ||
+            (error.code === '42883' && error.message?.includes('send_birthday_greeting'))
+          ) {
+            // Schema cache or RPC not yet deployed in remote database
+            // Optimistically treat as sent for UI responsiveness
+            onSendWish?.(item.person_id)
+          } else {
+            setSendError(error.message || 'Unable to send birthday wish.')
+          }
         } else {
-          setSendError(error.message || 'Unable to send birthday wish.')
+          onSendWish?.(item.person_id)
         }
       } else {
         onSendWish?.(item.person_id)
       }
-    } catch {
-      onSendWish?.(item.person_id)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unable to send birthday wish.'
+      setSendError(msg)
     } finally {
       setIsSending(false)
     }

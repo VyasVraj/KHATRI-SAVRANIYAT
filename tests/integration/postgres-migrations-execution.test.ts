@@ -70,6 +70,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const mukhiClaimingSql = fs.readFileSync(path.join(migrationsDir, '20261106040000_mukhi_authority_and_profile_claiming.sql'), 'utf-8')
   const fiveLevelAccessibilitySql = fs.readFileSync(path.join(migrationsDir, '20261106050000_executive_committee_and_five_level_accessibility.sql'), 'utf-8')
   const fixFamilyRoleMappingSql = fs.readFileSync(path.join(migrationsDir, '20261107020000_fix_family_role_enum_mapping.sql'), 'utf-8')
+  const fixBirthdayNotificationSql = fs.readFileSync(path.join(migrationsDir, '20261107030000_fix_birthday_notification_delivery.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -2336,6 +2337,155 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       expect(membersCheck.rows[0].role).toBe('HEAD')
       expect(membersCheck.rows[1].role).toBe('SPOUSE')
       expect(membersCheck.rows[2].role).toBe('SPOUSE')
+    })
+  })
+
+  // 14. Fix Birthday Notification Delivery to the Exact Recipient (20261107030000)
+  describe('14. Fix Birthday Notification Delivery to the Exact Recipient (20261107030000)', () => {
+    let senderMukhiId: string
+    let normalUserId: string
+
+    beforeAll(async () => {
+      const mRes = await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('mukhi.bday.sender@example.com') RETURNING id::text;
+      `)
+      senderMukhiId = mRes.rows[0].id
+      await pg.exec(`
+        INSERT INTO public.profiles (id, display_name, role, is_active)
+        VALUES ('${senderMukhiId}', 'Mukhi Vasantbhai', 'MUKHI', TRUE);
+      `)
+
+      const nRes = await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('normal.user.bday@example.com') RETURNING id::text;
+      `)
+      normalUserId = nRes.rows[0].id
+      await pg.exec(`
+        INSERT INTO public.profiles (id, display_name, role, is_active)
+        VALUES ('${normalUserId}', 'Normal Member', 'MEMBER', TRUE);
+      `)
+    })
+
+    it('executes 20261107030000_fix_birthday_notification_delivery.sql without error', async () => {
+      await pg.exec(fixBirthdayNotificationSql)
+    })
+
+    it('delivers birthday wish notification strictly to the exact recipient account', async () => {
+      // 1. Create recipient user account and linked person record
+      const rUser = (await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('bday.recipient@example.com') RETURNING id::text;
+      `)).rows[0].id
+      await pg.exec(`
+        INSERT INTO public.profiles (id, display_name, role, is_active)
+        VALUES ('${rUser}', 'Aarav Vyas', 'MEMBER', TRUE);
+      `)
+
+      const bdayPersonId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id
+        ) VALUES (
+          'Aarav', 'Vyas', 'MALE', 'O+', 'Anand', '1995-11-10', 'Agastya', 'Arora (Aroda)', 'bday.recipient@example.com', '+919898111222', '${rUser}'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 2. Caller is senderMukhiId (Mukhi authority)
+      await pg.exec(`UPDATE public._mock_session SET uid = '${senderMukhiId}';`)
+
+      // 3. Mukhi sends wish
+      const res = await pg.query<{ res: any }>(`
+        SELECT public.send_birthday_greeting('${bdayPersonId}') AS res;
+      `)
+      const output = res.rows[0].res
+      expect(output.success).toBe(true)
+      expect(output.recipient_linked).toBe(true)
+      expect(output.notification_delivered).toBe(true)
+      expect(output.recipient_user_id).toBe(rUser)
+
+      // 4. Verify notification is in public.notifications strictly for rUser
+      const notifs = await pg.query<{ id: string; recipient_id: string; title: string; body: string; type: string }>(`
+        SELECT id::text, recipient_id::text, title, body, type
+        FROM public.notifications
+        WHERE recipient_id = '${rUser}' AND type = 'BIRTHDAY_GREETING';
+      `)
+      expect(notifs.rows.length).toBe(1)
+      expect(notifs.rows[0].recipient_id).toBe(rUser)
+      expect(notifs.rows[0].title).toBe('Birthday Wishes!')
+      expect(notifs.rows[0].body).toContain('has sent you birthday wishes.')
+
+      // 5. Verify sender does NOT have a notification
+      const senderNotifs = await pg.query(`
+        SELECT id FROM public.notifications WHERE recipient_id = '${senderMukhiId}' AND type = 'BIRTHDAY_GREETING';
+      `)
+      expect(senderNotifs.rows.length).toBe(0)
+
+      // 6. Recipient logs in and marks notification as read
+      await pg.exec(`UPDATE public._mock_session SET uid = '${rUser}';`)
+      await pg.exec(`
+        UPDATE public.notifications
+        SET read_at = NOW()
+        WHERE id = '${notifs.rows[0].id}' AND recipient_id = '${rUser}';
+      `)
+
+      const readCheck = await pg.query<{ read_at: string }>(`
+        SELECT read_at::text FROM public.notifications WHERE id = '${notifs.rows[0].id}';
+      `)
+      expect(readCheck.rows[0].read_at).toBeDefined()
+    })
+
+    it('handles unlinked person without delivering phantom notifications to unrelated users', async () => {
+      // 1. Create a person without linked user account
+      const unlinkedPersonId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone
+        ) VALUES (
+          'Unlinked', 'Person', 'MALE', 'B+', 'Vadodara', '1980-05-12', 'Agastya', 'Arora (Aroda)', 'unlinked.bday@example.com', '+919999900011'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 2. Caller is senderMukhiId
+      await pg.exec(`UPDATE public._mock_session SET uid = '${senderMukhiId}';`)
+
+      const initialNotifCount = (await pg.query<{ count: string }>(`
+        SELECT COUNT(*)::text as count FROM public.notifications;
+      `)).rows[0].count
+
+      // 3. Send greeting to unlinked person
+      const res = await pg.query<{ res: any }>(`
+        SELECT public.send_birthday_greeting('${unlinkedPersonId}') AS res;
+      `)
+      const output = res.rows[0].res
+      expect(output.success).toBe(true)
+      expect(output.recipient_linked).toBe(false)
+      expect(output.notification_delivered).toBe(false)
+      expect(output.message).toContain('Recipient has not linked a login account yet')
+
+      // 4. Verify no new notification was created
+      const finalNotifCount = (await pg.query<{ count: string }>(`
+        SELECT COUNT(*)::text as count FROM public.notifications;
+      `)).rows[0].count
+      expect(finalNotifCount).toBe(initialNotifCount)
+    })
+
+    it('strictly denies self-wishes and normal users', async () => {
+      // 1. Create a person linked to senderMukhiId
+      const selfPersonId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id
+        ) VALUES (
+          'Mukhi', 'Vasantbhai', 'MALE', 'A+', 'Vadodara', '1960-01-01', 'Agastya', 'Arora (Aroda)', 'mukhi.bday.sender@example.com', '+919876500000', '${senderMukhiId}'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 2. Self-wish check -> DENIED
+      await pg.exec(`UPDATE public._mock_session SET uid = '${senderMukhiId}';`)
+      await expect(
+        pg.query(`SELECT public.send_birthday_greeting('${selfPersonId}');`)
+      ).rejects.toThrow(/cannot send a birthday greeting to yourself/)
+
+      // 3. Normal user check -> DENIED
+      await pg.exec(`UPDATE public._mock_session SET uid = '${normalUserId}';`)
+      await expect(
+        pg.query(`SELECT public.send_birthday_greeting('${selfPersonId}');`)
+      ).rejects.toThrow(/Normal Users are not permitted/)
     })
   })
 })
