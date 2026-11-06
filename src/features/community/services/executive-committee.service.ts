@@ -172,3 +172,62 @@ export async function getExecutiveCommitteeMember(
     return { data: fallback ?? null, error: null }
   }
 }
+
+/**
+ * Admin-only: Create or update an official Executive Committee record.
+ */
+export async function upsertExecutiveCommitteeMember(
+  member: Partial<ExecutiveCommitteeMember>
+): Promise<ApiResponse<ExecutiveCommitteeMember>> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('admin_upsert_committee_member', {
+      p_id: member.id || null,
+      p_serial_number: member.serial_number ?? null,
+      p_designation: member.designation || 'Member',
+      p_full_name: member.full_name || '',
+      p_nukh: member.nukh || '',
+      p_city: member.city || '',
+      p_mobile_number: member.mobile_number || '',
+      p_is_active: member.is_active ?? true,
+    })
+
+    if (error) {
+      return { data: null, error: new Error(error.message) }
+    }
+
+    return { data: data as ExecutiveCommitteeMember, error: null }
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err : new Error('Failed to save committee member'),
+    }
+  }
+}
+
+/**
+ * Admin-only: Toggle active status of an official Executive Committee record.
+ */
+export async function toggleExecutiveCommitteeMemberStatus(
+  id: string,
+  isActive: boolean
+): Promise<ApiResponse<boolean>> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('admin_toggle_committee_member_status', {
+      p_id: id,
+      p_is_active: isActive,
+    })
+
+    if (error) {
+      return { data: null, error: new Error(error.message) }
+    }
+
+    return { data: Boolean(data), error: null }
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err : new Error('Failed to update status'),
+    }
+  }
+}

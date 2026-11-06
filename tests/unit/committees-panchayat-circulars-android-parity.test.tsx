@@ -65,6 +65,23 @@ vi.mock('@/features/community/services/groups.service')
 vi.mock('@/features/community/services/announcements.service')
 vi.mock('@/features/community/services/events.service')
 vi.mock('@/features/community/services/birthdays.service')
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Network offline fallback test' },
+      }),
+      single: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Network offline fallback test' },
+      }),
+    })),
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+  },
+}))
 
 const REGULAR_USER_ID = '11111111-1111-4111-8111-111111111111'
 const MODERATOR_USER_ID = '99999999-9999-4999-8999-999999999999'
@@ -235,22 +252,21 @@ describe('ANDROID-13: Committees, Panchayat Leadership & Circulars', () => {
       renderWithProviders(<CommitteeDirectoryView />)
 
       await waitFor(() => {
+        expect(screen.getByText('Executive Committee')).toBeInTheDocument()
         expect(
           screen.getByText('Committees & Governance Bodies')
         ).toBeInTheDocument()
+        expect(screen.getByText(/Section A/i)).toBeInTheDocument()
+        expect(screen.getByText(/Section B/i)).toBeInTheDocument()
+        expect(screen.getByText('Shri Vasant Kumar Jamnadas Pamnani')).toBeInTheDocument()
       })
 
-      // Check category buttons
-      expect(screen.getByRole('button', { name: /All Committees/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /Census & Lineage/i })).toBeInTheDocument()
-
-      // Click Census category
-      fireEvent.click(screen.getByRole('button', { name: /Census & Lineage/i }))
+      // Interactive search
+      const searchInput = screen.getByPlaceholderText(/Search by name/i)
+      fireEvent.change(searchInput, { target: { value: 'Jamnadas' } })
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Jan Ganna (Census) Central Committee')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Shri Vasant Kumar Jamnadas Pamnani')).toBeInTheDocument()
       })
     })
   })

@@ -68,6 +68,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const familyPermissionsSql = fs.readFileSync(path.join(migrationsDir, '20261106020000_family_membership_based_edit_permissions.sql'), 'utf-8')
   const fieldValidationSql = fs.readFileSync(path.join(migrationsDir, '20261106030000_enforce_person_field_validation.sql'), 'utf-8')
   const mukhiClaimingSql = fs.readFileSync(path.join(migrationsDir, '20261106040000_mukhi_authority_and_profile_claiming.sql'), 'utf-8')
+  const fiveLevelAccessibilitySql = fs.readFileSync(path.join(migrationsDir, '20261106050000_executive_committee_and_five_level_accessibility.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -2144,6 +2145,88 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       await expect(
         pg.query(`SELECT public.submit_profile_claim('${childPersonId}', '${familyId}');`)
       ).rejects.toThrow(/already been claimed/)
+    })
+  })
+
+  // ===========================================================================
+  // 12. Executive Committee & 5-Level Accessibility Slider (20261106050000)
+  // ===========================================================================
+  describe('12. Executive Committee & 5-Level Accessibility Slider (20261106050000)', () => {
+    it('executes 20261106050000 without error and enforces RLS & 5-level scale', async () => {
+      // 1. Execute migration 20261106050000
+      await pg.exec(fiveLevelAccessibilitySql)
+
+      // 2. Verify 31 executive committee members seeded
+      const countRes = await pg.query<{ count: string }>(`
+        SELECT COUNT(*)::text AS count FROM public.executive_committee_members;
+      `)
+      expect(parseInt(countRes.rows[0].count, 10)).toBe(31)
+
+      // 3. Test 5-Level Accessibility Scale: Positive tests
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+      await pg.query(`SELECT public.update_my_font_size_preference('EXTRA_LARGE');`)
+      let fontPref = await pg.query<{ font_size_preference: string }>(`
+        SELECT font_size_preference FROM public.profiles WHERE id = '${activeMemberId}';
+      `)
+      expect(fontPref.rows[0].font_size_preference).toBe('EXTRA_LARGE')
+
+      await pg.query(`SELECT public.update_my_font_size_preference('VERY_LARGE');`)
+      fontPref = await pg.query<{ font_size_preference: string }>(`
+        SELECT font_size_preference FROM public.profiles WHERE id = '${activeMemberId}';
+      `)
+      expect(fontPref.rows[0].font_size_preference).toBe('VERY_LARGE')
+
+      await pg.query(`SELECT public.update_my_font_size_preference('STANDARD');`)
+      fontPref = await pg.query<{ font_size_preference: string }>(`
+        SELECT font_size_preference FROM public.profiles WHERE id = '${activeMemberId}';
+      `)
+      expect(fontPref.rows[0].font_size_preference).toBe('STANDARD')
+
+      // 4. Test 5-Level Accessibility Scale: Negative test (invalid preference rejected)
+      await expect(
+        pg.query(`SELECT public.update_my_font_size_preference('GIGANTIC');`)
+      ).rejects.toThrow(/Invalid font size preference/)
+
+      // 5. Test Executive Committee Management RBAC: Negative test
+      // Normal member cannot call admin_upsert_committee_member
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+      await expect(
+        pg.query(`
+          SELECT public.admin_upsert_committee_member(
+            NULL, 99, 'Adviser', 'Test NonAdmin', 'Khuha', 'Jaipur', '9999999999', TRUE
+          );
+        `)
+      ).rejects.toThrow(/Only ADMIN or SUPER_ADMIN/)
+
+      // Normal member cannot call admin_toggle_committee_member_status
+      const firstMember = (await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.executive_committee_members WHERE serial_number = 1;
+      `)).rows[0].id
+
+      await expect(
+        pg.query(`SELECT public.admin_toggle_committee_member_status('${firstMember}', FALSE);`)
+      ).rejects.toThrow(/Only ADMIN or SUPER_ADMIN/)
+
+      // 6. Test Executive Committee Management RBAC: Positive test
+      // Admin can call admin_upsert_committee_member and admin_toggle_committee_member_status
+      await pg.exec(`UPDATE public._mock_session SET uid = '${adminId}';`)
+      const upsertRes = await pg.query<{ id: string; full_name: string }>(`
+        SELECT id::text, full_name
+        FROM public.admin_upsert_committee_member(
+          NULL, 32, 'Adviser', 'Shri Test Admin Member', 'Khuha', 'Jaipur', '9999999999', TRUE
+        );
+      `)
+      expect(upsertRes.rows[0].full_name).toBe('Shri Test Admin Member')
+
+      const toggleRes = await pg.query<{ r: boolean }>(`
+        SELECT public.admin_toggle_committee_member_status('${firstMember}', FALSE) AS r;
+      `)
+      expect(toggleRes.rows[0].r).toBe(true)
+
+      const statusCheck = await pg.query<{ is_active: boolean }>(`
+        SELECT is_active FROM public.executive_committee_members WHERE id = '${firstMember}';
+      `)
+      expect(statusCheck.rows[0].is_active).toBe(false)
     })
   })
 })

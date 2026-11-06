@@ -35,9 +35,9 @@ import { useEvents } from '../hooks/useEvents'
 import { useBirthdays } from '../hooks/useBirthdays'
 import { usePanchang } from '../hooks/usePanchang'
 import { useMukhiDirectory } from '../hooks/useMukhiDirectory'
-import { useCommittees } from '../hooks/useCommittees'
 import { usePanchayat } from '../hooks/usePanchayat'
 import { useCirculars } from '../hooks/useCirculars'
+import { useExecutiveCommittee } from '../hooks/useExecutiveCommittee'
 import { AnnouncementsFeed } from '../components/AnnouncementsFeed'
 import { EventsFeed } from '../components/EventsFeed'
 import { BirthdaysFeed } from '../components/BirthdaysFeed'
@@ -64,16 +64,17 @@ export function CommunityPage() {
 
   const rawTab = searchParams.get('tab')
   const activeTab: CommunityTab =
-    rawTab === 'circulars' ||
-    rawTab === 'committees' ||
-    rawTab === 'panchayat' ||
-    rawTab === 'announcements' ||
-    rawTab === 'events' ||
-    rawTab === 'birthdays' ||
-    rawTab === 'panchang' ||
-    rawTab === 'groups'
-      ? rawTab
-      : 'mukhi'
+    rawTab === 'committees' || rawTab === 'executive-committee'
+      ? 'committees'
+      : rawTab === 'circulars' ||
+        rawTab === 'panchayat' ||
+        rawTab === 'announcements' ||
+        rawTab === 'events' ||
+        rawTab === 'birthdays' ||
+        rawTab === 'panchang' ||
+        rawTab === 'groups'
+        ? rawTab
+        : 'mukhi'
 
   const handleTabChange = (newTab: CommunityTab) => {
     setSearchParams({ tab: newTab }, { replace: true })
@@ -91,7 +92,7 @@ export function CommunityPage() {
   } = useBirthdays()
   const { todayInfo: panchangTodayInfo, nextKeyObservance } = usePanchang()
   const { totalCount: mukhiCount, isLoading: mukhiLoading } = useMukhiDirectory()
-  const { totalCount: committeesCount, isLoading: committeesLoading } = useCommittees()
+  const { totalCount: execCommitteeCount, isLoading: execCommitteeLoading } = useExecutiveCommittee()
   const { totalCount: panchayatCount, isLoading: panchayatLoading } = usePanchayat()
   const { totalCount: circularsCount, isLoading: circularsLoading } = useCirculars()
 
@@ -236,7 +237,7 @@ export function CommunityPage() {
           </div>
         </button>
 
-        {/* Committees Metric Card (Screen 44) */}
+        {/* Committees Metric Card (Screen 44 — Official Executive Committee) */}
         <button
           type="button"
           onClick={() => handleTabChange('committees')}
@@ -245,7 +246,7 @@ export function CommunityPage() {
               ? 'border-blue-600 bg-blue-50/40 shadow-sm ring-2 ring-blue-500/20'
               : 'border-slate-200 bg-white hover:border-slate-300'
           }`}
-          aria-label={`View Committees: ${committeesCount} active`}
+          aria-label={`View Executive Committee: ${execCommitteeCount} members`}
         >
           <div>
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -253,12 +254,12 @@ export function CommunityPage() {
                 <Award className="h-5 w-5" />
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200 shrink-0">
-                {committeesLoading ? '...' : committeesCount} {t('committee.count_committees', 'Committees')}
+                {execCommitteeLoading ? '...' : execCommitteeCount} {t('committee.count_committees', 'Members')}
               </span>
             </div>
             <div className="mt-4">
               <div className="text-2xl font-bold text-slate-900">
-                {committeesLoading ? '...' : committeesCount}
+                {execCommitteeLoading ? '...' : execCommitteeCount}
               </div>
               <div className="text-sm font-semibold text-slate-700 mt-0.5">
                 {t('committee.pulse_committees', 'Committees')}
@@ -266,7 +267,7 @@ export function CommunityPage() {
               <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                 {t(
                   'committee.pulse_committees_desc',
-                  'Executive, census, welfare & youth bodies.'
+                  'Executive leadership and committee representatives.'
                 )}
               </p>
             </div>
@@ -703,7 +704,7 @@ export function CommunityPage() {
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {committeesCount}
+              {execCommitteeCount}
             </span>
           </button>
 
