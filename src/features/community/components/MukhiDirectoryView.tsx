@@ -2,21 +2,30 @@
  * MukhiDirectoryView component (Phase 10 / ANDROID-11 Parity)
  *
  * Full mobile-first directory view for Mukhi Leadership:
+ * - Heading: Mukhi Directory
+ * - Subtitle: Explore the official KHATRI SARVANIYAT Mukhi directory and find community leaders across different regions.
+ * - Dynamic count badge: {totalCount} Mukhis
+ * - Search by Mukhi Name, Mobile Number, Region / Gram / City.
+ * - Filter by Region / Gram / City dropdown.
+ * - Alphabetical sorting (A-Z) and clear search & filter action.
+ * - Individual Mukhi Profile modal on card/name/button click.
  * - Minimum 44px touch targets on all interactive controls.
- * - Search & multi-criteria filters (State, City, Nukh).
- * - Responsive grid (1-col mobile, 2-col tablet, 3-col desktop).
- * - Empty, loading, and error states.
  * - Accessible pagination controls.
  */
 
+import { useState } from 'react'
 import { Shield, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
 import { useMukhiDirectory } from '../hooks/useMukhiDirectory'
 import { MukhiCard } from './MukhiCard'
 import { MukhiFiltersBar } from './MukhiFiltersBar'
+import { MukhiDetailsModal } from './MukhiDetailsModal'
+import type { MukhiLeaderItem } from '../types'
 
 export function MukhiDirectoryView() {
   const { t } = useLanguage()
+  const [selectedMukhi, setSelectedMukhi] = useState<MukhiLeaderItem | null>(null)
+
   const {
     leaders,
     isLoading,
@@ -44,16 +53,16 @@ export function MukhiDirectoryView() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              {t('mukhi.title', 'Mukhi Leadership Directory')}
+              {t('mukhi.title', 'Mukhi Directory')}
             </h2>
             <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">
-              {totalCount} {t('mukhi.count_leaders', 'leaders')}
+              {totalCount} {t('mukhi.count_mukhis', 'Mukhis')}
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
             {t(
               'mukhi.subtitle',
-              'Community elders, regional leaders, and Panchayat Mukhis guiding Samaj affairs.'
+              'Explore the official KHATRI SARVANIYAT Mukhi directory and find community leaders across different regions.'
             )}
           </p>
         </div>
@@ -122,7 +131,11 @@ export function MukhiDirectoryView() {
           {/* Leaders Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {leaders.map((leader) => (
-              <MukhiCard key={leader.id} leader={leader} />
+              <MukhiCard
+                key={leader.id}
+                leader={leader}
+                onViewDetails={(selected) => setSelectedMukhi(selected)}
+              />
             ))}
           </div>
 
@@ -159,6 +172,13 @@ export function MukhiDirectoryView() {
           )}
         </>
       )}
+
+      {/* Individual Mukhi Details Modal */}
+      <MukhiDetailsModal
+        mukhi={selectedMukhi}
+        isOpen={Boolean(selectedMukhi)}
+        onClose={() => setSelectedMukhi(null)}
+      />
     </div>
   )
 }

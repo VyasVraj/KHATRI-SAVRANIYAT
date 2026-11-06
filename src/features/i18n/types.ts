@@ -403,6 +403,7 @@ export type TranslationKey =
   | 'mukhi.pulse_mukhi_desc'
   | 'mukhi.view_directory'
   | 'mukhi.count_leaders'
+  | 'mukhi.count_mukhis'
   | 'mukhi.search_placeholder'
   | 'mukhi.filter_state'
   | 'mukhi.filter_city'

@@ -164,7 +164,7 @@ export function CommunityPage() {
               ? 'border-indigo-600 bg-indigo-50/40 shadow-sm ring-2 ring-indigo-500/20'
               : 'border-slate-200 bg-white hover:border-slate-300'
           }`}
-          aria-label={`View Mukhi Directory: ${mukhiCount} leaders`}
+          aria-label={`View Mukhi Directory: ${mukhiCount} Mukhis`}
         >
           <div>
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -172,7 +172,7 @@ export function CommunityPage() {
                 <Shield className="h-5 w-5" />
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200 shrink-0">
-                {mukhiLoading ? '...' : mukhiCount} {t('mukhi.count_leaders', 'leaders')}
+                {mukhiLoading ? '...' : mukhiCount} {t('mukhi.count_mukhis', 'Mukhis')}
               </span>
             </div>
             <div className="mt-4">

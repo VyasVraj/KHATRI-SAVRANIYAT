@@ -363,7 +363,7 @@ describe('CLIENT-PRIVACY-1: PersonDetail Protected Data Rendering Security', () 
   it('renders Respective Regional Mukhi with contact request affordance for normal members', () => {
     const html = renderPersonDetail('MEMBER', 'unrelated-user-123')
     expect(html).toContain('Assigned Regional Mukhi')
-    expect(html).toContain('Govindbhai Jethalal Janiyani')
+    expect(html).toContain('Mukhi Mulchand Khanumal Valera')
     expect(html).toContain('Palanpur')
     expect(html).toContain('Request Contact via Mukhi')
     // Normal member must NOT receive Mukhi's private phone in cleartext
@@ -404,7 +404,7 @@ describe('CLIENT-PRIVACY-1: PersonDetail Protected Data Rendering Security', () 
 describe('CLIENT-PRIVACY-1: Regional Mukhi Resolution Service', () => {
   it('resolves Palanpur Mukhi for Palanpur city', () => {
     const mukhi = getRespectiveMukhi('Palanpur', 'Gujarat', false)
-    expect(mukhi.name).toBe('Govindbhai Jethalal Janiyani')
+    expect(mukhi.name).toBe('Mukhi Mulchand Khanumal Valera')
     expect(mukhi.city).toBe('Palanpur')
     expect(mukhi.can_contact_directly).toBe(false)
     expect(mukhi.phone).toBeNull()
@@ -412,31 +412,31 @@ describe('CLIENT-PRIVACY-1: Regional Mukhi Resolution Service', () => {
 
   it('resolves Kutch / Bhuj Mukhi for Bhuj city', () => {
     const mukhi = getRespectiveMukhi('Bhuj', 'Gujarat', false)
-    expect(mukhi.name).toBe('Harishbhai Mulchand Keria')
-    expect(mukhi.city).toBe('Bhuj')
+    expect(mukhi.name).toBe('Mukhi Lalchand Loungmal Khatri')
+    expect(mukhi.city).toContain('Bhuj')
   })
 
   it('resolves Jodhpur Mukhi for Jodhpur city', () => {
     const mukhi = getRespectiveMukhi('Jodhpur', 'Rajasthan', false)
-    expect(mukhi.name).toBe('Jaiprakash Mohanlal Khatri')
+    expect(mukhi.name).toBe('Mukhi Devanand Mithumal Hargun')
     expect(mukhi.city).toBe('Jodhpur')
   })
 
   it('resolves Mumbai Mukhi for Mumbai city', () => {
     const mukhi = getRespectiveMukhi('Mumbai', 'Maharashtra', false)
-    expect(mukhi.name).toBe('Dileepkumar Shamaldas Vadhwani')
-    expect(mukhi.city).toBe('Mumbai')
+    expect(mukhi.name).toBe('Mukhi Bhavesh Chetan Bhai Khuha')
+    expect(mukhi.state).toBe('Maharashtra')
   })
 
   it('resolves state fallback when city is not matched', () => {
     const mukhi = getRespectiveMukhi('Nagpur', 'Maharashtra', false)
-    // Matches Maharashtra regional seats (Mumbai or Pune)
+    // Matches Maharashtra regional seats
     expect(mukhi.state).toBe('Maharashtra')
   })
 
   it('falls back to ancestral seat (Palanpur) when location is unknown or empty', () => {
     const mukhi = getRespectiveMukhi(null, null, false)
-    expect(mukhi.name).toBe('Govindbhai Jethalal Janiyani')
+    expect(mukhi.name).toBe('Mukhi Mulchand Khanumal Valera')
     expect(mukhi.city).toBe('Palanpur')
   })
 })

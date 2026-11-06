@@ -2,35 +2,30 @@
  * ANDROID-11: Mukhi Leadership Directory Parity Tests
  * (tests/unit/mukhi-android-parity.test.tsx)
  *
- * Verifies Android parity requirements across Screens 33-36:
+ * Verifies Mukhi Directory requirements from the authoritative 118 Mukhi register:
  * 1. Directory Listing & Card Presentation:
- *    - Mukhi name, leadership designation, location, lineage (gotra, nukh, kul), and family name
- *    - Verified leadership badge
- *    - Profile navigation affordance to /people/:id
+ *    - All 118 official Mukhis accurately loaded with zero fabricated data.
+ *    - Mukhi name, leadership designation, location (region/gram), and unique ID (MUK-XXXX).
+ *    - Clickable mobile number calling action.
+ *    - Profile details modal affordance.
  * 2. Search & Filtering:
- *    - Keyword search (name, city, gotra, nukh, designation)
- *    - Filter by State (Gujarat, Rajasthan, Maharashtra)
- *    - Filter by City (Palanpur, Bhuj, Jodhpur, Mumbai)
- *    - Filter by Nukh (Janiyani, Keria, Chothani)
- *    - Filter reset behavior
- *    - Deterministic ordered pagination with Fetch N+1
+ *    - Keyword search (name, mobile number, region / gram / city).
+ *    - Filter by Region / Gram / City dropdown.
+ *    - Alphabetical sorting (A to Z) and serial order.
+ *    - Filter reset behavior.
+ *    - Deterministic ordered pagination with Fetch N+1.
  * 3. Privacy & Security:
- *    - Contact phone numbers concealed when contact_privacy = 'PRIVATE'
- *    - Contact phone visible only when permitted (e.g. for moderators or owner)
- *    - 5-level privacy model strictly preserved
- *    - PERSON != USER strictly maintained (census person vs user account)
- *    - ANDROID-2 privacy lock preserved (COMMUNITY_MODERATOR = Mukhi-equivalent)
- * 4. Role Semantics:
- *    - COMMUNITY_MODERATOR appears correctly as Mukhi-equivalent
- *    - Regular members are NOT displayed as Mukhi leadership
- * 5. Mobile UX & Accessibility:
- *    - Minimum 44px touch targets on all interactive controls (search, selects, buttons)
- *    - WAI-ARIA role semantics (role="article", role="tab", role="tabpanel")
- * 6. Community Hub Integration:
- *    - 6th tab button and 6th pulse metric card
- *    - Keyboard WAI-ARIA tab navigation
- * 7. Trilingual Localization (en, hi, gu):
- *    - English, Hindi, and Gujarati translations rendered accurately
+ *    - Official mobile numbers passed through with phone call action when listed.
+ *    - Unlisted phone numbers marked appropriately without crashing.
+ *    - PERSON != USER strictly maintained.
+ * 4. Mobile UX & Accessibility:
+ *    - Minimum 44px touch targets on all interactive controls (search, selects, buttons).
+ *    - WAI-ARIA role semantics (role="article", role="tab", role="tabpanel").
+ * 5. Community Hub Integration:
+ *    - Dynamic count of Mukhis displayed on the metric card (118 Mukhis).
+ *    - Keyboard WAI-ARIA tab navigation.
+ * 6. Trilingual Localization (en, hi, gu):
+ *    - English, Hindi, and Gujarati translations rendered accurately.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -63,6 +58,9 @@ vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
         in: vi.fn(() => ({
           eq: vi.fn().mockResolvedValue({ data: [], error: null }),
           is: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -95,7 +93,6 @@ function renderWithProviders(
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
 
-  // Set initial language in localStorage
   window.localStorage.setItem('app_language', lang)
 
   vi.mocked(authContext.useAuthContext).mockReturnValue({
@@ -150,74 +147,67 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
     })
   })
 
-  describe('1. Mukhi Service & Canonical Registry', () => {
-    it('returns canonical Mukhi elders with expected structure and zero fabricated data', async () => {
-      const res = await getMukhiDirectory()
+  describe('1. Mukhi Service & Canonical 118 Register', () => {
+    it('returns exactly 118 official Mukhi records with expected structure and zero fabricated data', async () => {
+      const res = await getMukhiDirectory({ pageSize: 150 })
       expect(res.error).toBeNull()
       expect(res.data).toBeDefined()
-      expect(res.data?.items.length).toBeGreaterThan(0)
+      expect(res.data?.totalCount).toBe(118)
+      expect(res.data?.items.length).toBe(118)
 
       const leader = res.data?.items[0]
       expect(leader).toHaveProperty('id')
       expect(leader).toHaveProperty('name')
       expect(leader).toHaveProperty('designation')
-      expect(leader).toHaveProperty('role', 'COMMUNITY_MODERATOR')
+      expect(leader).toHaveProperty('role', 'MUKHI')
       expect(leader).toHaveProperty('is_verified', true)
       expect(leader).toHaveProperty('is_active', true)
       expect(leader).toHaveProperty('profile_privacy')
     })
 
-    it('contains regional Mukhi leaders across Palanpur, Bhuj, Jodhpur, and Mumbai', async () => {
-      const res = await getMukhiDirectory()
+    it('contains official regional Mukhi leaders across Palanpur, Bhuj, Jodhpur, and Agra', async () => {
+      const res = await getMukhiDirectory({ pageSize: 150 })
       const names = (res.data?.items ?? []).map((l) => l.name)
 
-      expect(names).toContain('Govindbhai Jethalal Janiyani')
-      expect(names).toContain('Harishbhai Mulchand Keria')
-      expect(names).toContain('Jaiprakash Mohanlal Khatri')
-      expect(names).toContain('Dileepkumar Shamaldas Vadhwani')
+      expect(names).toContain('Mukhi Mulchand Khanumal Valera') // Palanpur (Serial 77)
+      expect(names).toContain('Mukhi Lalchand Loungmal Khatri') // Bhuj (Serial 29)
+      expect(names).toContain('Mukhi Devanand Mithumal Hargun') // Jodhpur (Serial 52)
+      expect(names).toContain('Mukhi Suryaprakash Govind Ram Varde') // Agra (Serial 2)
     })
 
     it('filters leaders accurately by state (e.g. Gujarat vs Rajasthan)', async () => {
-      const gujaratRes = await getMukhiDirectory({ filters: { state: 'Gujarat' } })
+      const gujaratRes = await getMukhiDirectory({ filters: { state: 'Gujarat' }, pageSize: 150 })
       expect(gujaratRes.data?.items.every((l) => l.state === 'Gujarat')).toBe(true)
 
-      const rajasthanRes = await getMukhiDirectory({ filters: { state: 'Rajasthan' } })
+      const rajasthanRes = await getMukhiDirectory({ filters: { state: 'Rajasthan' }, pageSize: 150 })
       expect(rajasthanRes.data?.items.every((l) => l.state === 'Rajasthan')).toBe(true)
     })
 
-    it('filters leaders accurately by city (e.g. Palanpur)', async () => {
+    it('filters leaders accurately by region / city (e.g. Palanpur)', async () => {
       const res = await getMukhiDirectory({ filters: { city: 'Palanpur' } })
       expect(res.data?.items.length).toBe(1)
       expect(res.data?.items[0].city).toBe('Palanpur')
-      expect(res.data?.items[0].name).toBe('Govindbhai Jethalal Janiyani')
+      expect(res.data?.items[0].name).toBe('Mukhi Mulchand Khanumal Valera')
     })
 
-    it('filters leaders accurately by lineage Nukh (e.g. Janiyani vs Keria)', async () => {
-      const janiyaniRes = await getMukhiDirectory({ filters: { nukh: 'Janiyani' } })
-      expect(janiyaniRes.data?.items.every((l) => l.nukh === 'Janiyani')).toBe(true)
+    it('searches across name, mobile number, and region with case-insensitive substring matching', async () => {
+      const nameSearch = await getMukhiDirectory({ filters: { search: 'naraindas' } })
+      expect(nameSearch.data?.items.some((l) => l.name.toLowerCase().includes('naraindas'))).toBe(true)
 
-      const keriaRes = await getMukhiDirectory({ filters: { nukh: 'Keria' } })
-      expect(keriaRes.data?.items.every((l) => l.nukh === 'Keria')).toBe(true)
-    })
+      const phoneSearch = await getMukhiDirectory({ filters: { search: '9414056200' } })
+      expect(phoneSearch.data?.items.some((l) => l.phone === '9414056200')).toBe(true)
 
-    it('searches across name, city, nukh, and designation with case-insensitive substring matching', async () => {
-      const nameSearch = await getMukhiDirectory({ filters: { search: 'govind' } })
-      expect(nameSearch.data?.items.some((l) => l.name.includes('Govindbhai'))).toBe(true)
-
-      const citySearch = await getMukhiDirectory({ filters: { search: 'jodhpur' } })
-      expect(citySearch.data?.items.some((l) => l.city === 'Jodhpur')).toBe(true)
-
-      const desigSearch = await getMukhiDirectory({ filters: { search: 'regional mukhi' } })
-      expect(desigSearch.data?.items.length).toBeGreaterThan(0)
+      const regionSearch = await getMukhiDirectory({ filters: { search: 'jodhpur' } })
+      expect(regionSearch.data?.items.some((l) => l.city?.toLowerCase().includes('jodhpur'))).toBe(true)
     })
 
     it('implements deterministic ordered pagination with Fetch N+1 contract', async () => {
-      const page1 = await getMukhiDirectory({ page: 1, pageSize: 3 })
-      expect(page1.data?.items.length).toBe(3)
+      const page1 = await getMukhiDirectory({ page: 1, pageSize: 6 })
+      expect(page1.data?.items.length).toBe(6)
       expect(page1.data?.hasNextPage).toBe(true)
 
-      const page2 = await getMukhiDirectory({ page: 2, pageSize: 3 })
-      expect(page2.data?.items.length).toBe(3)
+      const page2 = await getMukhiDirectory({ page: 2, pageSize: 6 })
+      expect(page2.data?.items.length).toBe(6)
 
       // Ensure no duplicates across pages
       const page1Ids = page1.data?.items.map((i) => i.id) ?? []
@@ -226,32 +216,31 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
     })
   })
 
-  describe('2. Privacy Enforcement & 5-Level Privacy Model', () => {
-    it('conceals contact numbers when contact_privacy is PRIVATE for normal members', async () => {
-      const res = await getMukhiDirectory({
-        currentUserId: 'unrelated-member-id',
-        isModerator: false,
-      })
-
-      const privateContactLeader = res.data?.items.find((l) => l.id === 'mukhi-palanpur-1')
-      expect(privateContactLeader?.phone).toBeNull()
+  describe('2. Privacy Enforcement & Contact Presentation', () => {
+    it('passes official contact numbers with phone call action when listed', async () => {
+      const res = await getMukhiDirectory({ pageSize: 150 })
+      const mukhiWithPhone = res.data?.items.find((l) => l.phone === '9414056200')
+      expect(mukhiWithPhone).toBeDefined()
+      expect(mukhiWithPhone?.phone).toBe('9414056200')
     })
 
-    it('displays contact number when leader contact_privacy is COMMUNITY for authenticated members', async () => {
-      const res = await getMukhiDirectory({
-        currentUserId: 'authenticated-member-id',
-        isModerator: false,
-      })
-
-      const communityContactLeader = res.data?.items.find((l) => l.id === 'mukhi-jodhpur-1')
-      expect(communityContactLeader?.phone).toBe('+91 98290 12345')
-    })
-
-    it('MukhiCard renders privacy shield icon when phone is concealed', () => {
-      const leader = CANONICAL_MUKHI_REGISTRY[0] // phone is null
+    it('MukhiCard renders Call Now link when phone is available', () => {
+      const leader = CANONICAL_MUKHI_REGISTRY[0] // Serial 1: has phone
       renderWithProviders(<MukhiCard leader={leader} />)
 
-      expect(screen.getByText(/Contact protected by privacy settings/i)).toBeInTheDocument()
+      const callLink = screen.getByRole('link', { name: new RegExp(`Call ${leader.name}`, 'i') })
+      expect(callLink).toBeInTheDocument()
+      expect(callLink).toHaveAttribute('href', `tel:${leader.phone}`)
+    })
+
+    it('MukhiCard handles leaders without listed phone gracefully', () => {
+      const leaderNoPhone = CANONICAL_MUKHI_REGISTRY.find((l) => !l.phone) || {
+        ...CANONICAL_MUKHI_REGISTRY[0],
+        phone: null,
+      }
+      renderWithProviders(<MukhiCard leader={leaderNoPhone} />)
+
+      expect(screen.getByText(/Phone not listed/i)).toBeInTheDocument()
     })
   })
 
@@ -268,7 +257,7 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
     it('MukhiFiltersBar enforces >= 44px touch targets on search and select dropdowns', () => {
       renderWithProviders(
         <MukhiFiltersBar
-          filters={{ search: 'test', state: 'ALL', city: 'ALL', nukh: 'ALL' }}
+          filters={{ search: 'test', state: 'ALL', city: 'ALL', nukh: 'ALL', sort: 'NAME_ASC' }}
           availableStates={['Gujarat', 'Rajasthan']}
           availableCities={['Palanpur', 'Jodhpur']}
           availableNukhs={['Janiyani', 'Keria']}
@@ -277,28 +266,25 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
         />
       )
 
-      const searchInput = screen.getByPlaceholderText(/Search Mukhi by name/i)
+      const searchInput = screen.getByPlaceholderText(/Search by Mukhi name/i)
       expect(searchInput.className).toContain('min-h-[44px]')
 
-      const stateSelect = screen.getByLabelText(/^State$/i)
-      expect(stateSelect.className).toContain('min-h-[44px]')
-
-      const citySelect = screen.getByLabelText(/^City$/i)
+      const citySelect = screen.getByLabelText(/Filter by Region/i)
       expect(citySelect.className).toContain('min-h-[44px]')
 
-      const nukhSelect = screen.getByLabelText(/^Nukh$/i)
-      expect(nukhSelect.className).toContain('min-h-[44px]')
+      const sortSelect = screen.getByLabelText(/Sort Order/i)
+      expect(sortSelect.className).toContain('min-h-[44px]')
 
-      const resetBtn = screen.getByRole('button', { name: /Reset filters/i })
+      const resetBtn = screen.getByRole('button', { name: 'Clear search & filter' })
       expect(resetBtn.className).toContain('min-h-[44px]')
     })
 
-    it('renders MukhiDirectoryView with search bar, cards grid, and total leader count badge', async () => {
+    it('renders MukhiDirectoryView with search bar, cards grid, and total Mukhis count badge', async () => {
       renderWithProviders(<MukhiDirectoryView />)
 
       await waitFor(() => {
-        expect(screen.getByText('Mukhi Leadership Directory')).toBeInTheDocument()
-        expect(screen.getByText(/Govindbhai Jethalal Janiyani/i)).toBeInTheDocument()
+        expect(screen.getAllByText('Mukhi Directory').length).toBeGreaterThan(0)
+        expect(screen.getByText(/118 Mukhis/i)).toBeInTheDocument()
       })
     })
 
@@ -306,24 +292,24 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
       renderWithProviders(<MukhiDirectoryView />)
 
       await waitFor(() => {
-        expect(screen.getByText('Mukhi Leadership Directory')).toBeInTheDocument()
+        expect(screen.getAllByText('Mukhi Directory').length).toBeGreaterThan(0)
       })
 
-      const searchInput = screen.getByPlaceholderText(/Search Mukhi by name/i)
+      const searchInput = screen.getByPlaceholderText(/Search by Mukhi name/i)
       fireEvent.change(searchInput, { target: { value: 'NonExistentLeaderXYZ' } })
 
       await waitFor(() => {
         expect(screen.getByText('No Mukhi leaders found')).toBeInTheDocument()
       })
 
-      const resetBtns = screen.getAllByRole('button', { name: /Reset/i })
+      const resetBtns = screen.getAllByRole('button', { name: /Reset filters/i })
       expect(resetBtns.length).toBeGreaterThan(0)
       expect(resetBtns[0].className).toContain('min-h-[44px]')
     })
   })
 
-  describe('4. Community Hub Integration & 6-Tab ARIA Navigation', () => {
-    it('renders Community Hub with 6 pulse metric cards including Mukhi Directory', async () => {
+  describe('4. Community Hub Integration & ARIA Navigation', () => {
+    it('renders Community Hub with Mukhi Directory card displaying 118 Mukhis', async () => {
       renderWithProviders(<CommunityPage />)
 
       await waitFor(() => {
@@ -331,7 +317,7 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
       })
 
       const mukhiMetricCard = screen.getByRole('button', {
-        name: /View Mukhi Directory/i,
+        name: /View Mukhi Directory: 118 Mukhis/i,
       })
       expect(mukhiMetricCard).toBeInTheDocument()
       expect(mukhiMetricCard.className).toContain('min-h-[44px]')
@@ -365,7 +351,7 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-mukhi')
-        expect(screen.getByText('Govindbhai Jethalal Janiyani')).toBeInTheDocument()
+        expect(screen.getAllByText('Mukhi Directory').length).toBeGreaterThan(0)
       })
     })
 
@@ -375,7 +361,6 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
       const mukhiTab = screen.getByRole('tab', { name: /mukhi/i })
       mukhiTab.focus()
 
-      // ArrowRight: mukhi -> announcements (Notice Board)
       fireEvent.keyDown(mukhiTab, { key: 'ArrowRight' })
       expect(screen.getByRole('tab', { name: /Notice Board/i })).toHaveAttribute(
         'aria-selected',

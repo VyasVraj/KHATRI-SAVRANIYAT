@@ -431,6 +431,7 @@ export interface MukhiDirectoryFilters {
   nukh?: string
   gotra?: string
   status?: 'ALL' | 'ACTIVE'
+  sort?: 'NAME_ASC' | 'NAME_DESC' | 'SERIAL_ASC'
 }
 
 export interface MukhiDirectoryOptions {
