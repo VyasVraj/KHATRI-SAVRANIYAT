@@ -14,6 +14,7 @@ import { Users, Search, TreePine, Shield, ArrowRight, Sparkles, Bell } from 'luc
 import { ROUTES } from '@/constants/app'
 import { useLanguage } from '@/features/i18n'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { BrandLogo } from '@/components/common/BrandLogo'
 
 export function HomePage() {
   const { t } = useLanguage()
@@ -40,8 +41,13 @@ export function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 flex justify-center">
-              <div className="rounded-full bg-brand-700/80 p-4 ring-8 ring-brand-700/30">
-                <Users className="h-12 w-12 text-brand-200" aria-hidden="true" />
+              <div className="relative inline-flex items-center justify-center p-2 rounded-2xl bg-[#081B55] border-2 border-[#D9A62E] shadow-xl">
+                <BrandLogo
+                  size="xl"
+                  priority
+                  className="h-24 w-24 sm:h-28 sm:w-28"
+                  alt="KHATRI SARVANIYAT Official Emblem"
+                />
               </div>
             </div>
 

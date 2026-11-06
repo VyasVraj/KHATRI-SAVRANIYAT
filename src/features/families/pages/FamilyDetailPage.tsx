@@ -21,7 +21,7 @@ import { FamilyDetail } from '../components/FamilyDetail'
 import { FamilyVerificationSection } from '@/features/verification'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { Button } from '@/components/forms/Button'
-import { ROUTES, ADMIN_ROLES } from '@/constants/app'
+import { ROUTES } from '@/constants/app'
 
 export function FamilyDetailPage() {
   const { familyId } = useParams<{ familyId: string }>()
@@ -36,7 +36,7 @@ export function FamilyDetailPage() {
 
   const { data: members = [] } = useFamilyMembers(familyId, { includeFormer: false })
 
-  // Management capabilities based on designated Manager, Creator, Head, or Admin roles
+  // Management capabilities based on designated Manager, Creator, Family Member, or Admin roles
   const isManager = Boolean(
     user &&
     family &&
@@ -45,14 +45,14 @@ export function FamilyDetailPage() {
   const isHead = Boolean(
     user && members.some((m) => m.is_head && m.person?.user_id === user.id)
   )
-  const isModerator = Boolean(
-    profile?.is_active &&
-    (profile.role === 'ADMIN' ||
-     profile.role === 'SUPER_ADMIN' ||
-     profile.role === 'COMMUNITY_MODERATOR' ||
-     (ADMIN_ROLES as readonly string[]).includes(profile.role))
+  const isFamilyMember = Boolean(
+    user && members.some((m) => !m.left_at && m.person?.user_id === user.id)
   )
-  const canManageMembers = isManager || isHead || isModerator
+  const isAdmin = Boolean(
+    profile?.is_active &&
+    (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')
+  )
+  const canManageMembers = isManager || isHead || isFamilyMember || isAdmin
 
   async function handleSoftDelete() {
     if (!familyId) return

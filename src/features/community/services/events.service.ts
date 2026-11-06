@@ -37,6 +37,8 @@ const eventsTable = () => (supabase.from as any)('events')
 const eventRsvpsTable = () => (supabase.from as any)('event_rsvps')
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const groupMembersTable = () => (supabase.from as any)('group_members')
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const profilesTable = () => (supabase.from as any)('profiles')
 const rpcCall = (name: string, params: Record<string, unknown>) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (supabase.rpc as any)(name, params)
@@ -127,12 +129,6 @@ export async function listEvents(
         created_at,
         updated_at,
         deleted_at,
-        creator:profiles!creator_id (
-          id,
-          display_name,
-          email,
-          avatar_url
-        ),
         group:groups (
           id,
           name,
@@ -205,6 +201,33 @@ export async function listEvents(
     }
 
     const eventList = eventRows || []
+    if (eventList.length === 0) {
+      return { data: [], error: null }
+    }
+
+    // Batch enrich creator profiles directly from profiles table (no PostgREST FK join required)
+    const creatorIds = Array.from(
+      new Set(eventList.map((e: { creator_id?: string }) => e.creator_id).filter(Boolean))
+    ) as string[]
+
+    if (creatorIds.length > 0) {
+      try {
+        const { data: profs } = await profilesTable()
+          .select('id, display_name, email, avatar_url')
+          .in('id', creatorIds)
+        if (profs && Array.isArray(profs)) {
+          const profMap = new Map(profs.map((p) => [p.id, p]))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          for (const ev of eventList as any[]) {
+            if (ev.creator_id && profMap.has(ev.creator_id)) {
+              ev.creator = profMap.get(ev.creator_id)
+            }
+          }
+        }
+      } catch {
+        // Non-blocking enrichment: events still load even if profile lookup is unavailable
+      }
+    }
     if (eventList.length === 0) {
       return { data: [], error: null }
     }
@@ -357,12 +380,6 @@ export async function getEventById(
         created_at,
         updated_at,
         deleted_at,
-        creator:profiles!creator_id (
-          id,
-          display_name,
-          email,
-          avatar_url
-        ),
         group:groups (
           id,
           name,
@@ -387,6 +404,22 @@ export async function getEventById(
         message: 'The requested event could not be found.',
       }
       return { data: null, error: appErr }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventData: any = data
+    if (eventData.creator_id) {
+      try {
+        const { data: prof } = await profilesTable()
+          .select('id, display_name, email, avatar_url')
+          .eq('id', eventData.creator_id)
+          .maybeSingle()
+        if (prof) {
+          eventData.creator = prof
+        }
+      } catch {
+        // Non-blocking enrichment
+      }
     }
 
     // Fetch RSVP stats
@@ -415,29 +448,29 @@ export async function getEventById(
     }
 
     const event: CommunityEvent = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      event_type: data.event_type,
-      status: data.status,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      location: data.location,
-      location_url: data.location_url,
-      group_id: data.group_id,
-      group_name: data.group?.name || null,
-      group_slug: data.group?.slug || null,
-      creator_id: data.creator_id,
-      creator_name: data.creator?.display_name || null,
-      creator_email: data.creator?.email || null,
-      creator_avatar: data.creator?.avatar_url || null,
-      is_pinned: data.is_pinned,
-      capacity: data.capacity,
-      published_at: data.published_at,
-      cancelled_at: data.cancelled_at,
-      cancellation_reason: data.cancellation_reason,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
+      id: eventData.id,
+      title: eventData.title,
+      description: eventData.description,
+      event_type: eventData.event_type,
+      status: eventData.status,
+      start_time: eventData.start_time,
+      end_time: eventData.end_time,
+      location: eventData.location,
+      location_url: eventData.location_url,
+      group_id: eventData.group_id,
+      group_name: eventData.group?.name || null,
+      group_slug: eventData.group?.slug || null,
+      creator_id: eventData.creator_id,
+      creator_name: eventData.creator?.display_name || null,
+      creator_email: eventData.creator?.email || null,
+      creator_avatar: eventData.creator?.avatar_url || null,
+      is_pinned: eventData.is_pinned,
+      capacity: eventData.capacity,
+      published_at: eventData.published_at,
+      cancelled_at: eventData.cancelled_at,
+      cancellation_reason: eventData.cancellation_reason,
+      created_at: eventData.created_at,
+      updated_at: eventData.updated_at,
       deleted_at: data.deleted_at,
       creator: data.creator
         ? {
@@ -473,22 +506,7 @@ export async function listEventRsvps(
 ): Promise<ApiResponse<EventRsvp[]>> {
   try {
     const { data, error } = await eventRsvpsTable()
-      .select(`
-        id,
-        event_id,
-        user_id,
-        status,
-        guest_count,
-        notes,
-        created_at,
-        updated_at,
-        user:profiles!user_id (
-          id,
-          display_name,
-          email,
-          avatar_url
-        )
-      `)
+      .select('id, event_id, user_id, status, guest_count, notes, created_at, updated_at')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
 
@@ -501,7 +519,31 @@ export async function listEventRsvps(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const items: EventRsvp[] = (data || []).map((row: any) => ({
+    const rsvpData: any[] = data || []
+    const userIds = Array.from(
+      new Set(rsvpData.map((r: { user_id?: string }) => r.user_id).filter(Boolean))
+    ) as string[]
+
+    if (userIds.length > 0) {
+      try {
+        const { data: profs } = await profilesTable()
+          .select('id, display_name, email, avatar_url')
+          .in('id', userIds)
+        if (profs && Array.isArray(profs)) {
+          const profMap = new Map(profs.map((p) => [p.id, p]))
+          for (const r of rsvpData) {
+            if (r.user_id && profMap.has(r.user_id)) {
+              r.user = profMap.get(r.user_id)
+            }
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items: EventRsvp[] = (rsvpData || []).map((row: any) => ({
       id: row.id,
       event_id: row.event_id,
       user_id: row.user_id,

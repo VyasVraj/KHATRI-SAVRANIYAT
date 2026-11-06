@@ -53,10 +53,17 @@ describe('Person Blood Group Feature Tests', () => {
       first_name: 'Vraj',
       last_name: 'Vyas',
       gender: 'MALE' as const,
+      birth_place: 'Vadodara, Gujarat',
+      date_of_birth: '2005-11-18',
+      gotra: 'Agastya',
+      nukh: 'Arora (Aroda)',
+      email_contact: 'vraj.vyas@example.com',
+      phone: '+919876543210',
     }
 
-    it('allows all 9 supported blood groups in createPersonSchema', () => {
-      for (const bg of BLOOD_GROUPS) {
+    it('allows all 8 standard blood groups in createPersonSchema and rejects UNKNOWN', () => {
+      const standardGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
+      for (const bg of standardGroups) {
         const result = createPersonSchema.safeParse({
           ...baseValidPerson,
           blood_group: bg,
@@ -66,25 +73,31 @@ describe('Person Blood Group Feature Tests', () => {
           expect(result.data.blood_group).toBe(bg)
         }
       }
+
+      const unknownResult = createPersonSchema.safeParse({
+        ...baseValidPerson,
+        blood_group: 'UNKNOWN',
+      })
+      expect(unknownResult.success).toBe(false)
     })
 
-    it('allows null, undefined, and empty string in createPersonSchema', () => {
+    it('rejects null, undefined, and empty string in createPersonSchema (mandatory field)', () => {
       const withNull = createPersonSchema.safeParse({
         ...baseValidPerson,
         blood_group: null,
       })
-      expect(withNull.success).toBe(true)
+      expect(withNull.success).toBe(false)
 
       const withUndefined = createPersonSchema.safeParse({
         ...baseValidPerson,
       })
-      expect(withUndefined.success).toBe(true)
+      expect(withUndefined.success).toBe(false)
 
       const withEmpty = createPersonSchema.safeParse({
         ...baseValidPerson,
         blood_group: '',
       })
-      expect(withEmpty.success).toBe(true)
+      expect(withEmpty.success).toBe(false)
     })
 
     it('rejects invalid blood group values in createPersonSchema', () => {

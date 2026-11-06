@@ -43,14 +43,15 @@ const MOCK_PERSON_ROW = {
   middle_name: null,
   maiden_name: null,
   gender: 'MALE' as const,
+  blood_group: 'B+' as const,
   date_of_birth: '1985-06-15',
   date_of_death: null,
   birth_place: 'Mumbai',
-  gotra: 'Kashyap',
+  gotra: 'Agastya',
   kul: null,
-  nukh: null,
-  email_contact: null,
-  phone: null,
+  nukh: 'Arora (Aroda)',
+  email_contact: 'arjun@example.com',
+  phone: '+919876543210',
   phone_secondary: null,
   profile_privacy: 'COMMUNITY' as const,
   contact_privacy: 'COMMUNITY' as const,
@@ -68,9 +69,13 @@ const VALID_CREATE_INPUT = {
   first_name: 'Arjun',
   last_name: 'Sharma',
   gender: 'MALE' as const,
+  blood_group: 'B+' as const,
   date_of_birth: '1985-06-15',
   birth_place: 'Mumbai',
-  gotra: 'Kashyap',
+  gotra: 'Agastya',
+  nukh: 'Arora (Aroda)',
+  email_contact: 'arjun@example.com',
+  phone: '+919876543210',
   profile_privacy: 'COMMUNITY' as const,
   contact_privacy: 'COMMUNITY' as const,
   dob_privacy: 'COMMUNITY' as const,
@@ -242,8 +247,13 @@ describe('People Service — createPerson', () => {
   it('[PRIVACY] privacy defaults are applied when not provided', async () => {
     const { mockInsert } = buildInsertChain({ data: MOCK_PERSON_ROW, error: null })
 
+    const inputWithoutPrivacy = { ...VALID_CREATE_INPUT }
+    delete (inputWithoutPrivacy as Record<string, unknown>).profile_privacy
+    delete (inputWithoutPrivacy as Record<string, unknown>).contact_privacy
+    delete (inputWithoutPrivacy as Record<string, unknown>).dob_privacy
+
     await createPerson(
-      { first_name: 'Test', last_name: 'Person' },
+      inputWithoutPrivacy,
       MOCK_USER_ID
     )
 
@@ -575,6 +585,7 @@ describe('People Service — Deceased Person Registration and Life-Cycle Status 
 
     const result = await createPerson(
       {
+        ...VALID_CREATE_INPUT,
         first_name: 'Jayesh',
         last_name: 'Vyas',
         date_of_birth: '1967-11-07',
@@ -596,6 +607,7 @@ describe('People Service — Deceased Person Registration and Life-Cycle Status 
 
     const result = await createPerson(
       {
+        ...VALID_CREATE_INPUT,
         first_name: 'Jayesh',
         last_name: 'Vyas',
         date_of_birth: '1925-01-01',
@@ -662,6 +674,7 @@ describe('People Service — Deceased Person Registration and Life-Cycle Status 
   it('Validation: Rejects a death date earlier than birth date', async () => {
     const result = await createPerson(
       {
+        ...VALID_CREATE_INPUT,
         first_name: 'Jayesh',
         last_name: 'Vyas',
         date_of_birth: '2000-01-01',
@@ -677,6 +690,7 @@ describe('People Service — Deceased Person Registration and Life-Cycle Status 
   it('Validation: Rejects a future death date', async () => {
     const result = await createPerson(
       {
+        ...VALID_CREATE_INPUT,
         first_name: 'Jayesh',
         last_name: 'Vyas',
         date_of_birth: '1990-01-01',
@@ -692,6 +706,7 @@ describe('People Service — Deceased Person Registration and Life-Cycle Status 
   it('Validation: Rejects a future birth date', async () => {
     const result = await createPerson(
       {
+        ...VALID_CREATE_INPUT,
         first_name: 'Jayesh',
         last_name: 'Vyas',
         date_of_birth: '2099-01-01',

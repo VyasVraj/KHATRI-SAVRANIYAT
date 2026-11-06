@@ -141,12 +141,13 @@ export function useGotraNukhRegistry() {
     if (!gotra) return []
     const canonical = resolveCanonicalGotra(gotra)
     if (!canonical) return []
-    // Authoritative PDF dataset from gotraNukh.ts is the primary source of truth
-    if (GOTRA_NUKH_MAP[canonical]?.length) {
-      return GOTRA_NUKH_MAP[canonical]
-    }
+    // Supabase database registry is primary source of truth
     if (gotraNukhMap[canonical]?.length) {
       return gotraNukhMap[canonical]
+    }
+    // Authoritative PDF dataset from gotraNukh.ts is the offline fallback
+    if (GOTRA_NUKH_MAP[canonical]?.length) {
+      return GOTRA_NUKH_MAP[canonical]
     }
     return resolveNukhsForGotra(gotra)
   }

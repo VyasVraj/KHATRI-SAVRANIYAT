@@ -34,19 +34,19 @@ export const MAX_TREE_NODES = 100
 export const MAX_TREE_EDGES = 150
 
 /** Visual node dimensions (px) */
-export const TREE_NODE_WIDTH = 220
-export const TREE_NODE_HEIGHT = 90
+export const TREE_NODE_WIDTH = 230
+export const TREE_NODE_HEIGHT = 100
 
 /** Spacing between nodes (px) */
 export const TREE_HORIZONTAL_SPACING = 50
-export const TREE_VERTICAL_SPACING = 130
+export const TREE_VERTICAL_SPACING = 140
 
 // ---------------------------------------------------------------------------
 // Domain Graph Models
 // ---------------------------------------------------------------------------
 
 /** Genealogical roles relative to the root person within the visualized tree */
-export type TreeRole = 'ROOT' | 'PARENT' | 'CHILD' | 'SPOUSE' | 'SIBLING'
+export type TreeRole = 'ROOT' | 'PARENT' | 'CHILD' | 'SPOUSE' | 'SIBLING' | 'EXTENDED'
 
 /**
  * Domain tree node representing a census person positioned in the genealogical graph.
@@ -70,6 +70,16 @@ export interface TreeNode {
   isRoot: boolean
   /** Set of roles this person holds in the current tree view */
   rolesInTree: Set<TreeRole>
+  /** Special designation as active Head of Family */
+  isHead?: boolean
+  /** Semantic relationship label to display on the card (e.g. Father, Mother, Son, Brother, Head of Family) */
+  relationshipLabel?: string
+  /** Computed age in years */
+  age?: number | null
+  /** Names of parents for details display */
+  parentsNames?: string
+  /** Names of siblings for details display */
+  siblingsNames?: string
 }
 
 /**
@@ -88,6 +98,14 @@ export interface TreeEdge {
   targetId: string
   /** Underlying relationship record */
   relationship: RelationshipRow
+  /** Visual edge badge label (e.g. 'Father', 'Mother', 'Son', 'Brother') */
+  label?: string
+  /** Custom solid color for edge */
+  color?: string
+  /** True for dashed edge (siblings / children) */
+  isDashed?: boolean
+  /** True for spouse couple connection with interlocking rings */
+  isCouple?: boolean
 }
 
 /**
@@ -96,6 +114,10 @@ export interface TreeEdge {
 export interface TreeGraph {
   /** Target root person UUID */
   rootPersonId: string
+  /** Optional associated family record */
+  familyId?: string
+  familyName?: string
+  totalMemberCount?: number
   /** Map of person UUID -> TreeNode */
   nodes: Map<string, TreeNode>
   /** Map of relationship UUID -> TreeEdge */
@@ -116,12 +138,23 @@ export interface PersonNodeData {
   generation: number
   isRoot: boolean
   rolesInTree: TreeRole[]
+  isHead?: boolean
+  relationshipLabel?: string
+  age?: number | null
+  isSelected?: boolean
+  onSelect?: (personId: string) => void
+  parentsNames?: string
+  siblingsNames?: string
 }
 
 /** Data payload injected into custom React Flow RelationshipEdge */
 export interface RelationshipEdgeData {
   relationshipType: RelationshipType
   notes?: string | null
+  label?: string
+  color?: string
+  isDashed?: boolean
+  isCouple?: boolean
 }
 
 /** React Flow node typed for PersonNodeData */

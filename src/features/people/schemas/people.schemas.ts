@@ -64,18 +64,18 @@ const maidenNameField = z
   .nullable()
   .optional()
 
-/** Deployed: gender enum ('MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY') nullable */
+/** Deployed: gender enum ('MALE' | 'FEMALE' | 'OTHER') - MANDATORY */
 const genderField = z
-  .enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'])
-  .nullable()
-  .optional()
+  .enum(['MALE', 'FEMALE', 'OTHER'], {
+    errorMap: () => ({ message: 'Please select Gender' }),
+  })
 
-/** Deployed: blood_group ('A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | 'UNKNOWN') nullable */
+/** Deployed: blood_group ('A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-', 'O+', 'O-') - MANDATORY */
 const bloodGroupField = z
-  .enum(BLOOD_GROUPS)
-  .or(z.literal(''))
-  .nullable()
-  .optional()
+  .enum(BLOOD_GROUPS, {
+    errorMap: () => ({ message: 'Please select Blood Group' }),
+  })
+  .refine((bg) => bg !== 'UNKNOWN', 'Please select Blood Group')
 
 function getTodayIso(): string {
   const now = new Date()
@@ -85,13 +85,11 @@ function getTodayIso(): string {
   return `${year}-${month}-${day}`
 }
 
-/** Deployed: date_of_birth DATE nullable — stored as ISO string */
+/** Deployed: date_of_birth DATE - MANDATORY */
 const dateOfBirthField = z
-  .string()
+  .string({ required_error: 'Date of Birth is required' })
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be in YYYY-MM-DD format')
   .refine((val) => val <= getTodayIso(), 'Date of birth cannot be in the future')
-  .nullable()
-  .optional()
 
 /** Deployed: date_of_death DATE nullable — stored as ISO string */
 const dateOfDeathField = z
@@ -101,21 +99,27 @@ const dateOfDeathField = z
   .nullable()
   .optional()
 
-/** Deployed: birth_place VARCHAR nullable */
+/** Deployed: birth_place VARCHAR - MANDATORY */
 const birthPlaceField = z
-  .string()
+  .string({ required_error: 'Birthplace is required' })
   .transform(sanitizeText)
-  .pipe(z.string().max(200, 'Birth place must not exceed 200 characters'))
-  .nullable()
-  .optional()
+  .pipe(
+    z
+      .string()
+      .min(1, 'Birthplace is required')
+      .max(200, 'Birthplace must not exceed 200 characters')
+  )
 
-/** Deployed: gotra VARCHAR nullable — community identity field */
+/** Deployed: gotra VARCHAR - MANDATORY */
 const gotraField = z
-  .string()
+  .string({ required_error: 'Please select Gotra' })
   .transform(sanitizeText)
-  .pipe(z.string().max(100, 'Gotra must not exceed 100 characters'))
-  .nullable()
-  .optional()
+  .pipe(
+    z
+      .string()
+      .min(1, 'Please select Gotra')
+      .max(100, 'Gotra must not exceed 100 characters')
+  )
 
 /** Deployed: kul VARCHAR nullable — community identity field */
 const kulField = z
@@ -125,33 +129,57 @@ const kulField = z
   .nullable()
   .optional()
 
-/** Deployed: nukh VARCHAR nullable — community identity field */
+/** Deployed: nukh VARCHAR - MANDATORY */
 const nukhField = z
-  .string()
+  .string({ required_error: 'Please select Nukh' })
   .transform(sanitizeText)
-  .pipe(z.string().max(100, 'Nukh must not exceed 100 characters'))
-  .nullable()
-  .optional()
+  .pipe(
+    z
+      .string()
+      .min(1, 'Please select Nukh')
+      .max(100, 'Nukh must not exceed 100 characters')
+  )
 
-/** Deployed: email_contact VARCHAR nullable */
+/** Deployed: email_contact VARCHAR - MANDATORY */
 const emailContactField = z
-  .string()
-  .email('Please enter a valid email address')
-  .max(254, 'Email must not exceed 254 characters')
-  .nullable()
-  .optional()
+  .string({ required_error: 'Valid Email Address is required' })
+  .transform(sanitizeText)
+  .pipe(
+    z
+      .string()
+      .min(1, 'Valid Email Address is required')
+      .email('Valid Email Address is required')
+      .max(254, 'Email must not exceed 254 characters')
+  )
 
-/** Deployed: phone VARCHAR nullable */
+/** Deployed: phone VARCHAR - MANDATORY */
 const phoneField = z
-  .string()
-  .max(30, 'Phone number must not exceed 30 characters')
-  .nullable()
-  .optional()
+  .string({ required_error: 'Valid Primary Phone Number is required' })
+  .transform(sanitizeText)
+  .pipe(
+    z
+      .string()
+      .min(1, 'Valid Primary Phone Number is required')
+      .max(30, 'Phone number must not exceed 30 characters')
+      .refine(
+        (val) => /^[0-9+\s\-()]{7,25}$/.test(val),
+        'Valid Primary Phone Number is required'
+      )
+  )
 
 /** Deployed: phone_secondary VARCHAR nullable */
 const phoneSecondaryField = z
   .string()
-  .max(30, 'Secondary phone must not exceed 30 characters')
+  .transform(sanitizeText)
+  .pipe(
+    z
+      .string()
+      .max(30, 'Secondary phone must not exceed 30 characters')
+      .refine(
+        (val) => !val || /^[0-9+\s\-()]{7,25}$/.test(val),
+        'Please enter a valid secondary phone number'
+      )
+  )
   .nullable()
   .optional()
 
@@ -269,16 +297,16 @@ export const updatePersonSchema = z
     last_name: lastNameField.optional(),
     middle_name: middleNameField,
     maiden_name: maidenNameField,
-    gender: genderField,
-    blood_group: bloodGroupField,
-    date_of_birth: dateOfBirthField,
+    gender: genderField.optional(),
+    blood_group: bloodGroupField.optional(),
+    date_of_birth: dateOfBirthField.optional(),
     date_of_death: dateOfDeathField,
-    birth_place: birthPlaceField,
-    gotra: gotraField,
+    birth_place: birthPlaceField.optional(),
+    gotra: gotraField.optional(),
     kul: kulField,
-    nukh: nukhField,
-    email_contact: emailContactField,
-    phone: phoneField,
+    nukh: nukhField.optional(),
+    email_contact: emailContactField.optional(),
+    phone: phoneField.optional(),
     phone_secondary: phoneSecondaryField,
     profile_privacy: privacyLevelField.optional(),
     contact_privacy: privacyLevelField.optional(),

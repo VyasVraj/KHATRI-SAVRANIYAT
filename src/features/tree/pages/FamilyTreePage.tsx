@@ -1,57 +1,38 @@
 /**
- * FamilyTreePage — Dedicated full-page genealogical family tree viewer.
- *
- * Route:
- *  - /people/:personId/tree
- *  - /families/:familyId/tree
- *  - /tree?familyId=... | /tree?personId=...
- *
- * ARCHITECTURAL REQUIREMENTS:
- * 1. PERSON != USER:
- *    Displays census data (public.persons) and interpersonal relationships (public.relationships).
- *    Never displays or leaks user authentication credentials or internal identifiers.
- * 2. PRIVACY & ACCESS CONTROL:
- *    - Gate 1: Enforced by ProtectedRoute in router.tsx (authenticated users only).
- *    - Gate 2: Enforced by PostgreSQL RLS policies on public.persons and public.relationships.
- *    - Zero synthetic private placeholder nodes are generated or displayed.
- * 3. ROOT CONTEXT:
- *    Presents root individual metadata (full name, birth/death years, gender) without
- *    leaking internal identifiers (id, user_id, created_by) or private contact information.
- * 4. RESPONSIVE DESIGN:
- *    Optimized for desktop and mobile viewports with flexible graph canvas and pan/zoom controls.
+ * FamilyTreePage — Dedicated full-page interactive genealogical family tree viewer,
+ * strictly matching the reference design layout without gradients:
+ * - Top header with Back button, Title, Subtitle, and action buttons:
+ *   [Expand All], [Collapse All], [Fit to Screen], [View List]
+ * - Interactive central graph canvas with custom person cards, edge labels, and couple indicators
+ * - Left floating Relationship Legend
+ * - Right floating Selected Person Panel
+ * - Bottom-left Tree Overview MiniMap
+ * - Bottom-right Zoom and Fullscreen controls
+ * - Toggleable structured Member List View
  */
 
+import { useState, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Network, AlertCircle, Loader2, Users } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { usePerson } from '@/features/people/hooks/usePerson'
 import { useFamily } from '@/features/families/hooks/useFamily'
 import { useFamilyRealtime } from '@/features/families/hooks/useFamilyRealtime'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { FamilyTreeCanvas } from '../components/FamilyTreeCanvas'
+import { FamilyTreeHeader } from '../components/FamilyTreeHeader'
+import { FamilyMemberListView } from '../components/FamilyMemberListView'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
+import type { TreeGraph, TreeNode } from '../types'
 
-/** UUID validation regular expression (RFC 4122) */
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-/** Human-readable gender labels */
-const GENDER_LABELS: Record<string, string> = {
-  MALE: 'Male',
-  FEMALE: 'Female',
-  OTHER: 'Other',
-  PREFER_NOT_TO_SAY: 'Prefer not to say',
-}
-
-/**
- * Full page component rendering the interactive genealogical tree for a person or family.
- */
 export function FamilyTreePage() {
   const params = useParams<{ personId?: string; familyId?: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  // Extract candidate IDs from route parameters or search parameters
   const queryFamilyId = searchParams.get('familyId')
   const queryPersonId =
     searchParams.get('personId') || searchParams.get('rootPersonId')
@@ -102,6 +83,52 @@ export function FamilyTreePage() {
     error: personError,
   } = usePerson(hasResolvedPersonId ? resolvedPersonId : undefined)
 
+  // Interactive Tree View state
+  const [isListView, setIsListView] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [fitTrigger, setFitTrigger] = useState(0)
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(
+    resolvedPersonId || null
+  )
+  const [currentTreeGraph, setCurrentTreeGraph] = useState<TreeGraph | null>(null)
+
+  const handleTreeLoaded = useCallback((graph: TreeGraph) => {
+    setCurrentTreeGraph(graph)
+  }, [])
+
+  const handleBack = () => {
+    if (isValidFamilyId) {
+      navigate(ROUTES.FAMILY_DETAIL(rawFamilyId!))
+    } else if (isValidPersonId) {
+      navigate(ROUTES.PERSON_DETAIL(rawPersonId!))
+    } else {
+      navigate(ROUTES.FAMILIES)
+    }
+  }
+
+  const handleExpandAll = () => {
+    setIsCollapsed(false)
+    setFitTrigger((prev) => prev + 1)
+  }
+
+  const handleCollapseAll = () => {
+    setIsCollapsed(true)
+    setFitTrigger((prev) => prev + 1)
+  }
+
+  const handleFitToScreen = () => {
+    setFitTrigger((prev) => prev + 1)
+  }
+
+  const handleToggleViewList = () => {
+    setIsListView((prev) => !prev)
+  }
+
+  const handleSelectPersonInTree = (personId: string) => {
+    setSelectedPersonId(personId)
+    setIsListView(false)
+  }
+
   const isLoading =
     (isValidFamilyId && (isFamilyLoading || isMembersLoading)) ||
     (hasResolvedPersonId && isPersonLoading)
@@ -120,7 +147,7 @@ export function FamilyTreePage() {
         </Button>
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-900"
+          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900"
         >
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
@@ -144,28 +171,24 @@ export function FamilyTreePage() {
         <div className="flex items-center gap-3 mb-6">
           <Button
             variant="secondary"
-            onClick={() =>
-              isValidFamilyId
-                ? navigate(ROUTES.FAMILY_DETAIL(rawFamilyId!))
-                : navigate(ROUTES.PERSON_DETAIL(rawPersonId!))
-            }
+            onClick={handleBack}
             disabled
           >
             <ArrowLeft className="h-4 w-4" />
-            {isValidFamilyId ? 'Back to Family Record' : 'Back to profile'}
+            Back to Family
           </Button>
         </div>
-        <div className="flex flex-col items-center justify-center min-h-[400px] rounded-xl border border-border bg-card p-12 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-          <p className="text-sm font-medium text-foreground">
-            Loading family tree record…
+        <div className="flex flex-col items-center justify-center min-h-[450px] rounded-2xl border border-[#DCE3EF] bg-white p-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB] mb-3" />
+          <p className="text-sm font-semibold text-[#101828]">
+            Loading interactive family tree…
           </p>
         </div>
       </div>
     )
   }
 
-  // Error handling for family or empty family roster
+  // Error handling for family
   if (isValidFamilyId && familyError) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -179,7 +202,7 @@ export function FamilyTreePage() {
         </Button>
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-900"
+          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900"
         >
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
@@ -196,12 +219,13 @@ export function FamilyTreePage() {
     )
   }
 
+  // Empty family roster
   if (isValidFamilyId && (!familyMembers || familyMembers.length === 0)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <Button
           variant="secondary"
-          onClick={() => navigate(ROUTES.FAMILY_DETAIL(rawFamilyId!))}
+          onClick={handleBack}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -209,7 +233,7 @@ export function FamilyTreePage() {
         </Button>
         <div
           role="alert"
-          className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-900"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900"
         >
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
@@ -235,19 +259,15 @@ export function FamilyTreePage() {
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <Button
           variant="secondary"
-          onClick={() =>
-            isValidFamilyId
-              ? navigate(ROUTES.FAMILY_DETAIL(rawFamilyId!))
-              : navigate(ROUTES.PEOPLE)
-          }
+          onClick={handleBack}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-          {isValidFamilyId ? 'Back to Family Record' : 'Back to census'}
+          Back to Family
         </Button>
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-900"
+          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900"
         >
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
@@ -261,132 +281,54 @@ export function FamilyTreePage() {
     )
   }
 
-  // Root person display fields
-  const fullName = [person.first_name, person.middle_name, person.last_name]
-    .filter(Boolean)
-    .join(' ')
+  const effectiveFamilyName =
+    family?.family_name ||
+    currentTreeGraph?.familyName ||
+    (person ? `${person.last_name || person.first_name} Family` : 'Family')
 
-  const birthYear =
-    person.dob_year ??
-    (person.date_of_birth ? new Date(person.date_of_birth).getFullYear() : null)
+  const effectiveMemberCount =
+    familyMembers.length ||
+    currentTreeGraph?.totalMemberCount ||
+    currentTreeGraph?.nodes.size ||
+    1
 
-  const deathYear = person.date_of_death
-    ? new Date(person.date_of_death).getFullYear()
-    : null
-
-  const isDeceased = person.status === 'DECEASED'
+  const treeNodesList: TreeNode[] = currentTreeGraph
+    ? Array.from(currentTreeGraph.nodes.values())
+    : []
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-4">
-      {/* Navigation and Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          {isValidFamilyId ? (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(ROUTES.FAMILY_DETAIL(rawFamilyId!))}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Family Record
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(ROUTES.PERSON_DETAIL(person.id))}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to profile
-            </Button>
-          )}
+      {/* Family Tree Header matching reference image */}
+      <FamilyTreeHeader
+        familyName={effectiveFamilyName}
+        memberCount={effectiveMemberCount}
+        onBack={handleBack}
+        onExpandAll={handleExpandAll}
+        onCollapseAll={handleCollapseAll}
+        onFitToScreen={handleFitToScreen}
+        isListView={isListView}
+        onToggleViewList={handleToggleViewList}
+      />
 
-          <Button
-            variant="ghost"
-            onClick={() => navigate(ROUTES.PEOPLE)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Census directory
-          </Button>
-
-          {isValidFamilyId && (
-            <Button
-              variant="ghost"
-              onClick={() => navigate(ROUTES.FAMILIES)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Families registry
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Root Contextual Header */}
-      <header className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-              <Network className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
-                  {family?.family_name
-                    ? `${family.family_name} — Family Tree`
-                    : fullName
-                      ? `${fullName}’s Family Tree`
-                      : 'Family Tree'}
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                Interactive genealogical graph centered on {fullName || 'root individual'}
-              </p>
-            </div>
-          </div>
-
-          {/* Root Metadata Badges */}
-          <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0 shrink-0">
-            {family?.family_name && (
-              <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5 text-primary" />
-                <span className="font-medium text-foreground">{family.family_name}</span>
-              </div>
-            )}
-
-            <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-              <User className="h-3.5 w-3.5 text-primary" />
-              <span className="font-medium text-foreground">{fullName || 'Unknown'}</span>
-            </div>
-
-            {(birthYear || deathYear || isDeceased) && (
-              <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-                {birthYear && `b. ${birthYear}`}
-                {birthYear && deathYear && ' – '}
-                {deathYear && `d. ${deathYear}`}
-                {!deathYear && isDeceased && !birthYear && 'Deceased'}
-                {!deathYear && isDeceased && birthYear && ' (dec.)'}
-              </span>
-            )}
-
-            {person.gender && GENDER_LABELS[person.gender] && (
-              <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-                {GENDER_LABELS[person.gender]}
-              </span>
-            )}
-
-            {person.status && person.status !== 'ACTIVE' && (
-              <span className="inline-flex items-center rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-mono uppercase text-amber-800 dark:text-amber-200">
-                {person.status}
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Full Tree React Flow Graph Canvas */}
-      <main aria-label="Family tree graph visualization">
-        <FamilyTreeCanvas
-          rootPersonId={person.id}
-          className="h-[calc(100vh-270px)] min-h-[420px] sm:min-h-[550px] w-full"
-        />
+      {/* Main Content: Interactive Canvas or Structured List View */}
+      <main aria-label="Family tree workspace">
+        {isListView ? (
+          <FamilyMemberListView
+            nodes={treeNodesList}
+            onSelectPersonInTree={handleSelectPersonInTree}
+          />
+        ) : (
+          <FamilyTreeCanvas
+            rootPersonId={person.id}
+            familyId={family?.id || (isValidFamilyId ? rawFamilyId : undefined)}
+            selectedPersonId={selectedPersonId}
+            onSelectPerson={setSelectedPersonId}
+            fitTrigger={fitTrigger}
+            isCollapsed={isCollapsed}
+            onTreeLoaded={handleTreeLoaded}
+            className="h-[calc(100vh-230px)] min-h-[550px] w-full"
+          />
+        )}
       </main>
     </div>
   )

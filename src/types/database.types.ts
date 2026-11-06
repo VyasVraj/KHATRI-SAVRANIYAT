@@ -319,6 +319,7 @@ export type Database = {
           family_id: string
           id: string
           is_head: boolean
+          relationship_to_head?: string | null
           joined_at: string
           left_at: string | null
           person_id: string
@@ -330,6 +331,7 @@ export type Database = {
           family_id: string
           id?: string
           is_head?: boolean
+          relationship_to_head?: string | null
           joined_at?: string
           left_at?: string | null
           person_id: string
@@ -341,6 +343,7 @@ export type Database = {
           family_id?: string
           id?: string
           is_head?: boolean
+          relationship_to_head?: string | null
           joined_at?: string
           left_at?: string | null
           person_id?: string
@@ -367,6 +370,11 @@ export type Database = {
         Row: {
           avatar_url?: string | null
           birth_place: string | null
+          blood_group?: string | null
+          blood_group_consent?: boolean | null
+          city?: string | null
+          state?: string | null
+          country?: string | null
           contact_privacy: Database["public"]["Enums"]["privacy_level"]
           created_at: string
           created_by: string | null
@@ -397,6 +405,11 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           birth_place?: string | null
+          blood_group?: string | null
+          blood_group_consent?: boolean | null
+          city?: string | null
+          state?: string | null
+          country?: string | null
           contact_privacy?: Database["public"]["Enums"]["privacy_level"]
           created_at?: string
           created_by?: string | null
@@ -425,6 +438,11 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           birth_place?: string | null
+          blood_group?: string | null
+          blood_group_consent?: boolean | null
+          city?: string | null
+          state?: string | null
+          country?: string | null
           contact_privacy?: Database["public"]["Enums"]["privacy_level"]
           created_at?: string
           created_by?: string | null
@@ -604,6 +622,14 @@ export type Database = {
       calculate_person_age: {
         Args: { p_dob: string }
         Returns: number | null
+      }
+      register_complete_family: {
+        Args: {
+          p_family: Json
+          p_head: Json
+          p_members?: Json
+        }
+        Returns: Json
       }
       get_my_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }

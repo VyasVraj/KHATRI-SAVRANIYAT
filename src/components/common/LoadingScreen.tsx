@@ -4,6 +4,7 @@
  */
 
 import { Loader2 } from 'lucide-react'
+import { BrandLogo } from './BrandLogo'
 
 interface LoadingScreenProps {
   message?: string
@@ -12,12 +13,16 @@ interface LoadingScreenProps {
 export function LoadingScreen({ message = 'Loading…' }: LoadingScreenProps) {
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center bg-white"
+      className="flex min-h-screen flex-col items-center justify-center bg-navy-950 text-white"
       role="status"
       aria-label={message}
     >
-      <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-      <p className="mt-3 text-sm text-navy-500">{message}</p>
+      <div className="mb-5 flex flex-col items-center gap-3 animate-in fade-in duration-300">
+        <BrandLogo size="lg" priority />
+        <span className="text-xl font-bold tracking-tight text-white">KHATRI SARVANIYAT</span>
+      </div>
+      <Loader2 className="h-7 w-7 animate-spin text-brand-400" />
+      <p className="mt-3 text-sm text-navy-300">{message}</p>
     </div>
   )
 }

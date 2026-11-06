@@ -1,5 +1,5 @@
 /**
- * Community Roots — Production Progressive Web App Service Worker
+ * KHATRI SARVANIYAT — Production Progressive Web App Service Worker
  *
  * Strict Cache Security & Architecture Invariants:
  * 1. ONLY static application shell resources are allowed in Cache Storage:
@@ -128,7 +128,7 @@ self.addEventListener('fetch', (event) => {
         if (cachedShell) {
           return cachedShell
         }
-        return new Response('Network offline. Please reconnect to access Community Roots.', {
+        return new Response('Network offline. Please reconnect to access KHATRI SARVANIYAT.', {
           status: 503,
           statusText: 'Service Unavailable',
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },

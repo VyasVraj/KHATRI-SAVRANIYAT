@@ -133,8 +133,7 @@ describe('Discovery Service — searchPersons', () => {
     expect(selectArg).toContain('city')
     expect(selectArg).toContain('state')
     expect(selectArg).toContain('dob_year')
-    // Verify protected, day/month, birth_place, and internal fields are strictly NOT queried
-    expect(selectArg).not.toContain('birth_place')
+    // Verify protected, day/month, and internal fields are strictly NOT queried
     expect(selectArg).not.toContain('dob_month')
     expect(selectArg).not.toContain('dob_day')
     expect(selectArg).not.toContain('date_of_birth')

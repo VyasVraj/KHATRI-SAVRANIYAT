@@ -90,12 +90,6 @@ export async function listAnnouncements(
         created_at,
         updated_at,
         deleted_at,
-        author:profiles!author_id (
-          id,
-          display_name,
-          email,
-          avatar_url
-        ),
         group:groups (
           id,
           name,
@@ -157,36 +151,62 @@ export async function listAnnouncements(
       return { data: null, error: appErr }
     }
 
+    const rawRows = data || []
+    const authorIds = Array.from(
+      new Set(rawRows.map((a: { author_id?: string }) => a.author_id).filter(Boolean))
+    ) as string[]
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileMap = new Map<string, any>()
+    if (authorIds.length > 0) {
+      try {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url')
+          .in('id', authorIds)
+        if (profs && Array.isArray(profs)) {
+          for (const p of profs) {
+            profileMap.set(p.id, p)
+          }
+        }
+      } catch {
+        // Non-blocking enrichment
+      }
+    }
+
     // Client-side text search if specified
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let items: Announcement[] = (data || []).map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      content: row.content,
-      announcement_type: row.announcement_type,
-      status: row.status,
-      group_id: row.group_id,
-      group_name: row.group?.name || null,
-      group_slug: row.group?.slug || null,
-      author_id: row.author_id,
-      author_name: row.author?.display_name || null,
-      author_email: row.author?.email || null,
-      author_avatar: row.author?.avatar_url || null,
-      is_pinned: row.is_pinned,
-      published_at: row.published_at,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      deleted_at: row.deleted_at,
-      author: row.author
-        ? {
-            id: row.author.id,
-            display_name: row.author.display_name,
-            email: row.author.email,
-            avatar_url: row.author.avatar_url,
-          }
-        : undefined,
-      can_manage: callerUserId ? row.author_id === callerUserId : false,
-    }))
+    let items: Announcement[] = rawRows.map((row: any) => {
+      const authorProf = row.author || (row.author_id ? profileMap.get(row.author_id) : null)
+      return {
+        id: row.id,
+        title: row.title,
+        content: row.content,
+        announcement_type: row.announcement_type,
+        status: row.status,
+        group_id: row.group_id,
+        group_name: row.group?.name || null,
+        group_slug: row.group?.slug || null,
+        author_id: row.author_id,
+        author_name: authorProf?.display_name || null,
+        author_email: authorProf?.email || null,
+        author_avatar: authorProf?.avatar_url || null,
+        is_pinned: row.is_pinned,
+        published_at: row.published_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        deleted_at: row.deleted_at,
+        author: authorProf
+          ? {
+              id: authorProf.id,
+              display_name: authorProf.display_name,
+              email: authorProf.email,
+              avatar_url: authorProf.avatar_url,
+            }
+          : undefined,
+        can_manage: callerUserId ? row.author_id === callerUserId : false,
+      }
+    })
 
     if (filters?.search && filters.search.trim().length > 0) {
       const q = filters.search.toLowerCase().trim()
@@ -230,12 +250,6 @@ export async function getAnnouncementById(
         created_at,
         updated_at,
         deleted_at,
-        author:profiles!author_id (
-          id,
-          display_name,
-          email,
-          avatar_url
-        ),
         group:groups (
           id,
           name,
@@ -260,6 +274,23 @@ export async function getAnnouncementById(
         message: 'The requested announcement could not be found.',
       }
       return { data: null, error: appErr }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row: any = data
+    if (row.author_id && !row.author) {
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url')
+          .eq('id', row.author_id)
+          .maybeSingle()
+        if (prof) {
+          row.author = prof
+        }
+      } catch {
+        // Non-blocking
+      }
     }
 
     const announcement: Announcement = {

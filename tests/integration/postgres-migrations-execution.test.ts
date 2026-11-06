@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Integration Test: Real PostgreSQL Migration Execution & Behavioral Audit
  *
@@ -62,6 +63,10 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const galleryTeardownSql = fs.readFileSync(path.join(migrationsDir, '20261103200000_remove_gallery_albums.sql'), 'utf-8')
   const familyRpcSql = fs.readFileSync(path.join(migrationsDir, '20261103210000_create_family_with_head_rpc.sql'), 'utf-8')
   const gotraRegistrySql = fs.readFileSync(path.join(migrationsDir, '20261103220000_create_gotra_nukh_master_registry.sql'), 'utf-8')
+  const communityMukhisSql = fs.readFileSync(path.join(migrationsDir, '20261105230000_create_community_mukhis_and_seed_118.sql'), 'utf-8')
+  const registerFamilyRpcSql = fs.readFileSync(path.join(migrationsDir, '20261106010000_register_complete_family_rpc.sql'), 'utf-8')
+  const familyPermissionsSql = fs.readFileSync(path.join(migrationsDir, '20261106020000_family_membership_based_edit_permissions.sql'), 'utf-8')
+  const fieldValidationSql = fs.readFileSync(path.join(migrationsDir, '20261106030000_enforce_person_field_validation.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -1498,6 +1503,362 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       await pg.exec(`DELETE FROM public.gotras WHERE name = 'AuditAdminGotra';`)
 
       await pg.exec(`RESET ROLE;`)
+    })
+  })
+
+  describe('5. Official Gotra and Nukh Directory Master Migration (20261105233000)', () => {
+    it('executes 20261105233000 migration cleanly and updates Gotras to 29 and Nukhs to 148', async () => {
+      const newMigrationSql = fs.readFileSync(
+        path.join(migrationsDir, '20261105233000_replace_gotra_nukh_with_official_pdf_data.sql'),
+        'utf-8'
+      )
+      await expect(pg.exec(newMigrationSql)).resolves.not.toThrow()
+
+      const gotrasCountRes = await pg.query<{ count: string }>(`SELECT count(*)::text FROM public.gotras;`)
+      expect(Number(gotrasCountRes.rows[0].count)).toBe(29)
+
+      const nukhsCountRes = await pg.query<{ count: string }>(`SELECT count(*)::text FROM public.nukhs;`)
+      expect(Number(nukhsCountRes.rows[0].count)).toBe(148)
+    })
+
+    it('allows inserting and updating person with Agastya and Arora (Aroda) without error', async () => {
+      const personRes = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (first_name, last_name, gender, gotra, nukh, created_by)
+        VALUES ('Test', 'Member', 'MALE', 'Agastya', 'Arora (Aroda)', '${activeMemberId}')
+        RETURNING id;
+      `)
+      const personId = personRes.rows[0].id
+      expect(personId).toBeDefined()
+
+      const checkRes = await pg.query<{ gotra: string; nukh: string }>(`
+        SELECT gotra, nukh FROM public.persons WHERE id = '${personId}';
+      `)
+      expect(checkRes.rows[0].gotra).toBe('Agastya')
+      expect(checkRes.rows[0].nukh).toBe('Arora (Aroda)')
+
+      // Updating with alias 'Aroda' or base name 'Arora' canonicalizes to 'Arora (Aroda)'
+      await expect(
+        pg.exec(`UPDATE public.persons SET nukh = 'Aroda' WHERE id = '${personId}';`)
+      ).resolves.not.toThrow()
+
+      const checkAliasRes = await pg.query<{ nukh: string }>(`
+        SELECT nukh FROM public.persons WHERE id = '${personId}';
+      `)
+      expect(checkAliasRes.rows[0].nukh).toBe('Arora (Aroda)')
+    })
+
+    it('rejects an invalid Nukh with informative error', async () => {
+      await expect(
+        pg.exec(`
+          INSERT INTO public.persons (first_name, last_name, gender, gotra, nukh, created_by)
+          VALUES ('Invalid', 'Member', 'MALE', 'Agastya', 'FakeNukh', '${activeMemberId}');
+        `)
+      ).rejects.toThrow(/INVALID_GOTRA_NUKH: Nukh "FakeNukh" does not belong to Gotra "Agastya"/i)
+    })
+
+    it('verifies community_persons view and get_my_linked_person() function work seamlessly', async () => {
+      const viewRes = await pg.query<{ count: string }>(`SELECT count(*)::text FROM public.community_persons;`)
+      expect(Number(viewRes.rows[0].count)).toBeGreaterThan(0)
+
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+      const rpcRes = await pg.query(`SELECT * FROM public.get_my_linked_person();`)
+      expect(Array.isArray(rpcRes.rows)).toBe(true)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  describe('8. Complete Family Registration & Add Person Atomic RPC (20261106010000)', () => {
+    it('executes 20261105230000_create_community_mukhis_and_seed_118.sql and 20261106010000_register_complete_family_rpc.sql without error', async () => {
+      await expect(pg.exec(communityMukhisSql)).resolves.not.toThrow()
+      await expect(pg.exec(registerFamilyRpcSql)).resolves.not.toThrow()
+    })
+
+    it('registers a complete family atomically with Head and multiple members', async () => {
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+
+      // Fetch a valid Mukhi ID from the seeded 118 records
+      const mukhiRes = await pg.query<{ id: string }>(`SELECT id FROM public.community_mukhis LIMIT 1;`)
+      const validMukhiId = mukhiRes.rows[0].id
+
+      const rpcResult = await pg.query<{ register_complete_family: any }>(`
+        SELECT public.register_complete_family(
+          p_family := '{
+            "family_name": "PGlite Vyas Parivar",
+            "selected_mukhi_id": "${validMukhiId}",
+            "city": "Nadiad",
+            "state": "Gujarat",
+            "country": "India",
+            "gotra": "Agastya",
+            "nukh": "Arora (Aroda)"
+          }'::jsonb,
+          p_head := '{
+            "is_existing": false,
+            "first_name": "Jayesh",
+            "middle_name": "Kumar",
+            "last_name": "Vyas",
+            "gender": "MALE",
+            "date_of_birth": "1970-01-15",
+            "city": "Nadiad",
+            "state": "Gujarat",
+            "country": "India",
+            "gotra": "Agastya",
+            "nukh": "Arora (Aroda)",
+            "phone": "9876543210",
+            "email": "jayesh@example.com",
+            "blood_group": "B+",
+            "blood_group_consent": true
+          }'::jsonb,
+          p_members := '[
+            {
+              "is_existing": false,
+              "relationship_to_head": "Wife",
+              "role": "SPOUSE",
+              "first_name": "Jignasha",
+              "middle_name": "Jayesh",
+              "last_name": "Vyas",
+              "gender": "FEMALE",
+              "date_of_birth": "1975-05-20",
+              "city": "Nadiad",
+              "state": "Gujarat",
+              "country": "India",
+              "gotra": "Agastya",
+              "nukh": "Arora (Aroda)",
+              "phone": "9876543210",
+              "email": "family@example.com"
+            }
+          ]'::jsonb
+        );
+      `)
+
+      const output = rpcResult.rows[0].register_complete_family
+      expect(output.success).toBe(true)
+      expect(output.family_id).toBeDefined()
+      expect(output.head_person_id).toBeDefined()
+      expect(output.member_count).toBe(2)
+
+      // Verify that family_members has head and spouse linked
+      const fmRes = await pg.query<{ role: string; is_head: boolean; relationship_to_head: string }>(`
+        SELECT role, is_head, relationship_to_head FROM public.family_members WHERE family_id = '${output.family_id}';
+      `)
+      expect(fmRes.rows.length).toBe(2)
+      const headMember = fmRes.rows.find((r) => r.is_head)
+      const spouseMember = fmRes.rows.find((r) => !r.is_head)
+      expect(headMember?.role).toBe('HEAD')
+      expect(spouseMember?.role).toBe('SPOUSE')
+      expect(spouseMember?.relationship_to_head).toBe('Wife')
+    })
+
+    it('rolls back completely when Gotra/Nukh or mandatory fields are invalid', async () => {
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+
+      const mukhiRes = await pg.query<{ id: string }>(`SELECT id FROM public.community_mukhis LIMIT 1;`)
+      const validMukhiId = mukhiRes.rows[0].id
+
+      await expect(
+        pg.query(`
+          SELECT public.register_complete_family(
+            p_family := '{
+              "family_name": "Rollback Family",
+              "selected_mukhi_id": "${validMukhiId}",
+              "city": "Nadiad",
+              "state": "Gujarat",
+              "country": "India",
+              "gotra": "Agastya",
+              "nukh": "NonExistentNukh"
+            }'::jsonb,
+            p_head := '{
+              "is_existing": false,
+              "first_name": "Bad",
+              "middle_name": "Nukh",
+              "last_name": "Person",
+              "gender": "MALE",
+              "date_of_birth": "1980-01-01",
+              "city": "Nadiad",
+              "state": "Gujarat",
+              "country": "India",
+              "gotra": "Agastya",
+              "nukh": "NonExistentNukh",
+              "phone": "9876543210",
+              "email": "test@example.com"
+            }'::jsonb
+          );
+        `)
+      ).rejects.toThrow(/INVALID_NUKH/i)
+
+      // Ensure no family was committed
+      const checkFam = await pg.query(`SELECT 1 FROM public.families WHERE family_name = 'Rollback Family';`)
+      expect(checkFam.rows.length).toBe(0)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // 9. Family Membership-Based Edit Permissions (20261106020000)
+  // ---------------------------------------------------------------------------
+  describe('9. Family Membership-Based Edit Permissions (20261106020000)', () => {
+    it('executes 20261106020000_family_membership_based_edit_permissions.sql without error', async () => {
+      await expect(pg.exec(familyPermissionsSql)).resolves.not.toThrow()
+    })
+
+    it('enforces family membership-based permissions in can_manage_family and can_edit_person', async () => {
+      // 1. Create two separate families: Family A and Family B
+      const famARes = await pg.query<{ id: string }>(`
+        INSERT INTO public.families (family_name, city, state, country, gotra, nukh, created_by)
+        VALUES ('Vyas Family A', 'Nadiad', 'Gujarat', 'India', 'Agastya', 'Arora (Aroda)', '${activeMemberId}')
+        RETURNING id;
+      `)
+      const familyAId = famARes.rows[0].id
+
+      const famBRes = await pg.query<{ id: string }>(`
+        INSERT INTO public.families (family_name, city, state, country, gotra, nukh, created_by)
+        VALUES ('Patel Family B', 'Anand', 'Gujarat', 'India', 'Badrayan', 'Harshun', '${otherMemberId}')
+        RETURNING id;
+      `)
+      const familyBId = famBRes.rows[0].id
+
+      // 2. Insert Person A1 (Head, activeMemberId) & Person A2 (Member, otherMemberId linked) in Family A
+      const personA1Res = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (first_name, last_name, gender, date_of_birth, user_id, created_by)
+        VALUES ('Jayesh', 'Vyas', 'MALE', '1970-01-01', '${activeMemberId}', '${activeMemberId}')
+        RETURNING id;
+      `)
+      const personA1Id = personA1Res.rows[0].id
+
+      const personA2Res = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (first_name, last_name, gender, date_of_birth, user_id, created_by)
+        VALUES ('Vraj', 'Vyas', 'MALE', '2005-11-18', NULL, '${activeMemberId}')
+        RETURNING id;
+      `)
+      const personA2Id = personA2Res.rows[0].id
+
+      // Link them to Family A
+      await pg.exec(`
+        INSERT INTO public.family_members (family_id, person_id, role, is_head, added_by)
+        VALUES
+          ('${familyAId}', '${personA1Id}', 'HEAD', true, '${activeMemberId}'),
+          ('${familyAId}', '${personA2Id}', 'CHILD', false, '${activeMemberId}');
+      `)
+
+      // 3. Insert Person B1 in Family B
+      const personB1Res = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (first_name, last_name, gender, date_of_birth, user_id, created_by)
+        VALUES ('Nanak', 'Pamnani', 'MALE', '1975-02-02', '${otherMemberId}', '${otherMemberId}')
+        RETURNING id;
+      `)
+      const personB1Id = personB1Res.rows[0].id
+
+      await pg.exec(`
+        INSERT INTO public.family_members (family_id, person_id, role, is_head, added_by)
+        VALUES ('${familyBId}', '${personB1Id}', 'HEAD', true, '${otherMemberId}');
+      `)
+
+      // Now link person A2 to user 'otherMemberId' temporarily to simulate an active family member
+      await pg.exec(`UPDATE public.persons SET user_id = '${otherMemberId}' WHERE id = '${personA2Id}';`)
+
+      // ACT AS otherMemberId (Vraj Vyas in Family A)
+      await pg.exec(`UPDATE public._mock_session SET uid = '${otherMemberId}';`)
+
+      // Check can_manage_family on Family A (where otherMemberId is a member) -> TRUE
+      const manageFamA = await pg.query<{ can_manage_family: boolean }>(`
+        SELECT public.can_manage_family('${familyAId}') AS can_manage_family;
+      `)
+      expect(manageFamA.rows[0].can_manage_family).toBe(true)
+
+      // Check can_edit_person on Person A1 (fellow family member in Family A) -> TRUE
+      const editPersonA1 = await pg.query<{ can_edit_person: boolean }>(`
+        SELECT public.can_edit_person('${personA1Id}') AS can_edit_person;
+      `)
+      expect(editPersonA1.rows[0].can_edit_person).toBe(true)
+
+      // ACT AS communityModId (Mukhi / Community Moderator who is NOT in Family A)
+      await pg.exec(`UPDATE public._mock_session SET uid = '${communityModId}';`)
+
+      // Mukhi CANNOT manage unrelated Family A -> FALSE
+      const mukhiManageFamA = await pg.query<{ can_manage_family: boolean }>(`
+        SELECT public.can_manage_family('${familyAId}') AS can_manage_family;
+      `)
+      expect(mukhiManageFamA.rows[0].can_manage_family).toBe(false)
+
+      // Mukhi CANNOT edit member of unrelated Family A -> FALSE
+      const mukhiEditPersonA1 = await pg.query<{ can_edit_person: boolean }>(`
+        SELECT public.can_edit_person('${personA1Id}') AS can_edit_person;
+      `)
+      expect(mukhiEditPersonA1.rows[0].can_edit_person).toBe(false)
+
+      // ACT AS adminId (System Admin)
+      await pg.exec(`UPDATE public._mock_session SET uid = '${adminId}';`)
+
+      // Admin CAN manage Family A -> TRUE
+      const adminManageFamA = await pg.query<{ can_manage_family: boolean }>(`
+        SELECT public.can_manage_family('${familyAId}') AS can_manage_family;
+      `)
+      expect(adminManageFamA.rows[0].can_manage_family).toBe(true)
+
+      // Admin CAN edit Person A1 -> TRUE
+      const adminEditPersonA1 = await pg.query<{ can_edit_person: boolean }>(`
+        SELECT public.can_edit_person('${personA1Id}') AS can_edit_person;
+      `)
+      expect(adminEditPersonA1.rows[0].can_edit_person).toBe(true)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // 10. Strict 10 Mandatory & 4 Optional Field Validation (20261106030000)
+  // ---------------------------------------------------------------------------
+  describe('10. Strict 10 Mandatory & 4 Optional Field Validation (20261106030000)', () => {
+    it('executes 20261106030000_enforce_person_field_validation.sql without error', async () => {
+      await expect(pg.exec(fieldValidationSql)).resolves.not.toThrow()
+    })
+
+    it('rejects INSERT with missing mandatory fields via trigger guard', async () => {
+      // Missing blood_group, birth_place, gotra, nukh, email, phone
+      await expect(
+        pg.query(`
+          INSERT INTO public.persons (first_name, last_name, gender, date_of_birth, created_by)
+          VALUES ('Incomplete', 'Person', 'MALE', '1990-01-01', '${activeMemberId}');
+        `)
+      ).rejects.toThrow()
+    })
+
+    it('accepts INSERT with all 10 mandatory fields and optional fields omitted', async () => {
+      const res = await pg.query<{ id: string; first_name: string; middle_name: string | null }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place,
+          date_of_birth, gotra, nukh, email_contact, phone, created_by
+        )
+        VALUES (
+          'Rajesh', 'Vyas', 'MALE', 'B+', 'Vadodara, Gujarat',
+          '1985-04-12', 'Agastya', 'Arora (Aroda)', 'rajesh.vyas@example.com', '+919876543210', '${activeMemberId}'
+        )
+        RETURNING id, first_name, middle_name;
+      `)
+      expect(res.rows.length).toBe(1)
+      expect(res.rows[0].first_name).toBe('Rajesh')
+      expect(res.rows[0].middle_name).toBeNull()
+    })
+
+    it('permits duplicate contact details (email and phone) across different family members', async () => {
+      // Insert another person sharing the exact same phone and email as Rajesh
+      const res = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place,
+          date_of_birth, gotra, nukh, email_contact, phone, created_by
+        )
+        VALUES (
+          'Meena', 'Vyas', 'FEMALE', 'O+', 'Vadodara, Gujarat',
+          '1988-08-20', 'Agastya', 'Arora (Aroda)', 'rajesh.vyas@example.com', '+919876543210', '${activeMemberId}'
+        )
+        RETURNING id;
+      `)
+      expect(res.rows.length).toBe(1)
+    })
+
+    it('audit function get_incomplete_person_records identifies historical incomplete records', async () => {
+      const auditRes = await pg.query<{ person_id: string; missing_fields: string[] }>(`
+        SELECT * FROM public.get_incomplete_person_records();
+      `)
+      expect(auditRes.rows.length).toBeGreaterThan(0)
+      const firstIncomplete = auditRes.rows[0]
+      expect(firstIncomplete.missing_fields.length).toBeGreaterThan(0)
     })
   })
 })

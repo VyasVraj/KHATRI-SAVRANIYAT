@@ -31,7 +31,8 @@ import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import { canManagePrivacy } from '@/constants/app'
-import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
+import { BLOOD_GROUP_OPTIONS, BLOOD_GROUPS } from '@/constants/bloodGroup'
+import { isValidNukhForGotra } from '@/constants/gotraNukh'
 import type { PrivacyLevel } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -50,24 +51,41 @@ function getTodayIso(): string {
   return `${year}-${month}-${day}`
 }
 
-/** Form-level schema: all optional fields accept string (HTML input value) */
+/** Form-level schema: 10 mandatory fields and 4 optional fields */
 const personFormSchema = z
   .object({
     first_name: z
-      .string({ required_error: 'First name is required' })
-      .min(1, 'First name is required')
+      .string({ required_error: 'First Name is required' })
+      .trim()
+      .min(1, 'First Name is required')
       .max(100, 'First name must not exceed 100 characters'),
     last_name: z
-      .string({ required_error: 'Last name is required' })
-      .min(1, 'Last name is required')
+      .string({ required_error: 'Last Name is required' })
+      .trim()
+      .min(1, 'Last Name is required')
       .max(100, 'Last name must not exceed 100 characters'),
-    middle_name: z.string().max(100).optional(),
-    maiden_name: z.string().max(100).optional(),
-    gender: z.string().optional(),
-    blood_group: z.string().optional(),
+    middle_name: z.string().max(100).optional().nullable(),
+    maiden_name: z.string().max(100).optional().nullable(),
+    gender: z
+      .string({ required_error: 'Please select Gender' })
+      .min(1, 'Please select Gender')
+      .refine((val) => ['MALE', 'FEMALE', 'OTHER'].includes(val), 'Please select Gender'),
+    blood_group: z
+      .string({ required_error: 'Please select Blood Group' })
+      .min(1, 'Please select Blood Group')
+      .refine(
+        (val) => BLOOD_GROUPS.includes(val as (typeof BLOOD_GROUPS)[number]) && val !== 'UNKNOWN',
+        'Please select Blood Group'
+      ),
+    birth_place: z
+      .string({ required_error: 'Birthplace is required' })
+      .trim()
+      .min(1, 'Birthplace is required')
+      .max(200, 'Birthplace must not exceed 200 characters'),
     date_of_birth: z
-      .string()
-      .optional()
+      .string({ required_error: 'Date of Birth is required' })
+      .trim()
+      .min(1, 'Date of Birth is required')
       .refine(
         (val) => !val || val <= getTodayIso(),
         'Date of birth cannot be in the future'
@@ -75,16 +93,42 @@ const personFormSchema = z
     date_of_death: z
       .string()
       .optional()
+      .nullable()
       .refine(
         (val) => !val || val <= getTodayIso(),
         'Date of death cannot be in the future'
       ),
-    birth_place: z.string().max(200).optional(),
-    gotra: z.string().max(100).optional(),
-    nukh: z.string().max(100).optional(),
-    email_contact: z.string().optional(),
-    phone: z.string().max(30).optional(),
-    phone_secondary: z.string().max(30).optional(),
+    gotra: z
+      .string({ required_error: 'Please select Gotra' })
+      .trim()
+      .min(1, 'Please select Gotra'),
+    nukh: z
+      .string({ required_error: 'Please select Nukh' })
+      .trim()
+      .min(1, 'Please select Nukh'),
+    email_contact: z
+      .string({ required_error: 'Valid Email Address is required' })
+      .trim()
+      .min(1, 'Valid Email Address is required')
+      .email('Valid Email Address is required')
+      .max(254, 'Email must not exceed 254 characters'),
+    phone: z
+      .string({ required_error: 'Valid Primary Phone Number is required' })
+      .trim()
+      .min(1, 'Valid Primary Phone Number is required')
+      .max(30, 'Phone number must not exceed 30 characters')
+      .refine(
+        (val) => /^[0-9+\s\-()]{7,25}$/.test(val),
+        'Valid Primary Phone Number is required'
+      ),
+    phone_secondary: z
+      .string()
+      .optional()
+      .nullable()
+      .refine(
+        (val) => !val || /^[0-9+\s\-()]{7,25}$/.test(val.trim()),
+        'Please enter a valid secondary phone number'
+      ),
     profile_privacy: PRIVACY_ENUM.default('PRIVATE'),
     contact_privacy: PRIVACY_ENUM.default('PRIVATE'),
     dob_privacy: PRIVACY_ENUM.default('PRIVATE'),
@@ -99,6 +143,16 @@ const personFormSchema = z
         })
       }
     }
+
+    if (data.gotra && data.nukh) {
+      if (!isValidNukhForGotra(data.gotra, data.nukh)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Nukh "${data.nukh}" does not belong to Gotra "${data.gotra}".`,
+          path: ['nukh'],
+        })
+      }
+    }
   })
 
 type PersonFormValues = z.infer<typeof personFormSchema>
@@ -107,7 +161,7 @@ type PersonFormValues = z.infer<typeof personFormSchema>
 // Sanitization: convert empty string fields to undefined before calling service
 // ---------------------------------------------------------------------------
 
-function sanitizeOptional(v: string | undefined, isEdit = false): string | null | undefined {
+function sanitizeOptional(v: string | null | undefined, isEdit = false): string | null | undefined {
   if (v === '' || v === null) return isEdit ? null : undefined
   if (v === undefined) return undefined
   const trimmed = v.trim()
@@ -121,15 +175,15 @@ function sanitizeFormValues(values: PersonFormValues, mode: 'create' | 'edit'): 
     last_name: values.last_name.trim(),
     middle_name: sanitizeOptional(values.middle_name, isEdit),
     maiden_name: sanitizeOptional(values.maiden_name, isEdit),
-    gender: (sanitizeOptional(values.gender, isEdit) as CreatePersonInput['gender']) ?? undefined,
-    blood_group: (sanitizeOptional(values.blood_group, isEdit) as CreatePersonInput['blood_group']) ?? undefined,
-    date_of_birth: sanitizeOptional(values.date_of_birth, isEdit),
+    gender: values.gender as CreatePersonInput['gender'],
+    blood_group: values.blood_group as CreatePersonInput['blood_group'],
+    date_of_birth: values.date_of_birth.trim(),
     date_of_death: sanitizeOptional(values.date_of_death, isEdit),
-    birth_place: sanitizeOptional(values.birth_place, isEdit),
-    gotra: sanitizeOptional(values.gotra, isEdit),
-    nukh: sanitizeOptional(values.nukh, isEdit),
-    email_contact: sanitizeOptional(values.email_contact, isEdit),
-    phone: sanitizeOptional(values.phone, isEdit),
+    birth_place: values.birth_place.trim(),
+    gotra: values.gotra.trim(),
+    nukh: values.nukh.trim(),
+    email_contact: values.email_contact.trim().toLowerCase(),
+    phone: values.phone.trim(),
     phone_secondary: sanitizeOptional(values.phone_secondary, isEdit),
     profile_privacy: values.profile_privacy,
     contact_privacy: values.contact_privacy,
@@ -311,7 +365,7 @@ export function PersonForm({
               htmlFor="gender"
               className="block text-sm font-medium text-navy-700"
             >
-              Gender
+              Gender <span className="text-red-500">*</span>
             </label>
             <select
               id="gender"
@@ -345,7 +399,7 @@ export function PersonForm({
               htmlFor="blood_group"
               className="block text-sm font-medium text-navy-700"
             >
-              Blood Group
+              Blood Group <span className="text-red-500">*</span>
             </label>
             <select
               id="blood_group"
@@ -374,12 +428,14 @@ export function PersonForm({
           </div>
 
           <Input
-            label="Birth place"
+            label="Birthplace"
+            required
             error={errors.birth_place?.message}
             {...register('birth_place')}
           />
           <Input
             label="Date of birth"
+            required
             type="date"
             hint="Format: YYYY-MM-DD"
             error={errors.date_of_birth?.message}
@@ -407,6 +463,7 @@ export function PersonForm({
         <GotraNukhSelect
           selectedGotra={selectedGotra}
           selectedNukh={selectedNukh}
+          required
           onGotraChange={(val) => {
             setValue('gotra', val, { shouldValidate: true })
             setValue('nukh', '', { shouldValidate: true })
@@ -425,6 +482,7 @@ export function PersonForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Email"
+            required
             type="email"
             autoComplete="email"
             hint="Community contact email — may differ from login email"
@@ -432,7 +490,8 @@ export function PersonForm({
             {...register('email_contact')}
           />
           <Input
-            label="Phone"
+            label="Primary Phone"
+            required
             type="tel"
             autoComplete="tel"
             error={errors.phone?.message}

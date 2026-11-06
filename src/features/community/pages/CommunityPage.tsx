@@ -149,7 +149,7 @@ export function CommunityPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
       {/* Page Header */}
-      <div>
+      <div id="community-hub-header">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           {t('community.title', 'Community Hub')}
         </h1>
@@ -162,7 +162,7 @@ export function CommunityPage() {
       </div>
 
       {/* Community Pulse Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 community-pulse-metrics">
         {/* Groups Metric Card */}
         <button
           type="button"

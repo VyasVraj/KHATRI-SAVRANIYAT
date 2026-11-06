@@ -81,6 +81,7 @@ export const GroupsCatalog: React.FC = () => {
   const handleCreate = async (input: CreateGroupInput) => {
     setFeedbackMessage(null)
     await createMutation.mutateAsync(input)
+    await refetch()
     setFeedbackMessage({
       type: 'success',
       text: `Group "${input.name}" created successfully. You are now the Group Administrator.`,

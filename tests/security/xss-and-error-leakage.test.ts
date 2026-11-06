@@ -69,14 +69,20 @@ describe('Security & XSS Audit: Free-Text Fields & Sanitization Integration', ()
         first_name: 'Aarav <script>alert("XSS")</script>',
         last_name: 'Patel <img src="x" onerror="steal()" />',
         middle_name: '<iframe src="evil.com"></iframe>K',
-        gotra: '<b>Kashyap</b>',
+        gender: 'MALE',
+        blood_group: 'B+',
+        date_of_birth: '1990-01-01',
+        gotra: '<b>Agastya</b>',
+        nukh: 'Arora (Aroda)',
+        email_contact: 'aarav@example.com',
+        phone: '+919876543210',
         birth_place: 'Ahmedabad <style>body{display:none}</style>',
       })
 
       expect(parsed.first_name).toBe('Aarav')
       expect(parsed.last_name).toBe('Patel')
       expect(parsed.middle_name).toBe('K')
-      expect(parsed.gotra).toBe('Kashyap')
+      expect(parsed.gotra).toBe('Agastya')
       expect(parsed.birth_place).toBe('Ahmedabad')
     })
 

@@ -12,16 +12,17 @@
  */
 
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Users, AlertCircle, Eye, EyeOff, Mail } from 'lucide-react'
 import { useFamilyMembers } from '../hooks/useFamilyMembers'
 import { useRemoveFamilyMember } from '../hooks/useFamilyMemberMutations'
 import type { FamilyMemberWithPerson } from '../services/family-members.service'
 import { MemberCard } from './MemberCard'
 import { AddMemberModal } from './AddMemberModal'
-import { EditMemberModal } from './EditMemberModal'
 import { TransferHeadModal } from './TransferHeadModal'
 import { CreateInvitationModal } from '@/features/invitations'
 import { Button } from '@/components/forms/Button'
+import { ROUTES } from '@/constants/app'
 
 export interface MemberListProps {
   familyId: string
@@ -29,10 +30,10 @@ export interface MemberListProps {
 }
 
 export function MemberList({ familyId, canManageMembers = false }: MemberListProps) {
+  const navigate = useNavigate()
   const [showFormer, setShowFormer] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [editingMember, setEditingMember] = useState<FamilyMemberWithPerson | null>(null)
   const [transferHeadMember, setTransferHeadMember] = useState<FamilyMemberWithPerson | null>(null)
   const [removingMember, setRemovingMember] = useState<FamilyMemberWithPerson | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
@@ -231,7 +232,11 @@ export function MemberList({ familyId, canManageMembers = false }: MemberListPro
               key={member.id}
               member={member}
               canManageMembers={canManageMembers}
-              onEdit={(m) => setEditingMember(m)}
+              onEdit={(m) => {
+                navigate(ROUTES.PERSON_EDIT(m.person_id), {
+                  state: { returnUrl: ROUTES.FAMILY_DETAIL(familyId) },
+                })
+              }}
               onTransferHead={(m) => setTransferHeadMember(m)}
               onRemove={(m) => setRemovingMember(m)}
             />
@@ -264,13 +269,6 @@ export function MemberList({ familyId, canManageMembers = false }: MemberListPro
         onClose={() => setIsAddModalOpen(false)}
         hasActiveHead={Boolean(currentHead)}
         headPersonId={currentHead?.person_id}
-      />
-
-      <EditMemberModal
-        member={editingMember}
-        familyId={familyId}
-        isOpen={Boolean(editingMember)}
-        onClose={() => setEditingMember(null)}
       />
 
       <TransferHeadModal

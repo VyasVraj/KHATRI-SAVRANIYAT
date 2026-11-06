@@ -3,7 +3,7 @@
  *
  * Capabilities:
  * - Listens for waiting service worker updates.
- * - Displays a non-intrusive floating toast: "A new version of Community Roots is available. [Update Now]".
+ * - Displays a non-intrusive floating toast: "A new version of KHATRI SARVANIYAT is available. [Update Now]".
  * - Signals the waiting worker via `SKIP_WAITING` on click.
  * - Displays an ambient "Offline Mode" indicator when navigator.onLine is false.
  */

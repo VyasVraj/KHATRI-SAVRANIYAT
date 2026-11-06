@@ -15,7 +15,7 @@ const rootElement = document.getElementById('root')
 
 if (!rootElement) {
   throw new Error(
-    '[Community Roots] Root element #root not found. ' +
+    '[KHATRI SARVANIYAT] Root element #root not found. ' +
       'Check index.html — the <div id="root"> element must exist.'
   )
 }

@@ -16,6 +16,7 @@ import { CheckCircle } from 'lucide-react'
 import { signUpSchema, type SignUpInput } from '../schemas/auth.schemas'
 import { signUp } from '../services/auth.service'
 import { ROUTES } from '@/constants/app'
+import { BrandLogo } from '@/components/common/BrandLogo'
 import { Input, PasswordInput } from '@/components/forms/Input'
 import { Button } from '@/components/forms/Button'
 
@@ -87,9 +88,12 @@ export function SignUpPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-navy-50 px-4 py-12">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <Link to={ROUTES.HOME} className="inline-block">
-            <span className="text-2xl font-bold text-brand-600">KHATRI SARVANIYAT</span>
+        <div className="mb-8 text-center flex flex-col items-center">
+          <Link to={ROUTES.HOME} className="inline-flex flex-col items-center gap-3 group">
+            <div className="p-2 rounded-xl bg-[#081B55] border border-[#D9A62E]/60 shadow-md group-hover:scale-105 transition-transform">
+              <BrandLogo size="md" alt="KHATRI SARVANIYAT" priority />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-navy-950">KHATRI SARVANIYAT</span>
           </Link>
           <h1 className="mt-4 text-2xl font-semibold text-navy-900">
             Create your account

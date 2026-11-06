@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Community Roots — Global Stylesheet
+ * KHATRI SARVANIYAT — Global Stylesheet
  * Design System: Deep navy/indigo + Muted teal + Warm gold + Warm white
  * NO GRADIENTS per design spec
  */
@@ -29,9 +29,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Consistent focus ring for accessibility */
+  /* Consistent focus ring for accessibility (Royal Blue) */
   *:focus-visible {
-    outline: 2px solid #818cf8;
+    outline: 2px solid #2449b8;
     outline-offset: 2px;
   }
 
@@ -60,5 +60,73 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/*
+ * Print Styles for Official Community Circulars & Directives
+ * Standard A4 portrait layout with clean typography, page breaks, and zero website chrome.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 20mm 15mm 20mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide website layout and background elements during printing */
+  header,
+  footer,
+  nav,
+  aside,
+  [role="tablist"],
+  #community-hub-header,
+  .community-pulse-metrics,
+  .circulars-view-screen,
+  .print-hidden,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset container constraints so printable content flows naturally without scrollbars */
+  #root,
+  #main-content,
+  #panel-circulars,
+  [role="dialog"] {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    position: static !important;
+  }
+
+  /* Prevent page breaks inside critical elements (paragraphs, seal, signature block) */
+  .break-inside-avoid,
+  .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-avoid-break-after {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 }

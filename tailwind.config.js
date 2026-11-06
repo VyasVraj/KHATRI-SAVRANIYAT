@@ -61,6 +61,18 @@ export default {
           900: '#0f172a', // deep navy
           950: '#020617',
         },
+        // Official KHATRI SARVANIYAT Identity Palette (Section 5)
+        khatri: {
+          navy: '#081B55',
+          'navy-deep': '#10182B',
+          royal: '#2449B8',
+          gold: '#D9A62E',
+          'gold-warm': '#F2C45B',
+          red: '#C62828',
+          light: '#F7F8FC',
+          text: '#172033',
+          'text-secondary': '#64748B',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

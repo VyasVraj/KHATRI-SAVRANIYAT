@@ -23,13 +23,13 @@ import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembe
 import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { useTranslation } from '@/features/i18n'
-import { useExecutiveCommittee } from '@/features/community/hooks/useExecutiveCommittee'
-import type { ExecutiveCommitteeMember } from '@/features/community/services/executive-committee.service'
+import { useCommunityMukhis } from '@/features/community/hooks/useCommunityMukhis'
+import type { CommunityMukhi } from '@/features/community/services/community-mukhis.service'
 import { ChangeMukhiDialog } from './ChangeMukhiDialog'
 
 type FamilyRow = Tables<'families'> & {
   selected_mukhi_id?: string | null
-  selected_mukhi?: ExecutiveCommitteeMember | null
+  selected_mukhi?: CommunityMukhi | null
 }
 
 /** Formats an ISO date string to a locale-readable date. */
@@ -69,8 +69,8 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(family.avatar_url ?? null)
 
-  const { members: committeeMembers } = useExecutiveCommittee()
-  const [currentMukhi, setCurrentMukhi] = useState<ExecutiveCommitteeMember | null>(
+  const { mukhis: communityMukhis } = useCommunityMukhis({ priorityLocation: family.city ?? undefined })
+  const [currentMukhi, setCurrentMukhi] = useState<CommunityMukhi | null>(
     family.selected_mukhi ?? null
   )
   const [changeMukhiOpen, setChangeMukhiOpen] = useState(false)
@@ -78,13 +78,13 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
   // Resolve Mukhi from list if not already resolved on family prop
   const effectiveMukhi = currentMukhi || (
     family.selected_mukhi_id
-      ? committeeMembers.find((m) => m.id === family.selected_mukhi_id) || null
+      ? communityMukhis.find((m) => m.id === family.selected_mukhi_id) || null
       : null
   )
 
   // Fetch active family members for census head and stats
   const { data: members = [] } = useFamilyMembers(family.id, { includeFormer: false })
-  const currentHead = members.find((m) => m.is_head && !m.left_at)
+  const currentHead = members.find((m) => (m.is_head || m.role === 'HEAD') && !m.left_at)
   const lineageCount = [family.gotra, family.nukh].filter(Boolean).length
 
   return (
@@ -229,25 +229,20 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
             {effectiveMukhi ? (
               <div className="mt-3 flex items-start gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white font-bold text-sm shrink-0 shadow-xs">
-                  {effectiveMukhi.serial_number}
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shrink-0 shadow-xs">
+                  #{effectiveMukhi.source_serial_number}
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-navy-900">
                     {effectiveMukhi.full_name}
                   </h4>
                   <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[11px] font-semibold text-brand-800">
-                      {effectiveMukhi.designation}
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-800">
+                      Official Mukhi
                     </span>
                     <span className="text-xs text-navy-600">
-                      • {effectiveMukhi.city}
+                      • {effectiveMukhi.gram}
                     </span>
-                    {effectiveMukhi.nukh && (
-                      <span className="text-xs text-navy-600">
-                        • {effectiveMukhi.nukh}
-                      </span>
-                    )}
                   </div>
                   {effectiveMukhi.mobile_number && (
                     <p className="text-xs text-navy-500 mt-1.5">
@@ -260,7 +255,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
               <div className="py-2">
                 <p className="text-sm font-semibold text-navy-800">No Mukhi Designated</p>
                 <p className="text-xs text-navy-500 mt-1">
-                  Designate an official Mukhi from the 31-member Executive Committee Register to represent this family unit.
+                  Designate an official Community Mukhi from the 118-member Community Mukhi Directory for this family unit.
                 </p>
                 {canManageMembers && (
                   <Button
@@ -300,6 +295,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
           isOpen={changeMukhiOpen}
           onClose={() => setChangeMukhiOpen(false)}
           familyId={family.id}
+          familyCity={family.city}
           currentMukhiId={family.selected_mukhi_id}
           onMukhiChanged={(newMukhi) => {
             setCurrentMukhi(newMukhi)

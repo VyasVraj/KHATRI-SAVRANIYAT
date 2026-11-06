@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Unit tests for PersonForm schema validation and component props contract.
  *
@@ -30,17 +31,28 @@ import {
 // createPersonSchema — validation logic
 // ---------------------------------------------------------------------------
 
+const VALID_BASE_PERSON = {
+  first_name: 'Arjun',
+  last_name: 'Sharma',
+  gender: 'MALE' as const,
+  blood_group: 'B+' as const,
+  birth_place: 'Mumbai',
+  date_of_birth: '1985-06-15',
+  gotra: 'Agastya',
+  nukh: 'Arora (Aroda)',
+  email_contact: 'arjun@example.com',
+  phone: '+919876543210',
+}
+
 describe('createPersonSchema — validation logic', () => {
   it('passes with only required fields', () => {
-    const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
-    })
+    const result = createPersonSchema.safeParse(VALID_BASE_PERSON)
     expect(result.success).toBe(true)
   })
 
   it('fails when first_name is missing', () => {
-    const result = createPersonSchema.safeParse({ last_name: 'Sharma' })
+    const { first_name: _f, ...withoutFirstName } = VALID_BASE_PERSON
+    const result = createPersonSchema.safeParse(withoutFirstName)
     expect(result.success).toBe(false)
     if (!result.success) {
       const paths = result.error.issues.map((i) => i.path[0])
@@ -49,7 +61,8 @@ describe('createPersonSchema — validation logic', () => {
   })
 
   it('fails when last_name is missing', () => {
-    const result = createPersonSchema.safeParse({ first_name: 'Arjun' })
+    const { last_name: _l, ...withoutLastName } = VALID_BASE_PERSON
+    const result = createPersonSchema.safeParse(withoutLastName)
     expect(result.success).toBe(false)
     if (!result.success) {
       const paths = result.error.issues.map((i) => i.path[0])
@@ -59,15 +72,15 @@ describe('createPersonSchema — validation logic', () => {
 
   it('fails when first_name is empty string', () => {
     const result = createPersonSchema.safeParse({
+      ...VALID_BASE_PERSON,
       first_name: '',
-      last_name: 'Sharma',
     })
     expect(result.success).toBe(false)
   })
 
   it('fails when last_name is empty string', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
+      ...VALID_BASE_PERSON,
       last_name: '',
     })
     expect(result.success).toBe(false)
@@ -75,6 +88,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('trims first_name and last_name whitespace on success', () => {
     const result = createPersonSchema.safeParse({
+      ...VALID_BASE_PERSON,
       first_name: '  Arjun  ',
       last_name: '  Sharma  ',
     })
@@ -87,20 +101,17 @@ describe('createPersonSchema — validation logic', () => {
 
   it('accepts null for optional nullable fields', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
-      gender: null,
-      date_of_birth: null,
-      gotra: null,
+      ...VALID_BASE_PERSON,
+      middle_name: null,
+      maiden_name: null,
+      date_of_death: null,
+      phone_secondary: null,
     })
     expect(result.success).toBe(true)
   })
 
   it('applies PRIVATE default to all privacy fields when omitted per ANDROID-2 lock', () => {
-    const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
-    })
+    const result = createPersonSchema.safeParse(VALID_BASE_PERSON)
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.profile_privacy).toBe('PRIVATE')
@@ -111,8 +122,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('accepts explicit privacy level values', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       profile_privacy: 'PRIVATE',
       contact_privacy: 'FAMILY',
       dob_privacy: 'PUBLIC',
@@ -127,8 +137,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('rejects invalid privacy level values', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       profile_privacy: 'EVERYONE',
     })
     expect(result.success).toBe(false)
@@ -136,18 +145,16 @@ describe('createPersonSchema — validation logic', () => {
 
   it('rejects invalid gender values', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       gender: 'UNKNOWN',
     })
     expect(result.success).toBe(false)
   })
 
   it('accepts all valid gender enum values', () => {
-    for (const gender of ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'] as const) {
+    for (const gender of ['MALE', 'FEMALE', 'OTHER'] as const) {
       const result = createPersonSchema.safeParse({
-        first_name: 'A',
-        last_name: 'B',
+        ...VALID_BASE_PERSON,
         gender,
       })
       expect(result.success).toBe(true)
@@ -156,8 +163,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('rejects invalid date format for date_of_birth', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       date_of_birth: '01-01-1990',
     })
     expect(result.success).toBe(false)
@@ -165,8 +171,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('accepts correct YYYY-MM-DD date format', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       date_of_birth: '1990-01-15',
     })
     expect(result.success).toBe(true)
@@ -174,8 +179,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('accepts valid email_contact', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       email_contact: 'arjun@example.com',
     })
     expect(result.success).toBe(true)
@@ -183,8 +187,7 @@ describe('createPersonSchema — validation logic', () => {
 
   it('rejects invalid email_contact format', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Arjun',
-      last_name: 'Sharma',
+      ...VALID_BASE_PERSON,
       email_contact: 'not-an-email',
     })
     expect(result.success).toBe(false)
@@ -194,8 +197,7 @@ describe('createPersonSchema — validation logic', () => {
     const levels = ['PRIVATE', 'FAMILY', 'CONNECTIONS', 'COMMUNITY', 'PUBLIC'] as const
     for (const level of levels) {
       const result = createPersonSchema.safeParse({
-        first_name: 'A',
-        last_name: 'B',
+        ...VALID_BASE_PERSON,
         profile_privacy: level,
         contact_privacy: level,
         dob_privacy: level,
@@ -212,8 +214,7 @@ describe('createPersonSchema — validation logic', () => {
 describe('createPersonSchema — protected field security', () => {
   it('schema output does not include id when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       id: 'injected-id',
     })
     if (result.success) {
@@ -223,8 +224,7 @@ describe('createPersonSchema — protected field security', () => {
 
   it('schema output does not include created_by when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       created_by: 'injected-user',
     })
     if (result.success) {
@@ -234,8 +234,7 @@ describe('createPersonSchema — protected field security', () => {
 
   it('schema output does not include user_id when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       user_id: 'injected-user-id',
     })
     if (result.success) {
@@ -245,8 +244,7 @@ describe('createPersonSchema — protected field security', () => {
 
   it('schema output does not include status when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       status: 'ACTIVE',
     })
     if (result.success) {
@@ -256,8 +254,7 @@ describe('createPersonSchema — protected field security', () => {
 
   it('schema output does not include verification_status when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       verification_status: 'VERIFIED',
     })
     if (result.success) {
@@ -267,8 +264,7 @@ describe('createPersonSchema — protected field security', () => {
 
   it('schema output does not include deleted_at when injected', () => {
     const result = createPersonSchema.safeParse({
-      first_name: 'Test',
-      last_name: 'User',
+      ...VALID_BASE_PERSON,
       deleted_at: '2026-10-01T00:00:00Z',
     })
     if (result.success) {

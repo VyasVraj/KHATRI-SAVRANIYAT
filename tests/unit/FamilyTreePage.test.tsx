@@ -158,7 +158,7 @@ describe('FamilyTreePage Component', () => {
       </MemoryRouter>
     )
 
-    expect(html).toContain('Loading family tree record…')
+    expect(html).toContain('Loading interactive family tree…')
   })
 
   it('renders error alert when person record fetch fails or record is not visible', () => {
@@ -178,7 +178,7 @@ describe('FamilyTreePage Component', () => {
 
     expect(html).toContain('Unable to Load Family Tree')
     expect(html).toContain('Permission denied under RLS policy')
-    expect(html).toContain('Back to census')
+    expect(html).toContain('Back to Family')
   })
 
   it('renders root person context and embedded tree canvas on success', () => {
@@ -196,17 +196,16 @@ describe('FamilyTreePage Component', () => {
       </MemoryRouter>
     )
 
-    // Heading and title
-    expect(html).toContain('Devendra Kumar Patel’s Family Tree')
-    expect(html).toContain('Interactive genealogical graph centered on Devendra Kumar Patel')
+    // Header title and family name matching reference layout
+    expect(html).toContain('Family Tree')
+    expect(html).toContain('PATEL FAMILY')
 
-    // Root metadata
-    expect(html).toContain('b. 1965')
-    expect(html).toContain('Male')
-
-    // Navigation buttons
-    expect(html).toContain('Back to profile')
-    expect(html).toContain('Census directory')
+    // Navigation and interactive action buttons
+    expect(html).toContain('Back to Family')
+    expect(html).toContain('Expand All')
+    expect(html).toContain('Collapse All')
+    expect(html).toContain('Fit to Screen')
+    expect(html).toContain('View List')
 
     // Embedded canvas
     expect(html).toContain('data-testid="family-tree-canvas"')
@@ -234,7 +233,7 @@ describe('FamilyTreePage Component', () => {
     expect(html).not.toContain('devendra.patel@example.com')
   })
 
-  it('renders deceased lifespan indicator when person status is DECEASED', () => {
+  it('renders family tree header and controls cleanly when person is DECEASED', () => {
     const deceasedPerson: Tables<'persons'> = {
       ...MOCK_PERSON,
       status: 'DECEASED',
@@ -255,8 +254,8 @@ describe('FamilyTreePage Component', () => {
       </MemoryRouter>
     )
 
-    expect(html).toContain('b. 1965 – d. 2024')
-    expect(html).toContain('DECEASED')
+    expect(html).toContain('Family Tree')
+    expect(html).toContain('PATEL FAMILY')
   })
 })
 

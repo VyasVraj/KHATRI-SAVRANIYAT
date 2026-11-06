@@ -1,5 +1,5 @@
 # Cloudflare Pages Static Security Headers
-# Configures authoritative HTTP response headers for Community Roots production deployment.
+# Configures authoritative HTTP response headers for KHATRI SARVANIYAT production deployment.
 
 # 1. Global security headers across all routes and assets
 /*

@@ -14,7 +14,7 @@ import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembe
 import { useUpdateFamily } from '../hooks/useFamilyMutations'
 import { FamilyForm } from '../components/FamilyForm'
 import { Button } from '@/components/forms/Button'
-import { ROUTES, ADMIN_ROLES } from '@/constants/app'
+import { ROUTES } from '@/constants/app'
 import type { CreateFamilyInput } from '../schemas/families.schemas'
 import type { PrivacyLevel } from '@/types'
 
@@ -31,7 +31,7 @@ export function FamilyEditPage() {
 
   const isLoading = isFamilyLoading || isMembersLoading
 
-  // Management authorization check: Manager, Creator (when manager unset), Head, or Admin
+  // Management authorization check: Manager, Creator (when manager unset), Head, Family Member, or Admin
   const isManager = Boolean(
     user &&
     family &&
@@ -41,14 +41,14 @@ export function FamilyEditPage() {
   const isHead = Boolean(
     user && members.some((m) => m.is_head && m.person?.user_id === user.id)
   )
-  const isModerator = Boolean(
-    profile?.is_active &&
-    (profile.role === 'ADMIN' ||
-     profile.role === 'SUPER_ADMIN' ||
-     profile.role === 'COMMUNITY_MODERATOR' ||
-     (ADMIN_ROLES as readonly string[]).includes(profile.role))
+  const isFamilyMember = Boolean(
+    user && members.some((m) => !m.left_at && m.person?.user_id === user.id)
   )
-  const canManage = isManager || isHead || isModerator
+  const isAdmin = Boolean(
+    profile?.is_active &&
+    (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')
+  )
+  const canManage = isManager || isHead || isFamilyMember || isAdmin
 
   async function handleSubmit(data: CreateFamilyInput) {
     if (!familyId) return
@@ -100,7 +100,7 @@ export function FamilyEditPage() {
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
         >
-          You do not have permission to edit this family record. Only the designated Family Manager, Family Head, or an Administrator may edit family details.
+          Unauthorized: You do not have permission to edit this family record. Only authorized family members, Family Manager, or an Administrator may edit family details.
         </div>
       </div>
     )

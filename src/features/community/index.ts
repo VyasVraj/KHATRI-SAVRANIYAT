@@ -87,6 +87,13 @@ export * from './components/CircularFiltersBar'
 export * from './components/CircularDetailModal'
 export * from './components/CircularsView'
 
+// Official Community Mukhi Directory (118 records from PDF)
+export * from './constants/mukhis.data'
+export * from './services/community-mukhis.service'
+export * from './hooks/useCommunityMukhis'
+export * from './components/CommunityMukhiCard'
+export * from './components/CommunityMukhiDirectoryView'
+
 // Page
 export * from './pages/CommunityPage'
 

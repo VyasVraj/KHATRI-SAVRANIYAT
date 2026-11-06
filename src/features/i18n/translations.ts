@@ -52,7 +52,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     // Home Page
     'home.hero_title': 'Preserve Your Family Legacy',
     'home.hero_description':
-      'KHATRI SARVANIYAT is a trusted platform for our community census, family trees, directories, and verified connections. Register your family, discover relatives, and keep our heritage alive for future generations.',
+      'KHATRI SARVANIYAT is a digital platform dedicated to preserving our community identity, family heritage, genealogy and connections. Register your family, discover relatives and keep our traditions alive for future generations.',
     'home.register_button': 'Register Your Family',
     'home.find_family_button': 'Find My Family',
     'home.features_title': 'Everything Our Community Needs',

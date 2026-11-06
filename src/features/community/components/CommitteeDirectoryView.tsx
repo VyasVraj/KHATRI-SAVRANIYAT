@@ -10,7 +10,7 @@ import { useCommittees } from '../hooks/useCommittees'
 import { CommitteeCard } from './CommitteeCard'
 import { CommitteeFiltersBar } from './CommitteeFiltersBar'
 import { CommitteeDetailModal } from './CommitteeDetailModal'
-import { ExecutiveCommitteeRegisterView } from './ExecutiveCommitteeRegisterView'
+import { CommunityMukhiDirectoryView } from './CommunityMukhiDirectoryView'
 import type { Committee, CommitteeFilters } from '../types'
 
 export const CommitteeDirectoryView: React.FC = () => {
@@ -45,9 +45,9 @@ export const CommitteeDirectoryView: React.FC = () => {
 
   return (
     <div className="space-y-10">
-      {/* DEDICATED SECTION: EXECUTIVE COMMITTEE REGISTER (KARYAKARINI) */}
-      <section aria-label="Executive Committee Register">
-        <ExecutiveCommitteeRegisterView />
+      {/* DEDICATED SECTION: OFFICIAL COMMUNITY MUKHI DIRECTORY (118 RECORDS) */}
+      <section aria-label="Community Mukhi Directory">
+        <CommunityMukhiDirectoryView />
       </section>
 
       {/* DEDICATED SECTION: COUNCIL COMMITTEES & GOVERNANCE BODIES */}

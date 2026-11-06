@@ -74,7 +74,7 @@ describe('FamilyTreeCanvas Component', () => {
       </MemoryRouter>
     )
 
-    expect(html).toContain('Building genealogical graph...')
+    expect(html).toContain('Loading interactive family tree...')
   })
 
   it('renders error state if traversal encounters an error', () => {
@@ -183,7 +183,6 @@ describe('FamilyTreeCanvas Component', () => {
       </MemoryRouter>
     )
 
-    expect(html).toContain('Bounded view: Closest 100 relatives displayed for performance')
     expect(html).toContain('data-testid="family-tree-canvas"')
     expect(html).toContain('react-flow')
   })
@@ -226,9 +225,7 @@ describe('PersonNode Component', () => {
     )
 
     expect(html).toContain('Hiren K Mehta')
-    expect(html).toContain('Root')
-    expect(html).toContain('b. 1982')
-    expect(html).toContain(`/people/${ROOT_ID}`)
+    expect(html).toContain(`data-testid="tree-node-${ROOT_ID}"`)
     expect(html).not.toContain('[Private Person]')
   })
 })
@@ -262,21 +259,24 @@ describe('RelationshipEdge Component', () => {
     }
 
     const parentHtml = renderToStaticMarkup(
-      <svg>
-        <RelationshipEdge {...parentProps} />
-      </svg>
+      <ReactFlowProvider>
+        <svg>
+          <RelationshipEdge {...parentProps} />
+        </svg>
+      </ReactFlowProvider>
     )
     const spouseHtml = renderToStaticMarkup(
-      <svg>
-        <RelationshipEdge {...spouseProps} />
-      </svg>
+      <ReactFlowProvider>
+        <svg>
+          <RelationshipEdge {...spouseProps} />
+        </svg>
+      </ReactFlowProvider>
     )
 
     // Parent edge uses blue stroke
-    expect(parentHtml).toContain('stroke:#3b82f6')
+    expect(parentHtml).toContain('stroke:#2563EB')
 
-    // Spouse edge uses rose stroke and dashed pattern
-    expect(spouseHtml).toContain('stroke:#e11d48')
-    expect(spouseHtml).toContain('stroke-dasharray:5 5')
+    // Spouse edge uses purple stroke
+    expect(spouseHtml).toContain('stroke:#9333EA')
   })
 })

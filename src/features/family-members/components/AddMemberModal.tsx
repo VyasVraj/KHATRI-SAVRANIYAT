@@ -157,6 +157,10 @@ export function AddMemberModal({
   const [bloodGroup, setBloodGroup] = useState('')
   const [gotra, setGotra] = useState('')
   const [nukh, setNukh] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [phoneSecondary, setPhoneSecondary] = useState('')
+  const [dateOfDeath, setDateOfDeath] = useState('')
 
   // Existing Person Selection
   const [selectedPersonId, setSelectedPersonId] = useState('')
@@ -182,6 +186,10 @@ export function AddMemberModal({
     setBloodGroup('')
     setGotra(activeHead?.person?.gotra || family?.gotra || '')
     setNukh(activeHead?.person?.nukh || family?.nukh || '')
+    setEmail('')
+    setPhone(activeHead?.person?.phone || '')
+    setPhoneSecondary('')
+    setDateOfDeath('')
     setSelectedPersonId('')
     setPersonSearch('')
     setErrorMessage(null)
@@ -284,6 +292,91 @@ export function AddMemberModal({
         setErrorMessage('Last name / Surname is required.')
         return
       }
+      if (!gender) {
+        setErrorMessage('Gender is required.')
+        return
+      }
+      if (!dateOfBirth) {
+        setErrorMessage('Date of Birth is required.')
+        return
+      }
+      const dobNormalized = normalizeDateInput(dateOfBirth)
+      if (!dobNormalized) {
+        setErrorMessage('Date of Birth is required.')
+        return
+      }
+      const dobDate = new Date(dobNormalized)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      if (dobDate > today) {
+        setErrorMessage('Date of birth cannot be in the future.')
+        return
+      }
+
+      if (!bloodGroup || bloodGroup === 'UNKNOWN') {
+        setErrorMessage('Please select Blood Group.')
+        return
+      }
+
+      const finalBirthPlace =
+        sanitizeOptional(birthPlace) ||
+        ([family?.city, family?.state].filter(Boolean).join(', ') || null)
+
+      if (!finalBirthPlace) {
+        setErrorMessage('Birthplace is required.')
+        return
+      }
+
+      const finalGotra =
+        sanitizeOptional(gotra) ||
+        sanitizeOptional(activeHead?.person?.gotra) ||
+        sanitizeOptional(family?.gotra)
+      if (!finalGotra) {
+        setErrorMessage('Gotra is required.')
+        return
+      }
+
+      const finalNukh =
+        sanitizeOptional(nukh) ||
+        sanitizeOptional(activeHead?.person?.nukh) ||
+        sanitizeOptional(family?.nukh)
+      if (!finalNukh) {
+        setErrorMessage('Nukh is required.')
+        return
+      }
+
+      if (!phone.trim()) {
+        setErrorMessage('Primary Phone Number is required.')
+        return
+      }
+      if (!/^[0-9+\s\-()]{7,25}$/.test(phone.trim())) {
+        setErrorMessage('Please enter a valid primary phone number (digits, +, -).')
+        return
+      }
+
+      if (!email.trim()) {
+        setErrorMessage('Valid Email Address is required.')
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setErrorMessage('Please enter a valid email address.')
+        return
+      }
+
+      if (dateOfDeath) {
+        const dodNormalized = normalizeDateInput(dateOfDeath)
+        if (dodNormalized) {
+          const dodDate = new Date(dodNormalized)
+          if (dodDate > today) {
+            setErrorMessage('Date of death cannot be in the future.')
+            return
+          }
+          if (dodDate < dobDate) {
+            setErrorMessage('Date of death cannot be earlier than Date of Birth.')
+            return
+          }
+        }
+      }
     } else {
       if (!selectedPersonId) {
         setErrorMessage('Please select an existing person to add.')
@@ -331,11 +424,15 @@ export function AddMemberModal({
             last_name: lastName.trim(),
             maiden_name: sanitizeOptional(maidenName),
             gender,
-            date_of_birth: normalizeDateInput(dateOfBirth),
-            birth_place: finalBirthPlace,
-            blood_group: (sanitizeOptional(bloodGroup) as CreatePersonInput['blood_group']) ?? null,
-            gotra: finalGotra,
-            nukh: finalNukh,
+            date_of_birth: normalizeDateInput(dateOfBirth)!,
+            birth_place: finalBirthPlace!,
+            blood_group: bloodGroup as CreatePersonInput['blood_group'],
+            date_of_death: normalizeDateInput(dateOfDeath),
+            gotra: finalGotra!,
+            nukh: finalNukh!,
+            email_contact: email.trim(),
+            phone: phone.trim(),
+            phone_secondary: sanitizeOptional(phoneSecondary),
             profile_privacy: 'PRIVATE',
             contact_privacy: 'PRIVATE',
             dob_privacy: 'PRIVATE',
@@ -601,11 +698,11 @@ export function AddMemberModal({
               />
             </div>
 
-            {/* Identity: Gender (pre-selected based on relation), DOB, Blood Group, Birthplace */}
+            {/* Identity: Gender, DOB, Blood Group, Birthplace, Date of Death */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <label htmlFor="member-gender" className="block text-sm font-medium text-navy-700">
-                  Gender
+                  Gender <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="member-gender"
@@ -621,14 +718,16 @@ export function AddMemberModal({
 
               <Input
                 label="Date of Birth"
+                required
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
               />
 
               <div className="space-y-1">
                 <label htmlFor="member-blood-group" className="block text-sm font-medium text-navy-700">
-                  Blood Group
+                  Blood Group <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="member-blood-group"
@@ -646,13 +745,25 @@ export function AddMemberModal({
               </div>
 
               <CitySelector
-                label="Birth Place"
+                label="Birthplace"
+                required
                 placeholder="Search city / village..."
                 value={birthPlace}
                 onSelectCity={(selected) => {
                   setBirthPlace(selected.city ? `${selected.city}, ${selected.state}` : '')
                 }}
               />
+
+              <div className="sm:col-span-2">
+                <Input
+                  label="Date of Death (Deceased)"
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={dateOfDeath}
+                  onChange={(e) => setDateOfDeath(e.target.value)}
+                  hint="Leave blank for living family members"
+                />
+              </div>
             </div>
 
             {/* Cultural Lineage: Gotra & Nukh */}
@@ -665,7 +776,41 @@ export function AddMemberModal({
                   setNukh('')
                 }}
                 onNukhChange={(val) => setNukh(val)}
+                required
               />
+            </div>
+
+            {/* Contact Details */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1 border-t border-navy-100">
+              <Input
+                label="Primary Phone Number"
+                required
+                type="tel"
+                placeholder="e.g. 9876543210"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                hint="Family members may share primary phone"
+              />
+
+              <Input
+                label="Email Address"
+                required
+                type="email"
+                placeholder="e.g. member@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                hint="Family members may share email address"
+              />
+
+              <div className="sm:col-span-2">
+                <Input
+                  label="Secondary Phone Number"
+                  type="tel"
+                  placeholder="Optional alternate phone"
+                  value={phoneSecondary}
+                  onChange={(e) => setPhoneSecondary(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         ) : (

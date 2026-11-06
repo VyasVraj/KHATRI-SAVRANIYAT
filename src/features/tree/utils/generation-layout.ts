@@ -14,7 +14,6 @@
  *    Does not touch DOM or SVG; runnable in node/Vitest with 100% determinism.
  */
 
-import { MarkerType } from 'reactflow'
 import {
   TREE_NODE_WIDTH,
   TREE_NODE_HEIGHT,
@@ -89,6 +88,11 @@ export function computeTreeLayout(treeGraph: TreeGraph): TreeLayoutResult {
           generation: treeNode.generation,
           isRoot: treeNode.isRoot,
           rolesInTree: Array.from(treeNode.rolesInTree),
+          isHead: treeNode.isHead,
+          relationshipLabel: treeNode.relationshipLabel,
+          age: treeNode.age,
+          parentsNames: treeNode.parentsNames,
+          siblingsNames: treeNode.siblingsNames,
         },
       })
     })
@@ -96,23 +100,23 @@ export function computeTreeLayout(treeGraph: TreeGraph): TreeLayoutResult {
 
   // 2. Convert edges to React Flow representation
   for (const edge of treeGraph.edges.values()) {
+    const isSpouse = edge.relationshipType === 'SPOUSE'
+
     flowEdges.push({
       id: edge.id,
       type: 'relationship',
       source: edge.sourceId,
       target: edge.targetId,
-      markerEnd:
-        edge.relationshipType === 'PARENT'
-          ? {
-              type: MarkerType.ArrowClosed,
-              color: '#3b82f6',
-              width: 14,
-              height: 14,
-            }
-          : undefined,
+      sourceHandle: isSpouse ? 'source-right' : 'source-bottom',
+      targetHandle: isSpouse ? 'target-left' : 'target-top',
+      markerEnd: undefined, // Reference image uses pill labels and clean solid connectors
       data: {
         relationshipType: edge.relationshipType,
         notes: edge.relationship.notes,
+        label: edge.label,
+        color: edge.color,
+        isDashed: edge.isDashed,
+        isCouple: edge.isCouple || isSpouse,
       },
     })
   }

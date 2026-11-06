@@ -6,7 +6,7 @@
  * Navigates to the person's detail page on success.
  */
 
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { usePerson } from '../hooks/usePerson'
 import { useUpdatePerson } from '../hooks/usePersonMutations'
@@ -19,6 +19,8 @@ import type { PrivacyLevel } from '@/types'
 export function PersonEditPage() {
   const { personId } = useParams<{ personId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnUrl = (location.state as { returnUrl?: string } | undefined)?.returnUrl
 
   const { data: person, isLoading, error } = usePerson(personId)
   const updatePerson = useUpdatePerson()
@@ -26,7 +28,11 @@ export function PersonEditPage() {
   async function handleSubmit(data: CreatePersonInput) {
     if (!personId) return
     await updatePerson.mutateAsync({ personId, input: data })
-    navigate(ROUTES.PERSON_DETAIL(personId))
+    if (returnUrl) {
+      navigate(returnUrl)
+    } else {
+      navigate(ROUTES.PERSON_DETAIL(personId))
+    }
   }
 
   if (isLoading) {
@@ -44,18 +50,24 @@ export function PersonEditPage() {
   if (error || !person || !hasEditPermission) {
     const message =
       !hasEditPermission
-        ? "Unauthorized: You do not have permission to edit this person's record. Only the authorized Family Head, Family Manager, or an Administrator can edit members of this family."
+        ? "Unauthorized: You do not have permission to edit this person's record. Only authorized family members, Family Manager, or an Administrator can edit members of this family."
         : (error as { message?: string } | null)?.message ??
           'Person not found or you do not have permission to edit this record.'
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
         <Button
           variant="secondary"
-          onClick={() => navigate(ROUTES.PEOPLE)}
+          onClick={() => {
+            if (returnUrl) {
+              navigate(returnUrl)
+            } else {
+              navigate(ROUTES.PEOPLE)
+            }
+          }}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to census
+          Back to {returnUrl ? 'family record' : 'census'}
         </Button>
         <p role="alert" className="text-sm text-red-600">
           {message}
@@ -69,11 +81,17 @@ export function PersonEditPage() {
       {/* Back navigation */}
       <Button
         variant="secondary"
-        onClick={() => navigate(ROUTES.PERSON_DETAIL(person.id))}
+        onClick={() => {
+          if (returnUrl) {
+            navigate(returnUrl)
+          } else {
+            navigate(ROUTES.PERSON_DETAIL(person.id))
+          }
+        }}
         className="mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to record
+        Back to {returnUrl ? 'family record' : 'record'}
       </Button>
 
       <h1 className="text-2xl font-semibold text-navy-900">Edit person</h1>
@@ -90,19 +108,19 @@ export function PersonEditPage() {
         defaultValues={{
           first_name: person.first_name,
           last_name: person.last_name,
-          middle_name: person.middle_name,
-          maiden_name: person.maiden_name,
-          gender: person.gender ?? undefined,
+          middle_name: person.middle_name ?? undefined,
+          maiden_name: person.maiden_name ?? undefined,
+          gender: person.gender === 'PREFER_NOT_TO_SAY' ? undefined : (person.gender ?? undefined),
           blood_group: (person as unknown as { blood_group?: CreatePersonInput['blood_group'] })?.blood_group ?? undefined,
-          date_of_birth: person.date_of_birth,
-          date_of_death: person.date_of_death,
-          birth_place: person.birth_place,
-          gotra: person.gotra,
-          kul: person.kul,
-          nukh: person.nukh,
-          email_contact: person.email_contact,
-          phone: person.phone,
-          phone_secondary: person.phone_secondary,
+          date_of_birth: person.date_of_birth ?? undefined,
+          date_of_death: person.date_of_death ?? undefined,
+          birth_place: person.birth_place ?? undefined,
+          gotra: person.gotra ?? undefined,
+          kul: person.kul ?? undefined,
+          nukh: person.nukh ?? undefined,
+          email_contact: person.email_contact ?? undefined,
+          phone: person.phone ?? undefined,
+          phone_secondary: person.phone_secondary ?? undefined,
           profile_privacy: person.profile_privacy as PrivacyLevel,
           contact_privacy: person.contact_privacy as PrivacyLevel,
           dob_privacy: person.dob_privacy as PrivacyLevel,

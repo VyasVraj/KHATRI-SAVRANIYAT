@@ -13,7 +13,7 @@ Object.defineProperty(import.meta, 'env', {
   value: {
     VITE_SUPABASE_URL: 'https://test-project.supabase.co',
     VITE_SUPABASE_ANON_KEY: 'test-anon-key',
-    VITE_APP_NAME: 'Community Roots (Test)',
+    VITE_APP_NAME: 'KHATRI SARVANIYAT',
     VITE_APP_VERSION: '0.1.0',
     VITE_APP_ENV: 'development',
     VITE_FEATURE_REGISTRATION: 'true',

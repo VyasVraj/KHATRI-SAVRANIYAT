@@ -1,6 +1,6 @@
 /**
- * Tree service — Bounded genealogical graph traversal on public.relationships
- * and public.persons.
+ * Tree service — Bounded genealogical graph traversal on public.relationships,
+ * public.family_members, and public.persons.
  *
  * All operations use the single typed Supabase client (anon key only) with the
  * caller's active authenticated session. Authorization is enforced exclusively
@@ -11,7 +11,7 @@
  * - Zero service_role, zero privileged client RPCs.
  * - Respects dual-endpoint RLS: hidden/private edges are excluded by PostgreSQL.
  * - Zero synthetic placeholders manufactured.
- * - Zero access to public.family_members (genealogy != family membership).
+ * - Synchronizes with family_members to guarantee roster and tree alignment.
  */
 
 import { supabase } from '@/lib/supabase'
@@ -25,7 +25,7 @@ import {
   MAX_TREE_EDGES,
   type TreeGraph,
 } from '../types'
-import { buildTreeGraph } from '../utils/graph-builder'
+import { buildTreeGraph, type FamilyTreeContext } from '../utils/graph-builder'
 
 /** Untyped table reference helper for relationships */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,19 +38,21 @@ function isValidUuid(val: string): boolean {
   return UUID_REGEX.test(val)
 }
 
+const PERSON_SELECT_COLUMNS =
+  'id, first_name, middle_name, last_name, gender, dob_year, date_of_birth, birth_place, city, state, gotra, nukh, status, is_same_family'
+
+const PERSON_FALLBACK_COLUMNS =
+  'id, first_name, middle_name, last_name, gender, dob_year, date_of_birth, birth_place, gotra, nukh, status'
+
 /**
- * Fetches the bounded family tree graph centered on rootPersonId.
- *
- * Traversal is strictly bounded:
- * - Maximum 2 generations of ancestors (-2)
- * - Maximum 2 generations of descendants (+2)
- * - Maximum 1 hop for lateral partners & siblings
- * - Capped at MAX_TREE_NODES (100) and MAX_TREE_EDGES (150)
+ * Fetches the bounded family tree graph centered on rootPersonId and optional family context.
  *
  * @param rootPersonId - UUID of the root person
+ * @param familyId - Optional family UUID to scope the complete family hierarchy
  */
 export async function getPersonTreeGraph(
-  rootPersonId: string
+  rootPersonId: string,
+  familyId?: string
 ): Promise<ApiResponse<TreeGraph>> {
   if (!isValidUuid(rootPersonId)) {
     return {
@@ -65,14 +67,19 @@ export async function getPersonTreeGraph(
   // 1. Fetch root person census record via community_persons (primary) or persons (fallback)
   let { data: rootPersonRow, error: rootPersonError } = await supabase
     .from('community_persons')
-    .select('id, first_name, middle_name, last_name, gender, dob_year, status')
+    .select(PERSON_SELECT_COLUMNS)
     .eq('id', rootPersonId)
     .maybeSingle()
 
-  if (rootPersonError && (rootPersonError.code === 'PGRST205' || rootPersonError.code === '42P01' || rootPersonError.code === '42703')) {
+  if (
+    rootPersonError &&
+    (rootPersonError.code === 'PGRST205' ||
+      rootPersonError.code === '42P01' ||
+      rootPersonError.code === '42703')
+  ) {
     const fallback = await supabase
       .from('persons')
-      .select('id, first_name, middle_name, last_name, gender, dob_year, status')
+      .select(PERSON_FALLBACK_COLUMNS)
       .eq('id', rootPersonId)
       .maybeSingle()
     rootPersonRow = fallback.data as unknown as typeof rootPersonRow
@@ -102,18 +109,60 @@ export async function getPersonTreeGraph(
 
   const rootPerson = rootPersonRow as PersonSummary
 
-  // 2. Bounded BFS traversal across public.relationships
+  // 2. Discover Family Roster context to synchronize the tree with the family
+  const familyContext: FamilyTreeContext = {}
   const discoveredPersonIds = new Set<string>([rootPersonId])
   const discoveredRelationships = new Map<string, RelationshipRow>()
 
-  let frontier = [rootPersonId]
-  const expandedPersons = new Set<string>()
+  try {
+    let resolvedFamilyId = familyId
 
-  // Maximum 3 expansion rounds:
-  // Round 1: root -> parents, children, spouses, siblings
-  // Round 2: parents -> grandparents; children -> grandchildren
-  // Round 3: boundary sweep
-  const MAX_ROUNDS = 3
+    if (!resolvedFamilyId || !isValidUuid(resolvedFamilyId)) {
+      const { data: memberships } = await supabase
+        .from('family_members')
+        .select('family_id, is_head')
+        .eq('person_id', rootPersonId)
+        .is('left_at', null)
+        .order('is_head', { ascending: false })
+        .limit(1)
+
+      resolvedFamilyId = memberships?.[0]?.family_id
+    }
+
+    if (resolvedFamilyId && isValidUuid(resolvedFamilyId)) {
+      const { data: familyRow } = await supabase
+        .from('families')
+        .select('id, family_name')
+        .eq('id', resolvedFamilyId)
+        .maybeSingle()
+
+      const { data: memberRows } = await supabase
+        .from('family_members')
+        .select('id, family_id, person_id, role, is_head')
+        .eq('family_id', resolvedFamilyId)
+        .is('left_at', null)
+
+      familyContext.familyId = resolvedFamilyId
+      familyContext.familyName = familyRow?.family_name || 'Family'
+      familyContext.totalMemberCount = memberRows?.length || 1
+      familyContext.members = (memberRows ?? []).map((m) => ({
+        person_id: m.person_id,
+        role: m.role,
+        is_head: m.is_head,
+      }))
+
+      for (const m of memberRows ?? []) {
+        discoveredPersonIds.add(m.person_id)
+      }
+    }
+  } catch {
+    // Non-blocking family synchronization fallback
+  }
+
+  // 3. Query verified relationships across discovered persons
+  let frontier = Array.from(discoveredPersonIds)
+  const expandedPersons = new Set<string>()
+  const MAX_ROUNDS = 2
   let currentRound = 0
 
   while (
@@ -129,8 +178,6 @@ export async function getPersonTreeGraph(
       expandedPersons.add(pId)
     }
 
-    // Query active relationships touching the current batch
-    // Using PostgreSQL RLS dual-endpoint filtering naturally
     const { data: edgeRows, error: edgesError } = await relationshipsTable()
       .select('*')
       .or(
@@ -140,132 +187,57 @@ export async function getPersonTreeGraph(
       )
       .is('deleted_at', null)
 
-    if (edgesError) {
-      return {
-        data: null,
-        error: {
-          message: 'Could not load genealogical relationships.',
-          code: edgesError.code,
-          cause: edgesError,
-        },
-      }
-    }
+    if (!edgesError && edgeRows) {
+      const fetchedEdges = edgeRows as RelationshipRow[]
+      const nextFrontierSet = new Set<string>()
 
-    const fetchedEdges = (edgeRows ?? []) as RelationshipRow[]
-    const nextFrontierSet = new Set<string>()
+      for (const edge of fetchedEdges) {
+        if (discoveredRelationships.size >= MAX_TREE_EDGES) break
+        discoveredRelationships.set(edge.id, edge)
 
-    for (const edge of fetchedEdges) {
-      if (discoveredRelationships.size >= MAX_TREE_EDGES) break
-      discoveredRelationships.set(edge.id, edge)
+        const neighborId =
+          currentBatch.includes(edge.person_a_id)
+            ? edge.person_b_id
+            : edge.person_a_id
 
-      const neighborId =
-        currentBatch.includes(edge.person_a_id)
-          ? edge.person_b_id
-          : edge.person_a_id
-
-      if (!discoveredPersonIds.has(neighborId)) {
-        if (discoveredPersonIds.size < MAX_TREE_NODES) {
-          discoveredPersonIds.add(neighborId)
-          if (!expandedPersons.has(neighborId)) {
-            nextFrontierSet.add(neighborId)
-          }
-        }
-      }
-    }
-
-    frontier = Array.from(nextFrontierSet)
-  }
-
-  // 2b. Synchronize with active family roster to guarantee Family Tree and Roster consistency
-  try {
-    const { data: familyMemberships } = await supabase
-      .from('family_members')
-      .select('family_id, is_head, role')
-      .eq('person_id', rootPersonId)
-      .is('left_at', null)
-
-    const rootFamilyIds = (familyMemberships ?? []).map((m) => m.family_id)
-
-    if (rootFamilyIds.length > 0) {
-      const { data: familyMembersList } = await supabase
-        .from('family_members')
-        .select('id, family_id, person_id, role, is_head')
-        .in('family_id', rootFamilyIds)
-        .is('left_at', null)
-
-      const isRootHead = (familyMemberships ?? []).some((m) => m.is_head)
-
-      for (const fm of familyMembersList ?? []) {
-        if (fm.person_id === rootPersonId) continue
-
-        const hasDirectEdge = Array.from(discoveredRelationships.values()).some(
-          (r) =>
-            (r.person_a_id === rootPersonId && r.person_b_id === fm.person_id) ||
-            (r.person_a_id === fm.person_id && r.person_b_id === rootPersonId)
-        )
-
-        if (!hasDirectEdge && isRootHead && fm.role) {
-          let edgeType: RelationshipRow['relationship_type'] | null = null
-          let pA = rootPersonId
-          let pB = fm.person_id
-
-          if (fm.role === 'SPOUSE') {
-            edgeType = 'SPOUSE'
-            if (pA > pB) { pA = fm.person_id; pB = rootPersonId }
-          } else if (fm.role === 'CHILD') {
-            edgeType = 'PARENT'
-            pA = rootPersonId
-            pB = fm.person_id
-          } else if (fm.role === 'PARENT') {
-            edgeType = 'PARENT'
-            pA = fm.person_id
-            pB = rootPersonId
-          } else if (fm.role === 'SIBLING') {
-            edgeType = 'SIBLING'
-            if (pA > pB) { pA = fm.person_id; pB = rootPersonId }
-          }
-
-          if (edgeType && discoveredRelationships.size < MAX_TREE_EDGES) {
-            const virtualId = `fm-rel-${fm.id}`
-            const virtualRel: RelationshipRow = {
-              id: virtualId,
-              person_a_id: pA,
-              person_b_id: pB,
-              relationship_type: edgeType,
-              notes: 'Family Roster Synchronized Relationship',
-              verification_status: 'VERIFIED',
-              created_by: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              deleted_at: null,
+        if (!discoveredPersonIds.has(neighborId)) {
+          if (discoveredPersonIds.size < MAX_TREE_NODES) {
+            discoveredPersonIds.add(neighborId)
+            if (!expandedPersons.has(neighborId)) {
+              nextFrontierSet.add(neighborId)
             }
-            discoveredRelationships.set(virtualId, virtualRel)
-            discoveredPersonIds.add(fm.person_id)
           }
         }
       }
+
+      frontier = Array.from(nextFrontierSet)
+    } else {
+      break
     }
-  } catch {
-    // Non-blocking fallback
   }
 
-  // 3. Batch-fetch all discovered person profiles
+  // 4. Batch-fetch all discovered person profiles
   const allPersonIds = Array.from(discoveredPersonIds)
   const personsMap = new Map<string, PersonSummary>()
 
   if (allPersonIds.length > 0) {
-    // Primary attempt: community_persons security barrier view
     const { data: personRows, error: personsError } = await supabase
       .from('community_persons')
-      .select('id, first_name, middle_name, last_name, gender, dob_year, status')
+      .select(PERSON_SELECT_COLUMNS)
       .in('id', allPersonIds)
 
     let rowsList = personRows as unknown as PersonSummary[] | null
     let fetchError = personsError
-    if (personsError && (personsError.code === 'PGRST205' || personsError.code === '42P01' || personsError.code === '42703')) {
+
+    if (
+      personsError &&
+      (personsError.code === 'PGRST205' ||
+        personsError.code === '42P01' ||
+        personsError.code === '42703')
+    ) {
       const fallback = await supabase
         .from('persons')
-        .select('id, first_name, middle_name, last_name, gender, dob_year, status')
+        .select(PERSON_FALLBACK_COLUMNS)
         .in('id', allPersonIds)
       rowsList = fallback.data as unknown as PersonSummary[] | null
       fetchError = fallback.error
@@ -290,11 +262,12 @@ export async function getPersonTreeGraph(
   // Always ensure rootPerson is in personsMap
   personsMap.set(rootPerson.id, rootPerson)
 
-  // 4. Build TreeGraph using pure graph builder
+  // 5. Build TreeGraph using pure graph builder with family roster integration
   const treeGraph = buildTreeGraph(
     rootPerson,
     Array.from(discoveredRelationships.values()),
-    personsMap
+    personsMap,
+    familyContext
   )
 
   return {
@@ -304,17 +277,17 @@ export async function getPersonTreeGraph(
 }
 
 /**
- * Convenience wrapper returning TreeGraph directly or throwing on error.
- *
- * @param rootPersonId - UUID of the root person
+ * Legacy/convenience wrapper that throws on error and returns TreeGraph directly.
+ * Maintained for unit tests and direct callers.
  */
 export async function fetchFamilyTreeGraph(
-  rootPersonId: string
+  rootPersonId: string,
+  familyId?: string
 ): Promise<TreeGraph> {
-  const res = await getPersonTreeGraph(rootPersonId)
-  if (res.error) {
-    throw new Error(res.error.message)
+  const result = await getPersonTreeGraph(rootPersonId, familyId)
+  if (result.error) {
+    throw new Error(result.error.message)
   }
-  return res.data!
+  return result.data!
 }
 

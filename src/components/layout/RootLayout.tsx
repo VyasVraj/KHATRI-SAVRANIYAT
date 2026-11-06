@@ -17,18 +17,22 @@ import { AppTourOverlay } from '@/features/onboarding'
 export function RootLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <AppHeader />
+      <div className="print:hidden">
+        <AppHeader />
+      </div>
       <main
         id="main-content"
-        className="flex-1 pb-16 md:pb-0"
+        className="flex-1 pb-16 md:pb-0 print:p-0 print:m-0"
         // Accessibility: skip link target
         tabIndex={-1}
       >
         <Outlet />
       </main>
-      <AppFooter />
-      <MobileBottomNav />
-      <AppTourOverlay />
+      <div className="print:hidden">
+        <AppFooter />
+        <MobileBottomNav />
+        <AppTourOverlay />
+      </div>
     </div>
   )
 }

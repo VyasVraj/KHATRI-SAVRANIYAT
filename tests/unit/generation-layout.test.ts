@@ -18,7 +18,6 @@ import {
   type TreeEdge,
 } from '@/features/tree/types'
 import type { PersonSummary, RelationshipRow } from '@/features/relationships/types'
-import { MarkerType } from 'reactflow'
 
 function makePersonSummary(id: string): PersonSummary {
   return {
@@ -191,12 +190,7 @@ describe('Generation Layout Engine', () => {
     const spouseEdge = result.edges.find((e) => e.id === 'e-spouse')
     const siblingEdge = result.edges.find((e) => e.id === 'e-sibling')
 
-    expect(parentEdge?.markerEnd).toEqual({
-      type: MarkerType.ArrowClosed,
-      color: '#3b82f6',
-      width: 14,
-      height: 14,
-    })
+    expect(parentEdge?.markerEnd).toBeUndefined()
     expect(spouseEdge?.markerEnd).toBeUndefined()
     expect(siblingEdge?.markerEnd).toBeUndefined()
   })

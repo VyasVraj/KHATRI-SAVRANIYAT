@@ -13,6 +13,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Settings, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_NAME, ROUTES, ADMIN_ROLES, PLATFORM_ADMIN_ROLES } from '@/constants/app'
+import { BrandLogo } from '@/components/common/BrandLogo'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { signOut } from '@/features/auth/services/auth.service'
 import { NotificationBell } from '@/features/notifications'
@@ -76,11 +77,13 @@ export function AppHeader() {
           {/* Logo / Brand */}
           <Link
             to={ROUTES.HOME}
-            className="flex items-center gap-2 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900"
+            className="flex items-center gap-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 group"
             aria-label={`${APP_NAME} — Home`}
           >
-            <Users className="h-7 w-7 text-brand-400" aria-hidden="true" />
-            <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
+            <BrandLogo size="sm" alt={APP_NAME} priority className="transition-transform group-hover:scale-105" />
+            <span className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap">
+              {APP_NAME}
+            </span>
           </Link>
 
           {/* Desktop Navigation */}

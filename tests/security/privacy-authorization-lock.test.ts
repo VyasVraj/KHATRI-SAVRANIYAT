@@ -383,6 +383,14 @@ describe('ANDROID-2: Zod Schema Safe Defaults', () => {
     const parsed = createPersonSchema.parse({
       first_name: 'Test',
       last_name: 'User',
+      gender: 'MALE',
+      blood_group: 'B+',
+      birth_place: 'Vadodara, Gujarat',
+      date_of_birth: '1990-01-01',
+      gotra: 'Agastya',
+      nukh: 'Arora (Aroda)',
+      email_contact: 'test.user@example.com',
+      phone: '+919876543210',
     })
     expect(parsed.profile_privacy).toBe('PRIVATE')
     expect(parsed.contact_privacy).toBe('PRIVATE')

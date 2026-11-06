@@ -50,6 +50,13 @@ export type PersonSummary = Pick<
   date_of_birth?: string | null
   dob_year?: number | null
   profile_privacy?: Database['public']['Enums']['privacy_level']
+  birth_place?: string | null
+  city?: string | null
+  state?: string | null
+  gotra?: string | null
+  nukh?: string | null
+  avatar_url?: string | null
+  is_same_family?: boolean
 }
 
 /** Canonical relationship row representation matching public.relationships */

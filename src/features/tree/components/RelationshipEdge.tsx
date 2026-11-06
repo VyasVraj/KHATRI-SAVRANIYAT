@@ -1,28 +1,23 @@
 /**
  * Component: RelationshipEdge
  *
- * Custom React Flow edge rendering interpersonal connections between census persons.
- *
- * VISUAL CONTRACT:
- * 1. PARENT:
- *    Solid blue stroke with directional arrow marker (pointing from parent to child).
- * 2. SPOUSE:
- *    Dashed rose/pink stroke, symmetric connection (no arrow marker).
- * 3. SIBLING:
- *    Dotted teal/emerald stroke, symmetric fraternal connection (no arrow marker).
+ * Custom React Flow edge rendering interpersonal connections between census persons,
+ * matching the reference design layout:
+ * - Spouse: Horizontal purple line with interlocking couple rings (⚭).
+ * - Parent: Solid blue (Father) or pink (Mother) curve with pill label.
+ * - Sibling / Descendant: Dashed blue line with relationship pill label ('Son', 'Brother', 'Other').
  */
 
 import React, { memo } from 'react'
 import {
   BaseEdge,
   getSmoothStepPath,
+  getBezierPath,
+  EdgeLabelRenderer,
   type EdgeProps,
 } from 'reactflow'
 import type { RelationshipEdgeData } from '../types'
 
-/**
- * Custom edge component for React Flow tree visualization.
- */
 export const RelationshipEdge: React.FC<EdgeProps<RelationshipEdgeData>> = memo(
   function RelationshipEdge({
     id,
@@ -33,51 +28,82 @@ export const RelationshipEdge: React.FC<EdgeProps<RelationshipEdgeData>> = memo(
     sourcePosition,
     targetPosition,
     style = {},
-    markerEnd,
     data,
   }) {
-    const [edgePath] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      sourcePosition,
-      targetX,
-      targetY,
-      targetPosition,
-      borderRadius: 8,
-    })
+    const isCouple = Boolean(data?.isCouple || data?.relationshipType === 'SPOUSE')
+    const isDashed = Boolean(data?.isDashed)
+    const label = data?.label
+    const customColor = data?.color
 
-    const type = data?.relationshipType ?? 'PARENT'
+    // For horizontal couple connections, use smooth step path
+    // For vertical parent-child and sibling connections, use smooth step / bezier
+    const [edgePath, labelX, labelY] = isCouple
+      ? getSmoothStepPath({
+          sourceX,
+          sourceY,
+          sourcePosition,
+          targetX,
+          targetY,
+          targetPosition,
+          borderRadius: 8,
+        })
+      : getBezierPath({
+          sourceX,
+          sourceY,
+          sourcePosition,
+          targetX,
+          targetY,
+          targetPosition,
+        })
 
-    // Configure visual appearance based on canonical relationship type
-    let strokeColor = '#3b82f6' // Blue for PARENT
-    let strokeDasharray: string | undefined = undefined
-    let strokeWidth = 2
-
-    if (type === 'SPOUSE') {
-      strokeColor = '#e11d48' // Rose for SPOUSE
-      strokeDasharray = '5 5'
-      strokeWidth = 2
-    } else if (type === 'SIBLING') {
-      strokeColor = '#0d9488' // Teal for SIBLING
-      strokeDasharray = '3 3'
-      strokeWidth = 1.5
-    }
+    const strokeColor = customColor || (isCouple ? '#9333EA' : '#2563EB')
+    const strokeDasharray = isDashed ? '5 5' : undefined
+    const strokeWidth = 2
 
     const edgeStyle: React.CSSProperties = {
       ...style,
       stroke: strokeColor,
       strokeWidth,
       strokeDasharray,
-      opacity: 0.85,
+      opacity: 0.95,
     }
 
     return (
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        style={edgeStyle}
-        markerEnd={type === 'PARENT' ? markerEnd : undefined}
-      />
+      <>
+        <BaseEdge id={id} path={edgePath} style={edgeStyle} />
+
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+            className="nodrag nopan select-none"
+          >
+            {isCouple ? (
+              // Couple interlocking rings icon
+              <div
+                title="Spouse / Couple"
+                aria-label="Couple connection"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-white border-2 border-[#9333EA] shadow-sm text-[#9333EA] text-xs font-bold transition-transform hover:scale-110"
+              >
+                <span className="leading-none text-[13px]">⚭</span>
+              </div>
+            ) : label ? (
+              // Pill label along connection line
+              <span
+                style={{
+                  backgroundColor: strokeColor,
+                }}
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-sm tracking-wide"
+              >
+                {label}
+              </span>
+            ) : null}
+          </div>
+        </EdgeLabelRenderer>
+      </>
     )
   }
 )

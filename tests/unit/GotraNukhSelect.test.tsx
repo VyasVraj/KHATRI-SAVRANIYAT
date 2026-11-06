@@ -56,7 +56,7 @@ describe('GotraNukhSelect Component', () => {
     expect(screen.getByRole('option', { name: 'Agastya' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Bharadwaj' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Gargya' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Vashishtha' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Vashistha' })).toBeInTheDocument()
   })
 
   it('disables the Nukh dropdown when no Gotra is selected', () => {
@@ -109,10 +109,10 @@ describe('GotraNukhSelect Component', () => {
     let nukhSelect = screen.getByLabelText(/Nukh/i) as HTMLSelectElement
     const gargyaNukhs = GOTRA_NUKH_MAP['Gargya']
     expect(gargyaNukhs).toEqual([
-      'Gajkaran (Gaj Karan)',
-      'Gumara',
-      'Vankala',
-      'Chhuchha (Chhuchha)',
+      'Gajkaran (Gaj Karn)',
+      'Gumra',
+      'Chakla',
+      'Chhuchha (Chhunchha)',
     ])
     gargyaNukhs.forEach((n) => {
       expect(within(nukhSelect).getByRole('option', { name: n })).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('GotraNukhSelect Component', () => {
 
     nukhSelect = screen.getByLabelText(/Nukh/i) as HTMLSelectElement
     const gautamNukhs = GOTRA_NUKH_MAP['Gautam']
-    expect(gautamNukhs).toEqual(['Shirach', 'Goratola', 'Gila', 'Madhur', 'Madhu'])
+    expect(gautamNukhs).toEqual(['Girach', 'Goratela', 'Gila', 'Madhur', 'Madhu'])
     gautamNukhs.forEach((n) => {
       expect(within(nukhSelect).getByRole('option', { name: n })).toBeInTheDocument()
     })

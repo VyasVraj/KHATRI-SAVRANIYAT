@@ -24,9 +24,9 @@ import type { ApiResponse } from '@/types'
 import type { Tables } from '@/types/database.types'
 import type { PrivacyLevel } from '@/types/database'
 import {
-  getExecutiveCommitteeMember,
-  type ExecutiveCommitteeMember,
-} from '@/features/community/services/executive-committee.service'
+  getCommunityMukhi,
+  type CommunityMukhi,
+} from '@/features/community/services/community-mukhis.service'
 import {
   createFamilySchema,
   updateFamilySchema,
@@ -42,7 +42,7 @@ import { ZodError } from 'zod'
 /** The full family row as returned from the database. */
 export type FamilyRow = Tables<'families'> & {
   selected_mukhi_id?: string | null
-  selected_mukhi?: ExecutiveCommitteeMember | null
+  selected_mukhi?: CommunityMukhi | null
 }
 
 export interface FamilyHeadSummary {
@@ -55,7 +55,7 @@ export interface FamilyHeadSummary {
 export type FamilyWithDetails = FamilyRow & {
   head?: FamilyHeadSummary | null
   member_count?: number
-  selected_mukhi?: ExecutiveCommitteeMember | null
+  selected_mukhi?: CommunityMukhi | null
 }
 
 /** Parameters for listing families — minimal; pagination deferred to future phase. */
@@ -226,6 +226,107 @@ export async function createFamilyWithHead(
   }
 }
 
+export interface RegistrationPersonInput {
+  is_existing?: boolean
+  person_id?: string | null
+  first_name?: string
+  middle_name?: string | null
+  last_name?: string
+  maiden_name?: string | null
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
+  date_of_birth?: string | null
+  birth_place?: string | null
+  city?: string | null
+  state?: string | null
+  country?: string | null
+  gotra?: string | null
+  nukh?: string | null
+  phone?: string | null
+  phone_secondary?: string | null
+  email?: string | null
+  email_contact?: string | null
+  date_of_death?: string | null
+  blood_group?: string | null
+  blood_group_consent?: boolean
+  kul?: string | null
+}
+
+export interface RegistrationMemberInput extends RegistrationPersonInput {
+  relationship_to_head: string
+  role?: string
+}
+
+export interface CompleteFamilyRegistrationPayload {
+  family: {
+    family_name: string
+    selected_mukhi_id: string
+    city: string
+    state: string
+    country?: string
+    gotra: string
+    nukh: string
+    description?: string | null
+    kul?: string | null
+  }
+  head: RegistrationPersonInput
+  members?: RegistrationMemberInput[]
+}
+
+export interface CompleteFamilyRegistrationResult {
+  success: boolean
+  family_id: string
+  head_person_id: string
+  member_count: number
+}
+
+/**
+ * Atomically registers a complete family, its designated head, and all additional members
+ * within a single database transaction via the register_complete_family RPC.
+ */
+export async function registerCompleteFamily(
+  payload: CompleteFamilyRegistrationPayload,
+  callerUserId: string
+): Promise<ApiResponse<CompleteFamilyRegistrationResult>> {
+  if (!callerUserId) {
+    return {
+      data: null,
+      error: {
+        message: 'Authentication required to register a family.',
+        code: 'UNAUTHENTICATED',
+      },
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)('register_complete_family', {
+    p_family: payload.family,
+    p_head: payload.head,
+    p_members: payload.members || [],
+  })
+
+  if (error) {
+    return {
+      data: null,
+      error: {
+        message: mapFamilyError(error.message, error.code),
+        code: error.code || 'RPC_ERROR',
+        cause: error,
+      },
+    }
+  }
+
+  const res = typeof data === 'string' ? JSON.parse(data) : data
+  return {
+    data: {
+      success: res?.success ?? true,
+      family_id: res?.family_id,
+      head_person_id: res?.head_person_id,
+      member_count: res?.member_count ?? 1,
+    },
+    error: null,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // getFamily
 // ---------------------------------------------------------------------------
@@ -261,7 +362,7 @@ export async function getFamily(familyId: string): Promise<ApiResponse<FamilyRow
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const familyData = data as any
   if (familyData && familyData.selected_mukhi_id) {
-    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    const mukhiRes = await getCommunityMukhi(familyData.selected_mukhi_id)
     if (mukhiRes.data) {
       familyData.selected_mukhi = mukhiRes.data
     }
@@ -326,7 +427,7 @@ export async function updateFamily(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const familyData = data as any
   if (familyData && familyData.selected_mukhi_id) {
-    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    const mukhiRes = await getCommunityMukhi(familyData.selected_mukhi_id)
     if (mukhiRes.data) {
       familyData.selected_mukhi = mukhiRes.data
     }
@@ -371,7 +472,7 @@ export async function updateFamilyMukhi(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const familyData = data as any
   if (familyData && familyData.selected_mukhi_id) {
-    const mukhiRes = await getExecutiveCommitteeMember(familyData.selected_mukhi_id)
+    const mukhiRes = await getCommunityMukhi(familyData.selected_mukhi_id)
     if (mukhiRes.data) {
       familyData.selected_mukhi = mukhiRes.data
     }
@@ -415,6 +516,7 @@ export async function listFamilies(
         *,
         members:family_members(
           id,
+          person_id,
           role,
           is_head,
           left_at,
@@ -446,20 +548,50 @@ export async function listFamilies(
             try {
               const { data: memberRows } = await supabase
                 .from('family_members')
-                .select('family_id, is_head, left_at, person:persons(id, first_name, last_name, avatar_url, gender)')
+                .select('family_id, person_id, role, is_head, left_at, person:persons(id, first_name, last_name, avatar_url, gender)')
                 .in('family_id', familyIds)
                 .is('left_at', null)
 
               if (memberRows && Array.isArray(memberRows)) {
+                // Collect missing person IDs for heads
+                const missingHeadPersonIds: string[] = []
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 for (const m of memberRows as any[]) {
                   countMap[m.family_id] = (countMap[m.family_id] ?? 0) + 1
-                  if (m.is_head && m.person) {
-                    headMap[m.family_id] = {
-                      person_id: m.person.id,
-                      name: `${m.person.first_name} ${m.person.last_name}`.trim(),
-                      avatar_url: m.person.avatar_url,
-                      gender: m.person.gender,
+                  if ((m.is_head || m.role === 'HEAD') && m.person_id && !m.person?.first_name) {
+                    missingHeadPersonIds.push(m.person_id)
+                  }
+                }
+
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const fallbackPersonsMap: Record<string, any> = {}
+                if (missingHeadPersonIds.length > 0) {
+                  try {
+                    const { data: enrichedData } = await supabase
+                      .from('community_persons')
+                      .select('id, first_name, last_name, avatar_url, gender')
+                      .in('id', missingHeadPersonIds)
+                    if (enrichedData && Array.isArray(enrichedData)) {
+                      for (const p of enrichedData) {
+                        fallbackPersonsMap[p.id] = p
+                      }
+                    }
+                  } catch {
+                    // Non-blocking enrichment
+                  }
+                }
+
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                for (const m of memberRows as any[]) {
+                  if (m.is_head || m.role === 'HEAD') {
+                    const resolvedPerson = m.person?.first_name ? m.person : (m.person_id ? fallbackPersonsMap[m.person_id] : null)
+                    if (resolvedPerson && !headMap[m.family_id]) {
+                      headMap[m.family_id] = {
+                        person_id: resolvedPerson.id,
+                        name: `${resolvedPerson.first_name} ${resolvedPerson.last_name}`.trim(),
+                        avatar_url: resolvedPerson.avatar_url,
+                        gender: resolvedPerson.gender,
+                      }
                     }
                   }
                 }
@@ -492,6 +624,40 @@ export async function listFamilies(
       }
     }
 
+    // Identify missing head persons across families to enrich from community_persons view
+    // (Resolves RLS privacy masking so family census always displays the designated head)
+    const missingHeadPersonIds = Array.from(
+      new Set(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (data || []).flatMap((fam: any) => {
+          if (!Array.isArray(fam.members)) return []
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const active = fam.members.filter((m: any) => !m.left_at)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const hm = active.find((m: any) => m.is_head) || active.find((m: any) => m.role === 'HEAD')
+          return hm?.person_id && !hm.person?.first_name ? [hm.person_id] : []
+        })
+      )
+    )
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enrichedPersonsMap: Record<string, any> = {}
+    if (missingHeadPersonIds.length > 0) {
+      try {
+        const { data: enrichedData } = await supabase
+          .from('community_persons')
+          .select('id, first_name, last_name, avatar_url, gender')
+          .in('id', missingHeadPersonIds)
+        if (enrichedData && Array.isArray(enrichedData)) {
+          for (const p of enrichedData) {
+            enrichedPersonsMap[p.id] = p
+          }
+        }
+      } catch {
+        // Non-blocking enrichment
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processed: FamilyWithDetails[] = (data || []).map((fam: any) => {
       if (fam.members === undefined) {
@@ -500,8 +666,11 @@ export async function listFamilies(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const activeMembers = Array.isArray(fam.members) ? fam.members.filter((m: any) => !m.left_at) : []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const headMember = activeMembers.find((m: any) => m.is_head)
-      const headPerson = headMember?.person
+      const headMember = activeMembers.find((m: any) => m.is_head) || activeMembers.find((m: any) => m.role === 'HEAD')
+      const headPerson = headMember?.person?.first_name
+        ? headMember.person
+        : (headMember?.person_id ? enrichedPersonsMap[headMember.person_id] : null)
+
       const head: FamilyHeadSummary | null = headPerson
         ? {
             person_id: headPerson.id,

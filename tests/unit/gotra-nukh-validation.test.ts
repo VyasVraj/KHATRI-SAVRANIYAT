@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 /**
  * Unit tests for Gotra and Nukh validation rules in Zod schemas
  * (src/features/people/schemas/people.schemas.ts)
@@ -13,26 +14,36 @@ describe('Gotra and Nukh Zod Schema Validations', () => {
     const basePerson = {
       first_name: 'Aarav',
       last_name: 'Kashyap',
+      gender: 'MALE' as const,
+      blood_group: 'B+' as const,
+      birth_place: 'Vadodara, Gujarat',
+      date_of_birth: '1990-01-01',
+      gotra: 'Agastya',
+      nukh: 'Arora (Aroda)',
+      email_contact: 'aarav@example.com',
+      phone: '+919876543210',
     }
 
-    it('succeeds when gotra and nukh are omitted or null', () => {
-      const result1 = createPersonSchema.safeParse({ ...basePerson })
-      expect(result1.success).toBe(true)
+    it('fails when gotra or nukh are omitted or null', () => {
+      const { gotra: _g, nukh: _n, ...withoutGotraNukh } = basePerson
+      const result1 = createPersonSchema.safeParse(withoutGotraNukh)
+      expect(result1.success).toBe(false)
 
-      const result2 = createPersonSchema.safeParse({ ...basePerson, gotra: null, nukh: null })
-      expect(result2.success).toBe(true)
+      const result2 = createPersonSchema.safeParse({ ...basePerson, gotra: null as any, nukh: null as any })
+      expect(result2.success).toBe(false)
     })
 
-    it('succeeds when valid Gotra is provided without Nukh', () => {
-      const result = createPersonSchema.safeParse({ ...basePerson, gotra: 'Kashyap' })
-      expect(result.success).toBe(true)
+    it('fails when Gotra is provided without Nukh', () => {
+      const { nukh: _n, ...withoutNukh } = basePerson
+      const result = createPersonSchema.safeParse(withoutNukh)
+      expect(result.success).toBe(false)
     })
 
     it('succeeds when valid Gotra and matching Nukh are provided', () => {
       const result = createPersonSchema.safeParse({
         ...basePerson,
-        gotra: 'Kashyap',
-        nukh: 'Varun',
+        gotra: 'Agastya',
+        nukh: 'Arora (Aroda)',
       })
       expect(result.success).toBe(true)
     })
@@ -50,14 +61,14 @@ describe('Gotra and Nukh Zod Schema Validations', () => {
     })
 
     it('fails when Nukh is provided without a Gotra', () => {
+      const { gotra: _g, ...withoutGotra } = basePerson
       const result = createPersonSchema.safeParse({
-        ...basePerson,
+        ...withoutGotra,
         nukh: 'Varun',
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.errors[0].path).toContain('nukh')
-        expect(result.error.errors[0].message).toContain('Nukh cannot be specified without a corresponding Gotra')
+        expect(result.error.errors.some((e) => e.path.includes('gotra'))).toBe(true)
       }
     })
 

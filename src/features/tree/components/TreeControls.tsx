@@ -1,79 +1,75 @@
 /**
  * Component: TreeControls
  *
- * Canvas toolbar providing zoom, recenter, and fit-view actions for the family tree.
+ * Bottom-right floating toolbar matching the reference design layout:
+ * - [+] Zoom in
+ * - [-] Zoom out
+ * - [⛶] Full-screen toggle
  */
 
 import React from 'react'
 import { useReactFlow, Panel } from 'reactflow'
-import { ZoomIn, ZoomOut, Maximize2, Crosshair } from 'lucide-react'
+import { Plus, Minus, Maximize2, Minimize2 } from 'lucide-react'
 
 interface TreeControlsProps {
-  /** Optional callback to reset focus onto the root person node */
-  onRecenterRoot?: () => void
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
-/**
- * Floating toolbar for canvas navigation and zoom control.
- */
-export const TreeControls: React.FC<TreeControlsProps> = ({ onRecenterRoot }) => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow()
-
-  const handleFitView = () => {
-    fitView({ padding: 0.2, duration: 400 })
-  }
-
-  const handleZoomIn = () => {
-    zoomIn({ duration: 300 })
-  }
-
-  const handleZoomOut = () => {
-    zoomOut({ duration: 300 })
-  }
+export const TreeControls: React.FC<TreeControlsProps> = ({
+  isFullscreen,
+  onToggleFullscreen,
+}) => {
+  const { zoomIn, zoomOut } = useReactFlow()
 
   return (
-    <Panel position="bottom-right" className="flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border shadow-md rounded-lg p-1.5 m-4">
-      <button
-        type="button"
-        onClick={handleZoomIn}
-        aria-label="Zoom in"
-        title="Zoom In"
-        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+    <Panel position="bottom-right" className="m-4">
+      <div
+        role="toolbar"
+        aria-label="Tree Canvas Controls"
+        className="flex flex-col items-center gap-1.5 rounded-2xl border border-[#DCE3EF] bg-white p-1.5 shadow-sm"
       >
-        <ZoomIn className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={handleZoomOut}
-        aria-label="Zoom out"
-        title="Zoom Out"
-        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        <ZoomOut className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={handleFitView}
-        aria-label="Fit view to all nodes"
-        title="Fit View"
-        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        <Maximize2 className="w-4 h-4" />
-      </button>
-
-      {onRecenterRoot && (
         <button
           type="button"
-          onClick={onRecenterRoot}
-          aria-label="Recenter on focus person"
-          title="Recenter on Root Person"
-          className="p-1.5 rounded-md hover:bg-muted text-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          onClick={() => zoomIn({ duration: 300 })}
+          aria-label="Zoom in"
+          title="Zoom In"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         >
-          <Crosshair className="w-4 h-4" />
+          <Plus className="h-4 w-4" />
         </button>
-      )}
+
+        <div className="h-px w-6 bg-slate-200" />
+
+        <button
+          type="button"
+          onClick={() => zoomOut({ duration: 300 })}
+          aria-label="Zoom out"
+          title="Zoom Out"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+
+        {onToggleFullscreen && (
+          <>
+            <div className="h-px w-6 bg-slate-200" />
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
+              title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </button>
+          </>
+        )}
+      </div>
     </Panel>
   )
 }

@@ -1,73 +1,94 @@
 /**
  * Component: TreeLegend
  *
- * Compact legend explaining genealogical relationship types and root node indicators.
+ * Left-side floating legend matching the reference design layout:
+ * - Spouse (purple line)
+ * - Parent - Child (blue line)
+ * - Siblings (blue dashed line)
+ * - Head of Family (gold crown badge)
+ * - Male (blue circle/icon)
+ * - Female (pink circle/icon)
+ * - Couple (interlocking rings)
+ * - Selected Person (highlighted border)
  */
 
-import React, { useState } from 'react'
+import React from 'react'
 import { Panel } from 'reactflow'
-import { Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { Crown, User } from 'lucide-react'
 
-/**
- * Visual key for family tree edge types and node roles.
- */
 export const TreeLegend: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false)
-
   return (
-    <Panel position="bottom-left" className="m-4">
-      <div className="bg-background/90 backdrop-blur-sm border border-border shadow-md rounded-lg p-2 text-xs select-none max-w-xs transition-all">
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="flex items-center justify-between w-full gap-2 font-medium text-muted-foreground hover:text-foreground text-left"
-          aria-expanded={isOpen}
-          aria-label="Toggle legend"
-        >
-          <span className="flex items-center gap-1.5 font-semibold text-foreground">
-            <Info className="w-3.5 h-3.5 text-primary" />
-            Legend
-          </span>
-          {isOpen ? (
-            <ChevronDown className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronUp className="w-3.5 h-3.5" />
-          )}
-        </button>
+    <Panel position="top-left" className="m-4">
+      <div
+        role="region"
+        aria-label="Relationship Legend"
+        className="w-48 rounded-2xl border border-[#DCE3EF] bg-white p-4 shadow-sm select-none"
+      >
+        <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#101828]">
+          Relationship Legend
+        </h4>
 
-        {isOpen && (
-          <div className="mt-2.5 pt-2 border-t border-border space-y-1.5 text-muted-foreground">
-            {/* Root indicator */}
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full ring-2 ring-primary bg-primary/20 shrink-0" />
-              <span>Root Person (Focus)</span>
-            </div>
-
-            {/* Parent connection */}
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-0.5 bg-blue-500 shrink-0" />
-              <span>Parent &rarr; Child</span>
-            </div>
-
-            {/* Spouse connection */}
-            <div className="flex items-center gap-2">
-              <span
-                className="w-4 h-0.5 border-t-2 border-dashed border-rose-500 shrink-0"
-                style={{ height: 0 }}
-              />
-              <span>Spouse (Union)</span>
-            </div>
-
-            {/* Sibling connection */}
-            <div className="flex items-center gap-2">
-              <span
-                className="w-4 h-0.5 border-t-2 border-dotted border-teal-600 shrink-0"
-                style={{ height: 0 }}
-              />
-              <span>Sibling</span>
-            </div>
+        <div className="space-y-2 text-xs text-[#101828]">
+          {/* Spouse */}
+          <div className="flex items-center gap-2.5">
+            <span className="h-0.5 w-6 rounded bg-[#9333EA] shrink-0" aria-hidden="true" />
+            <span className="font-medium text-slate-700">Spouse</span>
           </div>
-        )}
+
+          {/* Parent - Child */}
+          <div className="flex items-center gap-2.5">
+            <span className="h-0.5 w-6 rounded bg-[#2563EB] shrink-0" aria-hidden="true" />
+            <span className="font-medium text-slate-700">Parent – Child</span>
+          </div>
+
+          {/* Siblings */}
+          <div className="flex items-center gap-2.5">
+            <span
+              className="h-0.5 w-6 border-t-2 border-dashed border-[#2563EB] shrink-0"
+              style={{ height: 0 }}
+              aria-hidden="true"
+            />
+            <span className="font-medium text-slate-700">Siblings</span>
+          </div>
+
+          {/* Head of Family */}
+          <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#FEF3C7] text-[#92400E] border border-amber-200">
+              <Crown className="h-3 w-3 fill-amber-500 text-amber-600" />
+            </div>
+            <span className="font-medium text-slate-700">Head of Family</span>
+          </div>
+
+          {/* Male */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#DBEAFE] text-[#1D4ED8] border border-[#BFDBFE]">
+              <User className="h-3 w-3" />
+            </div>
+            <span className="font-medium text-slate-700">Male</span>
+          </div>
+
+          {/* Female */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8]">
+              <User className="h-3 w-3" />
+            </div>
+            <span className="font-medium text-slate-700">Female</span>
+          </div>
+
+          {/* Couple */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[#9333EA] border border-[#9333EA] text-[11px] font-bold">
+              <span>⚭</span>
+            </div>
+            <span className="font-medium text-slate-700">Couple</span>
+          </div>
+
+          {/* Selected Person */}
+          <div className="flex items-center gap-2.5">
+            <div className="h-4 w-5 rounded border-2 border-[#2563EB] bg-blue-50/50 shrink-0" />
+            <span className="font-medium text-slate-700">Selected Person</span>
+          </div>
+        </div>
       </div>
     </Panel>
   )
