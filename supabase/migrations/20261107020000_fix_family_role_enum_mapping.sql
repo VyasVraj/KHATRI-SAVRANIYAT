@@ -294,7 +294,6 @@ BEGIN
   INSERT INTO public.families (
     family_name,
     selected_mukhi_id,
-    head_id,
     city,
     state,
     country,
@@ -302,13 +301,14 @@ BEGIN
     nukh,
     kul,
     description,
+    profile_privacy,
     members_privacy,
     status,
-    created_by
+    created_by,
+    manager_user_id
   ) VALUES (
     v_family_name,
     v_mukhi_id,
-    v_head_person_id,
     v_family_city,
     v_family_state,
     v_family_country,
@@ -317,7 +317,9 @@ BEGIN
     NULLIF(trim(p_family->>'kul'), ''),
     NULLIF(trim(p_family->>'description'), ''),
     'COMMUNITY',
+    'COMMUNITY',
     'ACTIVE',
+    v_caller_id,
     v_caller_id
   ) RETURNING id INTO v_family_id;
 
@@ -345,7 +347,10 @@ BEGIN
     FOR v_member_record IN SELECT * FROM jsonb_array_elements(p_members)
     LOOP
       v_member_rel := COALESCE(NULLIF(trim(v_member_record->>'relationship_to_head'), ''), 'Other');
-      v_member_role_str := UPPER(COALESCE(NULLIF(trim(v_member_record->>'role'), ''), v_member_rel));
+      v_member_role_str := UPPER(COALESCE(NULLIF(trim(v_member_record->>'role'), ''), ''));
+      IF v_member_role_str = '' OR v_member_role_str = 'MEMBER' THEN
+        v_member_role_str := UPPER(v_member_rel);
+      END IF;
 
       -- Safe mapping to valid public.family_role enum
       CASE

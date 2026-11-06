@@ -69,6 +69,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const fieldValidationSql = fs.readFileSync(path.join(migrationsDir, '20261106030000_enforce_person_field_validation.sql'), 'utf-8')
   const mukhiClaimingSql = fs.readFileSync(path.join(migrationsDir, '20261106040000_mukhi_authority_and_profile_claiming.sql'), 'utf-8')
   const fiveLevelAccessibilitySql = fs.readFileSync(path.join(migrationsDir, '20261106050000_executive_committee_and_five_level_accessibility.sql'), 'utf-8')
+  const fixFamilyRoleMappingSql = fs.readFileSync(path.join(migrationsDir, '20261107020000_fix_family_role_enum_mapping.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -2227,6 +2228,114 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
         SELECT is_active FROM public.executive_committee_members WHERE id = '${firstMember}';
       `)
       expect(statusCheck.rows[0].is_active).toBe(false)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // 13. Fix Family Role Enum Mapping & Eliminate Non-Existent head_id Column (20261107020000)
+  // ---------------------------------------------------------------------------
+  describe('13. Fix Family Role Enum Mapping & Non-Existent head_id Column (20261107020000)', () => {
+    it('executes 20261107020000_fix_family_role_enum_mapping.sql without error', async () => {
+      await pg.exec(fixFamilyRoleMappingSql)
+    })
+
+    it('successfully registers complete family without head_id or family_role enum errors', async () => {
+      // Setup authenticated user
+      const testUserId = '00000000-0000-0000-0000-000000000999'
+      await pg.exec(`
+        INSERT INTO auth.users (id, email) VALUES ('${testUserId}', 'newuser@example.com')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.profiles (id, role, is_active)
+        VALUES ('${testUserId}', 'MEMBER', TRUE)
+        ON CONFLICT (id) DO UPDATE SET is_active = TRUE;
+        UPDATE public._mock_session SET uid = '${testUserId}';
+      `)
+
+      // Fetch a valid mukhi id
+      const mukhiRes = await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.community_mukhis LIMIT 1;
+      `)
+      const mukhiId = mukhiRes.rows[0].id
+
+      const rpcResult = await pg.query<{ register_complete_family: any }>(`
+        SELECT public.register_complete_family(
+          jsonb_build_object(
+            'family_name', 'Bhoi Parivar',
+            'selected_mukhi_id', '${mukhiId}',
+            'city', 'Anand',
+            'state', 'Gujarat',
+            'country', 'India',
+            'gotra', 'Agastya',
+            'nukh', 'Arora (Aroda)'
+          ),
+          jsonb_build_object(
+            'is_existing', false,
+            'first_name', 'Hitesh',
+            'last_name', 'Bhoi',
+            'gender', 'MALE',
+            'blood_group', 'B+',
+            'date_of_birth', '1965-05-02',
+            'city', 'Anand',
+            'state', 'Gujarat',
+            'phone', '9898000001',
+            'email', 'hitesh@bhoi.com'
+          ),
+          jsonb_build_array(
+            jsonb_build_object(
+              'is_existing', false,
+              'relationship_to_head', 'Wife',
+              'first_name', 'Archana',
+              'last_name', 'Bhoi',
+              'gender', 'FEMALE',
+              'blood_group', 'O+',
+              'date_of_birth', '1975-02-05',
+              'city', 'Anand',
+              'state', 'Gujarat',
+              'phone', '9898000002',
+              'email', 'archana@bhoi.com'
+            ),
+            jsonb_build_object(
+              'is_existing', false,
+              'relationship_to_head', 'Wife',
+              'role', 'MEMBER',
+              'first_name', 'Om',
+              'last_name', 'Bhoi',
+              'gender', 'MALE',
+              'blood_group', 'A+',
+              'date_of_birth', '2004-04-02',
+              'city', 'Anand',
+              'state', 'Gujarat',
+              'phone', '9898000003',
+              'email', 'om@bhoi.com'
+            )
+          )
+        );
+      `)
+
+      const output = rpcResult.rows[0].register_complete_family
+      expect(output.success).toBe(true)
+      expect(output.member_count).toBe(3)
+      expect(output.family_id).toBeDefined()
+      expect(output.head_person_id).toBeDefined()
+
+      // Verify family record in public.families
+      const famCheck = await pg.query<{ family_name: string; city: string }>(`
+        SELECT family_name, city FROM public.families WHERE id = '${output.family_id}';
+      `)
+      expect(famCheck.rows[0].family_name).toBe('Bhoi Parivar')
+
+      // Verify head and members in public.family_members
+      const membersCheck = await pg.query<{ role: string; is_head: boolean; rel: string }>(`
+        SELECT role::text, is_head, relationship_to_head AS rel
+        FROM public.family_members
+        WHERE family_id = '${output.family_id}'
+        ORDER BY is_head DESC, created_at ASC;
+      `)
+      expect(membersCheck.rows.length).toBe(3)
+      expect(membersCheck.rows[0].is_head).toBe(true)
+      expect(membersCheck.rows[0].role).toBe('HEAD')
+      expect(membersCheck.rows[1].role).toBe('SPOUSE')
+      expect(membersCheck.rows[2].role).toBe('SPOUSE')
     })
   })
 })
