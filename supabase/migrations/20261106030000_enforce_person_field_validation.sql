@@ -637,13 +637,26 @@ BEGIN
     FOR v_member_record IN SELECT * FROM jsonb_array_elements(p_members)
     LOOP
       v_member_rel := COALESCE(NULLIF(trim(v_member_record->>'relationship_to_head'), ''), 'Other');
-      v_member_role_str := COALESCE(NULLIF(trim(v_member_record->>'role'), ''), 'MEMBER');
+      v_member_role_str := UPPER(COALESCE(NULLIF(trim(v_member_record->>'role'), ''), v_member_rel));
 
-      BEGIN
-        v_member_role := v_member_role_str::public.family_role;
-      EXCEPTION WHEN OTHERS THEN
-        v_member_role := 'MEMBER'::public.family_role;
-      END;
+      CASE
+        WHEN v_member_role_str IN ('SPOUSE', 'WIFE', 'HUSBAND', 'PARTNER') THEN
+          v_member_role := 'SPOUSE'::public.family_role;
+        WHEN v_member_role_str IN ('CHILD', 'SON', 'DAUGHTER', 'KID') THEN
+          v_member_role := 'CHILD'::public.family_role;
+        WHEN v_member_role_str IN ('PARENT', 'FATHER', 'MOTHER') THEN
+          v_member_role := 'PARENT'::public.family_role;
+        WHEN v_member_role_str IN ('SIBLING', 'BROTHER', 'SISTER') THEN
+          v_member_role := 'SIBLING'::public.family_role;
+        WHEN v_member_role_str IN ('GRANDPARENT', 'GRANDFATHER', 'GRANDMOTHER') THEN
+          v_member_role := 'GRANDPARENT'::public.family_role;
+        WHEN v_member_role_str IN ('GRANDCHILD', 'GRANDSON', 'GRANDDAUGHTER') THEN
+          v_member_role := 'GRANDCHILD'::public.family_role;
+        WHEN v_member_role_str = 'HEAD' THEN
+          v_member_role := 'HEAD'::public.family_role;
+        ELSE
+          v_member_role := 'EXTENDED'::public.family_role;
+      END CASE;
 
       v_member_is_existing := COALESCE((v_member_record->>'is_existing')::BOOLEAN, FALSE);
 

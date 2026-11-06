@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   registerCompleteFamily,
+  mapRelationshipToFamilyRole,
   type CompleteFamilyRegistrationPayload,
 } from '@/features/families/services/families.service'
 import {
@@ -314,7 +315,16 @@ describe('Khatri Sarvaniyat Family Registration & Add Person Workflow', () => {
       expect(mockRpc).toHaveBeenCalledWith('register_complete_family', {
         p_family: payload.family,
         p_head: payload.head,
-        p_members: payload.members,
+        p_members: [
+          {
+            ...payload.members![0],
+            role: 'SPOUSE',
+          },
+          {
+            ...payload.members![1],
+            role: 'CHILD',
+          },
+        ],
       })
       expect(res.data?.success).toBe(true)
       expect(res.data?.family_id).toBe('fam-new-777')
@@ -362,6 +372,84 @@ describe('Khatri Sarvaniyat Family Registration & Add Person Workflow', () => {
       expect(res.error).toBeDefined()
       expect(res.error?.message).toContain('INVALID_NUKH')
       expect(res.data).toBeNull()
+    })
+
+    it('correctly maps all relationship values to valid public.family_role enum', () => {
+      expect(mapRelationshipToFamilyRole('Wife')).toBe('SPOUSE')
+      expect(mapRelationshipToFamilyRole('Husband')).toBe('SPOUSE')
+      expect(mapRelationshipToFamilyRole('Son')).toBe('CHILD')
+      expect(mapRelationshipToFamilyRole('Daughter')).toBe('CHILD')
+      expect(mapRelationshipToFamilyRole('Father')).toBe('PARENT')
+      expect(mapRelationshipToFamilyRole('Mother')).toBe('PARENT')
+      expect(mapRelationshipToFamilyRole('Brother')).toBe('SIBLING')
+      expect(mapRelationshipToFamilyRole('Sister')).toBe('SIBLING')
+      expect(mapRelationshipToFamilyRole('Grandfather')).toBe('GRANDPARENT')
+      expect(mapRelationshipToFamilyRole('Grandmother')).toBe('GRANDPARENT')
+      expect(mapRelationshipToFamilyRole('Grandson')).toBe('GRANDCHILD')
+      expect(mapRelationshipToFamilyRole('Granddaughter')).toBe('GRANDCHILD')
+      expect(mapRelationshipToFamilyRole('Other')).toBe('EXTENDED')
+      expect(mapRelationshipToFamilyRole('MEMBER')).toBe('EXTENDED')
+      expect(mapRelationshipToFamilyRole('')).toBe('EXTENDED')
+    })
+
+    it('sanitizes member payload so invalid "MEMBER" is mapped to "EXTENDED"', async () => {
+      const mockRpc = vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: { success: true, family_id: 'fam-888', head_person_id: 'head-888', member_count: 2 },
+        error: null,
+      } as any)
+
+      const payload: CompleteFamilyRegistrationPayload = {
+        family: {
+          family_name: 'Test Family',
+          selected_mukhi_id: 'mukhi-uuid',
+          city: 'Vadodara',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+        },
+        head: {
+          is_existing: false,
+          first_name: 'Head',
+          last_name: 'Test',
+          gender: 'MALE',
+          date_of_birth: '1970-01-01',
+          city: 'Vadodara',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+          phone: '9876543210',
+          email: 'head@test.com',
+        },
+        members: [
+          {
+            is_existing: false,
+            relationship_to_head: 'Other',
+            role: 'MEMBER', // Invalid enum string passed directly
+            first_name: 'Extended',
+            last_name: 'Relative',
+            gender: 'MALE',
+            date_of_birth: '1995-01-01',
+            city: 'Vadodara',
+            state: 'Gujarat',
+            gotra: 'Agastya',
+            nukh: 'Arora (Aroda)',
+            phone: '9876543210',
+            email: 'rel@test.com',
+          },
+        ],
+      }
+
+      await registerCompleteFamily(payload, 'user-creator')
+
+      expect(mockRpc).toHaveBeenCalledWith('register_complete_family', {
+        p_family: payload.family,
+        p_head: payload.head,
+        p_members: [
+          expect.objectContaining({
+            role: 'EXTENDED', // Must be safely mapped to EXTENDED
+          }),
+        ],
+      })
     })
   })
 })

@@ -43,6 +43,7 @@ import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   registerCompleteFamily,
+  mapRelationshipToFamilyRole,
   type CompleteFamilyRegistrationPayload,
   type RegistrationMemberInput,
 } from '../services/families.service'
@@ -508,16 +509,19 @@ export function FamilyCreationWizard() {
 
       // Build staged members payload
       const membersPayload: RegistrationMemberInput[] = stagedMembers.map((m) => {
+        const canonicalRole = mapRelationshipToFamilyRole(m.relationship_to_head)
         if (m.is_existing && m.existing_person) {
           return {
             is_existing: true,
             person_id: m.existing_person.id,
             relationship_to_head: m.relationship_to_head,
+            role: canonicalRole,
           }
         }
         return {
           is_existing: false,
           relationship_to_head: m.relationship_to_head,
+          role: canonicalRole,
           first_name: m.form_values.first_name.trim(),
           middle_name: m.form_values.middle_name.trim() || null,
           last_name: m.form_values.last_name.trim(),

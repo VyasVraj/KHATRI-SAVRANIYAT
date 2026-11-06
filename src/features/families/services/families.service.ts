@@ -22,7 +22,7 @@
 import { supabase } from '@/lib/supabase'
 import type { ApiResponse } from '@/types'
 import type { Tables } from '@/types/database.types'
-import type { PrivacyLevel } from '@/types/database'
+import type { PrivacyLevel, FamilyRole } from '@/types/database'
 import {
   getCommunityMukhi,
   type CommunityMukhi,
@@ -253,7 +253,47 @@ export interface RegistrationPersonInput {
 
 export interface RegistrationMemberInput extends RegistrationPersonInput {
   relationship_to_head: string
-  role?: string
+  role?: FamilyRole | string
+}
+
+/**
+ * Maps human-readable relationship string to valid database public.family_role enum value.
+ * Supported database values: 'HEAD', 'SPOUSE', 'CHILD', 'PARENT', 'SIBLING', 'GRANDPARENT', 'GRANDCHILD', 'EXTENDED'.
+ */
+export function mapRelationshipToFamilyRole(relationship: string | null | undefined): FamilyRole {
+  const norm = (relationship || '').trim().toUpperCase()
+  switch (norm) {
+    case 'WIFE':
+    case 'HUSBAND':
+    case 'SPOUSE':
+    case 'PARTNER':
+      return 'SPOUSE'
+    case 'SON':
+    case 'DAUGHTER':
+    case 'CHILD':
+    case 'KID':
+      return 'CHILD'
+    case 'FATHER':
+    case 'MOTHER':
+    case 'PARENT':
+      return 'PARENT'
+    case 'BROTHER':
+    case 'SISTER':
+    case 'SIBLING':
+      return 'SIBLING'
+    case 'GRANDFATHER':
+    case 'GRANDMOTHER':
+    case 'GRANDPARENT':
+      return 'GRANDPARENT'
+    case 'GRANDSON':
+    case 'GRANDDAUGHTER':
+    case 'GRANDCHILD':
+      return 'GRANDCHILD'
+    case 'HEAD':
+      return 'HEAD'
+    default:
+      return 'EXTENDED'
+  }
 }
 
 export interface CompleteFamilyRegistrationPayload {
@@ -297,11 +337,34 @@ export async function registerCompleteFamily(
     }
   }
 
+  // Ensure all members have valid database family_role enum values
+  const VALID_FAMILY_ROLES = new Set([
+    'HEAD',
+    'SPOUSE',
+    'CHILD',
+    'PARENT',
+    'SIBLING',
+    'GRANDPARENT',
+    'GRANDCHILD',
+    'EXTENDED',
+  ])
+
+  const sanitizedMembers = (payload.members || []).map((m) => {
+    let assignedRole = m.role
+    if (!assignedRole || !VALID_FAMILY_ROLES.has(assignedRole.toUpperCase())) {
+      assignedRole = mapRelationshipToFamilyRole(m.relationship_to_head)
+    }
+    return {
+      ...m,
+      role: assignedRole,
+    }
+  })
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)('register_complete_family', {
     p_family: payload.family,
     p_head: payload.head,
-    p_members: payload.members || [],
+    p_members: sanitizedMembers,
   })
 
   if (error) {
