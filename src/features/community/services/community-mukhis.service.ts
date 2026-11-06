@@ -30,6 +30,9 @@ export interface CommunityMukhiFilters {
 export const COMMUNITY_MUKHI_DIRECTORY_COLUMNS =
   'id, source_serial_number, full_name, gram, mobile_number, gotra, nukh, is_active, linked_user_id, linked_person_id'
 
+export const BASELINE_MUKHI_DIRECTORY_COLUMNS =
+  'id, source_serial_number, full_name, gram, mobile_number, is_active, linked_user_id, linked_person_id'
+
 /**
  * Hydrated fallback list with deterministic mock UUIDs for offline/pre-migration resilience
  */
@@ -76,7 +79,23 @@ export async function getCommunityMukhis(
       query = query.ilike('gram', `%${filters.gram}%`)
     }
 
-    const { data, error } = await query.order('source_serial_number', { ascending: true })
+    let { data, error } = await query.order('source_serial_number', { ascending: true })
+
+    // If query failed due to missing gotra/nukh column in schema cache, retry with baseline columns
+    if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let retryQuery = (supabase.from as any)('community_mukhis')
+        .select(BASELINE_MUKHI_DIRECTORY_COLUMNS)
+        .eq('is_active', true)
+      if (filters.gram && filters.gram !== 'ALL') {
+        retryQuery = retryQuery.ilike('gram', `%${filters.gram}%`)
+      }
+      const retryResult = await retryQuery.order('source_serial_number', { ascending: true })
+      if (!retryResult.error && retryResult.data) {
+        data = retryResult.data
+        error = null
+      }
+    }
 
     let list: CommunityMukhi[] = []
 
@@ -133,10 +152,22 @@ export async function getCommunityMukhis(
 export async function getCommunityMukhi(id: string): Promise<ApiResponse<CommunityMukhi | null>> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.from as any)('community_mukhis')
+    let { data, error } = await (supabase.from as any)('community_mukhis')
       .select(COMMUNITY_MUKHI_DIRECTORY_COLUMNS)
       .eq('id', id)
       .maybeSingle()
+
+    if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retryResult = await (supabase.from as any)('community_mukhis')
+        .select(BASELINE_MUKHI_DIRECTORY_COLUMNS)
+        .eq('id', id)
+        .maybeSingle()
+      if (!retryResult.error && retryResult.data) {
+        data = retryResult.data
+        error = null
+      }
+    }
 
     if (error || !data) {
       const fallback = HYDRATED_FALLBACK_MUKHIS.find(
@@ -175,6 +206,30 @@ export async function upsertCommunityMukhi(
   input: UpsertCommunityMukhiInput
 ): Promise<ApiResponse<CommunityMukhi>> {
   try {
+    // 1. Try atomic admin RPC if available
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('admin_upsert_community_mukhi', {
+        p_id: input.id || null,
+        p_full_name: input.full_name.trim(),
+        p_gram: input.gram.trim(),
+        p_mobile_number: input.mobile_number?.trim() || null,
+        p_gotra: input.gotra?.trim() || null,
+        p_nukh: input.nukh?.trim() || null,
+        p_official_email: input.official_email?.trim() || null,
+        p_authority_status: input.authority_status || 'ACTIVE',
+        p_linked_person_id: input.linked_person_id || null,
+        p_is_active: input.is_active ?? true,
+      })
+
+      if (!rpcError && rpcData) {
+        return { data: rpcData as CommunityMukhi, error: null }
+      }
+    } catch {
+      // RPC not yet deployed or error — proceed to table mutation
+    }
+
+    // 2. Direct table mutation
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: Record<string, any> = {
       full_name: input.full_name.trim(),
@@ -200,10 +255,38 @@ export async function upsertCommunityMukhi(
         .select()
         .single()
 
-      if (error) {
-        return { data: null, error: { message: error.message, code: error.code } }
+      if (!error && data) {
+        return { data: data as CommunityMukhi, error: null }
       }
-      return { data: data as CommunityMukhi, error: null }
+
+      // If schema cache does not have gotra/nukh column yet, gracefully retry without them
+      if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703' || error.code === 'PGRST204')) {
+        const safePayload = { ...payload }
+        delete safePayload.gotra
+        delete safePayload.nukh
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: retryData, error: retryError } = await (supabase.from as any)('community_mukhis')
+          .update(safePayload)
+          .eq('id', input.id)
+          .select()
+          .single()
+
+        if (retryError) {
+          return { data: null, error: { message: retryError.message, code: retryError.code } }
+        }
+
+        return {
+          data: {
+            ...(retryData as CommunityMukhi),
+            gotra: input.gotra ?? null,
+            nukh: input.nukh ?? null,
+          },
+          error: null,
+        }
+      }
+
+      return { data: null, error: { message: error.message, code: error.code } }
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from as any)('community_mukhis')
@@ -211,10 +294,37 @@ export async function upsertCommunityMukhi(
         .select()
         .single()
 
-      if (error) {
-        return { data: null, error: { message: error.message, code: error.code } }
+      if (!error && data) {
+        return { data: data as CommunityMukhi, error: null }
       }
-      return { data: data as CommunityMukhi, error: null }
+
+      // If schema cache does not have gotra/nukh column yet, gracefully retry without them
+      if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703' || error.code === 'PGRST204')) {
+        const safePayload = { ...payload }
+        delete safePayload.gotra
+        delete safePayload.nukh
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: retryData, error: retryError } = await (supabase.from as any)('community_mukhis')
+          .insert(safePayload)
+          .select()
+          .single()
+
+        if (retryError) {
+          return { data: null, error: { message: retryError.message, code: retryError.code } }
+        }
+
+        return {
+          data: {
+            ...(retryData as CommunityMukhi),
+            gotra: input.gotra ?? null,
+            nukh: input.nukh ?? null,
+          },
+          error: null,
+        }
+      }
+
+      return { data: null, error: { message: error.message, code: error.code } }
     }
   } catch (err) {
     return {
