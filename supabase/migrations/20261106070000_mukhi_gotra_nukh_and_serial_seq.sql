@@ -1,7 +1,8 @@
 -- =============================================================================
 -- Migration: 20261106070000_mukhi_gotra_nukh_and_serial_seq.sql
--- Description: Add Gotra and Nukh fields to community_mukhis and enable
---              auto-incrementing source_serial_number for newly added Mukhis.
+-- Description: Add Gotra and Nukh fields to community_mukhis, fix directory view,
+--              enable auto-incrementing source_serial_number, and ensure
+--              admin_upsert_community_mukhi and send_birthday_greeting RPCs exist.
 -- =============================================================================
 
 BEGIN;
@@ -28,7 +29,10 @@ BEGIN
 END $$;
 
 -- 3. Update public directory view to include gotra and nukh
-CREATE OR REPLACE VIEW public.community_mukhis_directory AS
+-- Note: Must DROP VIEW CASCADE to avoid PostgreSQL error 42P16 when columns change
+DROP VIEW IF EXISTS public.community_mukhis_directory CASCADE;
+
+CREATE VIEW public.community_mukhis_directory AS
 SELECT
   id,
   source_serial_number,
@@ -147,7 +151,179 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_upsert_community_mukhi TO authenticated;
 
--- 5. Force PostgREST schema cache reload
+-- 5. User Authority Level Helper (required for birthday greetings & role checking)
+CREATE OR REPLACE FUNCTION public.get_user_authority_level(p_user_id UUID DEFAULT auth.uid())
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+DECLARE
+  v_role TEXT;
+  v_is_mukhi BOOLEAN;
+BEGIN
+  IF p_user_id IS NULL THEN
+    RETURN 'ANONYMOUS';
+  END IF;
+
+  SELECT role::text INTO v_role
+  FROM public.profiles
+  WHERE id = p_user_id AND is_active = TRUE;
+
+  IF v_role = 'SUPER_ADMIN' THEN
+    RETURN 'SUPER_ADMIN';
+  ELSIF v_role = 'ADMIN' THEN
+    RETURN 'ADMIN';
+  ELSIF v_role IN ('MUKHI', 'COMMUNITY_MUKHI') THEN
+    RETURN 'MUKHI';
+  END IF;
+
+  -- Check if actively linked in community_mukhis
+  SELECT EXISTS (
+    SELECT 1 FROM public.community_mukhis
+    WHERE (linked_user_id = p_user_id OR linked_person_id IN (
+      SELECT id FROM public.persons WHERE user_id = p_user_id
+    ))
+      AND is_active = TRUE
+      AND authority_status = 'ACTIVE'
+  ) INTO v_is_mukhi;
+
+  IF v_is_mukhi THEN
+    RETURN 'MUKHI';
+  END IF;
+
+  RETURN 'NORMAL_USER';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_user_authority_level(UUID) TO authenticated, anon;
+
+-- 6. Restricted Birthday Greeting RPC (send_birthday_greeting)
+CREATE OR REPLACE FUNCTION public.send_birthday_greeting(
+  p_recipient_person_id UUID,
+  p_message TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_caller UUID;
+  v_caller_role TEXT;
+  v_recipient_person RECORD;
+  v_is_recipient_mukhi BOOLEAN := FALSE;
+  v_is_recipient_community_head BOOLEAN := FALSE;
+BEGIN
+  -- 1. Validate authentication
+  v_caller := auth.uid();
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'You must be signed in to send birthday greetings.' USING ERRCODE = '42501';
+  END IF;
+
+  -- 2. Determine caller's authoritative role
+  v_caller_role := public.get_user_authority_level(v_caller);
+
+  -- Matrix Rule 1: Normal User is DENIED from sending birthday greetings
+  IF v_caller_role = 'NORMAL_USER' THEN
+    RAISE EXCEPTION 'Normal Users are not permitted to send birthday greetings. Only Mukhis, Admins, and Super Admins may send official greetings.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- 3. Lock & validate recipient person
+  SELECT * INTO v_recipient_person
+  FROM public.persons
+  WHERE id = p_recipient_person_id AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Recipient person record does not exist.' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Rule: Self-wishes are DENIED
+  IF v_recipient_person.user_id = v_caller THEN
+    RAISE EXCEPTION 'You cannot send a birthday greeting to yourself.' USING ERRCODE = '23514';
+  END IF;
+
+  -- 4. Check if recipient is a Mukhi
+  SELECT EXISTS (
+    SELECT 1 FROM public.community_mukhis
+    WHERE (linked_person_id = p_recipient_person_id OR (linked_user_id IS NOT NULL AND linked_user_id = v_recipient_person.user_id))
+      AND authority_status = 'ACTIVE'
+      AND is_active = TRUE
+  ) INTO v_is_recipient_mukhi;
+
+  -- 5. Check if recipient is a Community Head (e.g. Panchayat / Committee head / Executive committee member)
+  SELECT EXISTS (
+    SELECT 1 FROM public.family_members
+    WHERE person_id = p_recipient_person_id AND is_head = TRUE AND left_at IS NULL
+  ) INTO v_is_recipient_community_head;
+
+  -- Matrix Rule 2: Allowed ONLY for other Mukhis and Community Heads
+  IF NOT (v_is_recipient_mukhi OR v_is_recipient_community_head) THEN
+    RAISE EXCEPTION 'Birthday greetings can only be sent to Mukhis and Community Heads.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- 6. Send notification if recipient has a linked account
+  IF v_recipient_person.user_id IS NOT NULL THEN
+    INSERT INTO public.notifications (
+      recipient_id,
+      actor_id,
+      category,
+      type,
+      title,
+      body,
+      action_url,
+      entity_type,
+      entity_id,
+      metadata
+    ) VALUES (
+      v_recipient_person.user_id,
+      v_caller,
+      'COMMUNITY'::public.notification_category,
+      'BIRTHDAY_GREETING',
+      'Warm Birthday Wishes!',
+      COALESCE(trim(p_message), 'Wishing you a very happy birthday filled with health, joy, and prosperity from the Community Leadership!'),
+      '/people/' || p_recipient_person_id::text,
+      'persons',
+      p_recipient_person_id,
+      jsonb_build_object(
+        'sender_role', v_caller_role,
+        'recipient_person_id', p_recipient_person_id
+      )
+    );
+  END IF;
+
+  -- 7. Record audit log safely
+  BEGIN
+    PERFORM public.log_audit_event(
+      'INSERT'::public.audit_action,
+      'persons',
+      p_recipient_person_id,
+      NULL,
+      jsonb_build_object(
+        'sender_user_id', v_caller,
+        'sender_role', v_caller_role,
+        'recipient_person_id', p_recipient_person_id,
+        'message', p_message
+      ),
+      jsonb_build_object('action', 'SEND_BIRTHDAY_GREETING')
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Birthday greeting sent successfully.'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.send_birthday_greeting(UUID, TEXT) TO authenticated;
+
+-- 7. Force PostgREST schema cache reload
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

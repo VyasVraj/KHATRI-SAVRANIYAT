@@ -27,7 +27,7 @@ import type {
 } from '../types'
 
 export const AnnouncementsFeed: React.FC = () => {
-  const { user, isAuthenticated } = useAuthContext()
+  const { user, profile, isAuthenticated } = useAuthContext()
   const { t } = useLanguage()
 
   const [filters, setFilters] = useState<AnnouncementFilters>({
@@ -70,8 +70,21 @@ export const AnnouncementsFeed: React.FC = () => {
     .map((g) => ({ id: g.id, name: g.name }))
 
   // Check if current user is global moderator
+  const userRole =
+    profile?.role ??
+    (user as unknown as { role?: string })?.role ??
+    (user?.user_metadata?.role as string | undefined) ??
+    (user?.app_metadata?.role as string | undefined)
+
   const isGlobalModerator =
-    user?.role === 'admin' || user?.role === 'moderator'
+    userRole === 'SUPER_ADMIN' ||
+    userRole === 'ADMIN' ||
+    userRole === 'COMMUNITY_MODERATOR' ||
+    userRole === 'COMMUNITY_MUKHI' ||
+    userRole === 'MUKHI' ||
+    userRole === 'COMMITTEE_MEMBER' ||
+    userRole === 'admin' ||
+    userRole === 'moderator'
 
   // Mutations
   const createMutation = useCreateAnnouncement()

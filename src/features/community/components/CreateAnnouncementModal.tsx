@@ -101,7 +101,7 @@ export function CreateAnnouncementModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-announcement-title"
@@ -109,15 +109,15 @@ export function CreateAnnouncementModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="relative w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between border-b pb-3">
-          <h2 id="create-announcement-title" className="text-lg font-bold text-foreground">
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-navy-700 dark:bg-navy-900 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-navy-700">
+          <h2 id="create-announcement-title" className="text-lg font-bold text-slate-900 dark:text-white">
             New Community Announcement
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-navy-800 dark:hover:text-slate-200 transition"
             aria-label="Close modal"
           >
             <X className="h-5 w-5" />
@@ -134,12 +134,12 @@ export function CreateAnnouncementModal({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="mt-4 space-y-4">
           {/* Target Scope */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Posting Destination
             </label>
             <select
               {...register('group_id')}
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-navy-700 dark:bg-navy-800 dark:text-white"
             >
               {isGlobalModerator && (
                 <option value="">Community-Wide Notice (Global)</option>
@@ -157,19 +157,24 @@ export function CreateAnnouncementModal({
             </select>
             {!selectedGroupId && !isGlobalModerator && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                You must select a group you manage to publish announcements.
+                You must be an administrator or manage a community group to publish announcements.
+              </p>
+            )}
+            {isGlobalModerator && !selectedGroupId && (
+              <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                Publishing Community-Wide Notice to all community members.
               </p>
             )}
           </div>
 
           {/* Announcement Type */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Announcement Category
             </label>
             <select
               {...register('announcement_type')}
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-navy-700 dark:bg-navy-800 dark:text-white"
             >
               <option value="GENERAL">Notice / General Circular</option>
               <option value="URGENT">Urgent Advisory / Alert</option>
@@ -181,14 +186,14 @@ export function CreateAnnouncementModal({
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Title
             </label>
             <input
               type="text"
               {...register('title')}
               placeholder="e.g. Annual Panchayat Meeting Notice"
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-navy-700 dark:bg-navy-800 dark:text-white placeholder:text-slate-400"
             />
             {errors.title && (
               <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>
@@ -197,14 +202,14 @@ export function CreateAnnouncementModal({
 
           {/* Content */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Notice Content
             </label>
             <textarea
               rows={5}
               {...register('content')}
               placeholder="Write the full details of this announcement here..."
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-navy-700 dark:bg-navy-800 dark:text-white placeholder:text-slate-400"
             />
             {errors.content && (
               <p className="mt-1 text-xs text-red-500">{errors.content.message}</p>
@@ -212,8 +217,8 @@ export function CreateAnnouncementModal({
           </div>
 
           {/* Pin & Status Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-muted/40 p-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-50 dark:bg-navy-800/60 border border-slate-200 dark:border-navy-700 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 {...register('is_pinned')}
@@ -222,7 +227,7 @@ export function CreateAnnouncementModal({
               <span>Pin to top of board</span>
             </label>
 
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
               <label className="flex cursor-pointer items-center gap-1.5">
                 <input
                   type="radio"
@@ -245,19 +250,19 @@ export function CreateAnnouncementModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-3">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-navy-700">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="rounded-lg border border-slate-300 dark:border-navy-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-navy-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              disabled={isLoading || (!isGlobalModerator && userManagedGroups.length === 0)}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition shadow-sm"
             >
               {isLoading ? 'Publishing...' : 'Create Announcement'}
             </button>

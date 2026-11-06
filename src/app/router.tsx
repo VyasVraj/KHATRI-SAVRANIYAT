@@ -224,6 +224,51 @@ const router = createBrowserRouter([
               },
             ],
           },
+          // Route Aliases & Redirects for notification action_urls and legacy links
+          {
+            path: '/claims',
+            element: <Navigate to={ROUTES.CLAIM_REVIEW_QUEUE} replace />,
+          },
+          {
+            path: '/verification',
+            element: <Navigate to={ROUTES.VERIFICATION_REVIEW_QUEUE} replace />,
+          },
+          {
+            path: '/verifications',
+            element: <Navigate to={ROUTES.VERIFICATION_REVIEW_QUEUE} replace />,
+          },
+          {
+            path: '/community/groups',
+            element: <Navigate to={ROUTES.COMMUNITY} replace />,
+          },
+          {
+            path: '/community/groups/*',
+            element: <Navigate to={ROUTES.COMMUNITY} replace />,
+          },
+          {
+            path: '/community/events',
+            element: <Navigate to="/community?tab=events" replace />,
+          },
+          {
+            path: '/community/events/*',
+            element: <Navigate to="/community?tab=events" replace />,
+          },
+          {
+            path: '/family/media',
+            element: <Navigate to={ROUTES.FAMILIES} replace />,
+          },
+          {
+            path: '/family/media/*',
+            element: <Navigate to={ROUTES.FAMILIES} replace />,
+          },
+          {
+            path: '/family/history',
+            element: <Navigate to={ROUTES.FAMILIES} replace />,
+          },
+          {
+            path: '/family/history/*',
+            element: <Navigate to={ROUTES.FAMILIES} replace />,
+          },
           // Platform Administration routes (Phase 13)
           {
             element: <AdminRoute />,

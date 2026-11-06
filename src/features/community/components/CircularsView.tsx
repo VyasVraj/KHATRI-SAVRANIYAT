@@ -62,13 +62,18 @@ export const CircularsView: React.FC = () => {
     (user?.user_metadata?.role as string | undefined) ??
     (user?.app_metadata?.role as string | undefined)
 
-  const isAuthorizedPublisher =
+  const isGlobalModerator =
     userRole === 'SUPER_ADMIN' ||
     userRole === 'ADMIN' ||
     userRole === 'COMMUNITY_MODERATOR' ||
+    userRole === 'COMMUNITY_MUKHI' ||
+    userRole === 'MUKHI' ||
     userRole === 'COMMITTEE_MEMBER' ||
     userRole === 'admin' ||
-    userRole === 'moderator' ||
+    userRole === 'moderator'
+
+  const isAuthorizedPublisher =
+    isGlobalModerator ||
     userManagedGroups.length > 0
 
   const createMutation = useCreateAnnouncement()
@@ -263,13 +268,7 @@ export const CircularsView: React.FC = () => {
           onSubmit={handleCreateNotice}
           isLoading={createMutation.isPending}
           userManagedGroups={userManagedGroups}
-          isGlobalModerator={
-            user?.role === 'SUPER_ADMIN' ||
-            user?.role === 'ADMIN' ||
-            user?.role === 'COMMUNITY_MODERATOR' ||
-            user?.role === 'admin' ||
-            user?.role === 'moderator'
-          }
+          isGlobalModerator={isGlobalModerator}
         />
       )}
     </div>

@@ -17,6 +17,7 @@ import { formatRelativeTime } from '@/utils/common'
 import { NotificationCategoryIcon } from './NotificationCategoryIcon'
 import { NOTIFICATION_CATEGORY_LABELS } from '../types'
 import type { NotificationItem } from '../types'
+import { resolveNotificationRoute } from '../utils/routeMapping'
 
 export interface NotificationItemRowProps {
   notification: NotificationItem
@@ -61,9 +62,10 @@ export function NotificationItemRow({
       onMarkRead(notification.id)
     }
 
-    if (hasAction && notification.action_url) {
+    const targetUrl = resolveNotificationRoute(notification.action_url)
+    if (targetUrl) {
       onNavigate?.()
-      navigate(notification.action_url)
+      navigate(targetUrl)
     }
   }
 

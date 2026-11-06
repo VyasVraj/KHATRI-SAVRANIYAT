@@ -23,6 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { NotificationCategoryIcon } from './NotificationCategoryIcon'
 import { NOTIFICATION_CATEGORY_LABELS, type NotificationItem } from '../types'
+import { resolveNotificationRoute } from '../utils/routeMapping'
 
 export interface NotificationDetailModalProps {
   notification: NotificationItem | null
@@ -60,8 +61,9 @@ export function NotificationDetailModal({
       onMarkRead(notification.id)
     }
     onClose()
-    if (hasAction && notification.action_url) {
-      navigate(notification.action_url)
+    const targetUrl = resolveNotificationRoute(notification.action_url)
+    if (targetUrl) {
+      navigate(targetUrl)
     }
   }
 
