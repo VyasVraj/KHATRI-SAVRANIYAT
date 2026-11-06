@@ -11,6 +11,8 @@ import { CommitteeDirectoryView } from '@/features/community/components/Committe
 import { MukhiFormModal } from '@/features/community/components/MukhiFormModal'
 import * as authContext from '@/features/auth/context/AuthContext'
 import type { User } from '@supabase/supabase-js'
+import type { ProfileRow } from '@/types'
+import type { MukhiLeaderItem } from '@/features/community/types'
 
 vi.mock('@/features/auth/context/AuthContext')
 vi.mock('@/features/community/services/community-mukhis.service', async () => {
@@ -38,10 +40,10 @@ describe('1. Community Navigation Tab Text Visibility & Responsiveness', () => {
         id: 'admin-user-id',
         role: 'SUPER_ADMIN',
         full_name: 'Super Admin',
-      } as any,
+      } as unknown as ProfileRow,
       isAuthenticated: true,
       isLoading: false,
-    } as any)
+    } as unknown as ReturnType<typeof authContext.useAuthContext>)
   })
 
   it('renders active Circulars tab with high contrast text and badge without blinding dark:text-slate-100', () => {
@@ -112,10 +114,10 @@ describe('2. Executive Committee Designation Dropdown', () => {
         id: 'admin-user-id',
         role: 'SUPER_ADMIN',
         full_name: 'Super Admin',
-      } as any,
+      } as unknown as ProfileRow,
       isAuthenticated: true,
       isLoading: false,
-    } as any)
+    } as unknown as ReturnType<typeof authContext.useAuthContext>)
   })
 
   it('renders official designations in designation select dropdown', () => {
@@ -161,7 +163,7 @@ describe('3. Mukhi Form Modal with Existing Person Search & Gotra/Nukh', () => {
   })
 
   it('renders prefilled details when editing an existing Mukhi', () => {
-    const mockMukhi: any = {
+    const mockMukhi: MukhiLeaderItem = {
       id: 'mukhi-uuid-1',
       name: 'Mukhi Vasant Kumar Jamandas Pamnani',
       gram: 'Bhavnagar',
@@ -170,6 +172,13 @@ describe('3. Mukhi Form Modal with Existing Person Search & Gotra/Nukh', () => {
       nukh: 'Pamnani',
       authority_status: 'ACTIVE',
       person_id: 'person-uuid-1',
+      user_id: null,
+      designation: 'Panchayat Mukhi',
+      role: 'MUKHI',
+      is_verified: true,
+      is_active: true,
+      status: 'ACTIVE',
+      profile_privacy: 'COMMUNITY',
     }
 
     const html = renderToStaticMarkup(

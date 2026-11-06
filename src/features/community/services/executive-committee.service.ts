@@ -13,6 +13,7 @@ export interface ExecutiveCommitteeMember {
   serial_number: number
   designation: string
   full_name: string
+  gotra?: string | null
   nukh: string
   city: string
   mobile_number: string
@@ -173,6 +174,94 @@ export async function getExecutiveCommitteeMember(
   }
 }
 
+export interface CommitteePersonCandidate {
+  id: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  full_name: string
+  gender?: string | null
+  city?: string | null
+  birth_place?: string | null
+  gotra?: string | null
+  nukh?: string | null
+  phone?: string | null
+}
+
+/**
+ * Searches existing community census persons by full name, first name, middle name,
+ * surname, mobile number, or UUID to autofill the Executive Committee form.
+ * Does NOT mutate public.persons or create duplicate person records.
+ */
+export async function searchPersonsForCommittee(
+  query: string
+): Promise<CommitteePersonCandidate[]> {
+  const q = query.trim()
+  if (!q || q.length < 2) return []
+
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q)
+    const sanitized = q.replace(/[,()"\\]/g, ' ').replace(/\s+/g, ' ').trim()
+
+    // 1. Direct UUID search if UUID format
+    if (isUuid) {
+      const { data } = await supabase
+        .from('persons')
+        .select('id, first_name, middle_name, last_name, gender, birth_place, gotra, nukh, phone')
+        .eq('id', q)
+        .maybeSingle()
+
+      if (data) {
+        return [
+          {
+            id: data.id,
+            first_name: data.first_name,
+            middle_name: data.middle_name,
+            last_name: data.last_name,
+            full_name: [data.first_name, data.middle_name, data.last_name].filter(Boolean).join(' '),
+            gender: data.gender,
+            birth_place: data.birth_place,
+            city: data.birth_place,
+            gotra: data.gotra,
+            nukh: data.nukh,
+            phone: data.phone,
+          },
+        ]
+      }
+    }
+
+    // 2. Query community_persons or persons table with fuzzy / partial matching
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pData, error } = await (supabase.from as any)('persons')
+      .select('id, first_name, middle_name, last_name, gender, birth_place, gotra, nukh, phone, phone_secondary')
+      .or(
+        `first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%,middle_name.ilike.%${sanitized}%,birth_place.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,phone_secondary.ilike.%${sanitized}%`
+      )
+      .limit(10)
+
+    if (error || !pData || pData.length === 0) {
+      return []
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (pData as any[]).map((p) => ({
+      id: p.id,
+      first_name: p.first_name,
+      middle_name: p.middle_name,
+      last_name: p.last_name,
+      full_name: [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' '),
+      gender: p.gender,
+      birth_place: p.birth_place,
+      city: p.birth_place,
+      gotra: p.gotra,
+      nukh: p.nukh,
+      phone: p.phone || p.phone_secondary,
+    }))
+  } catch {
+    return []
+  }
+}
+
 /**
  * Admin-only: Create or update an official Executive Committee record.
  */
@@ -190,13 +279,64 @@ export async function upsertExecutiveCommitteeMember(
       p_city: member.city || '',
       p_mobile_number: member.mobile_number || '',
       p_is_active: member.is_active ?? true,
+      p_gotra: member.gotra?.trim() || null,
+      p_linked_person_id: member.linked_person_id || null,
     })
 
-    if (error) {
-      return { data: null, error: new Error(error.message) }
+    if (!error && data) {
+      return { data: data as ExecutiveCommitteeMember, error: null }
     }
 
-    return { data: data as ExecutiveCommitteeMember, error: null }
+    // Fallback: direct table mutation if RPC has legacy signature or is temporarily unavailable
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: Record<string, any> = {
+      designation: member.designation?.trim() || 'Member',
+      full_name: member.full_name?.trim() || '',
+      gotra: member.gotra?.trim() || null,
+      nukh: member.nukh?.trim() || '',
+      city: member.city?.trim() || '',
+      mobile_number: member.mobile_number?.trim() || '',
+      linked_person_id: member.linked_person_id || null,
+      is_active: member.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (member.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: updated, error: updError } = await (supabase.from as any)('executive_committee_members')
+        .update(payload)
+        .eq('id', member.id)
+        .select()
+        .single()
+
+      if (updError) {
+        return { data: null, error: new Error(updError.message) }
+      }
+      return { data: updated as ExecutiveCommitteeMember, error: null }
+    } else {
+      if (member.serial_number) {
+        payload.serial_number = member.serial_number
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: maxRow } = await (supabase.from as any)('executive_committee_members')
+          .select('serial_number')
+          .order('serial_number', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        payload.serial_number = ((maxRow as { serial_number?: number } | null)?.serial_number ?? 31) + 1
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: inserted, error: insError } = await (supabase.from as any)('executive_committee_members')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (insError) {
+        return { data: null, error: new Error(insError.message) }
+      }
+      return { data: inserted as ExecutiveCommitteeMember, error: null }
+    }
   } catch (err) {
     return {
       data: null,

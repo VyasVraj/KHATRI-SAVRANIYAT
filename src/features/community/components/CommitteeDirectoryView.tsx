@@ -16,7 +16,7 @@
  *   NORMAL USER and MUKHI roles are strictly read-only.
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Award,
   Search,
@@ -33,12 +33,22 @@ import {
   Eye,
   X,
   ArrowUpDown,
+  UserCheck,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { useLanguage } from '@/features/i18n'
 import { PLATFORM_ADMIN_ROLES } from '@/constants/app'
 import { useExecutiveCommittee } from '../hooks/useExecutiveCommittee'
-import type { ExecutiveCommitteeMember } from '../services/executive-committee.service'
+import {
+  searchPersonsForCommittee,
+  type ExecutiveCommitteeMember,
+  type CommitteePersonCandidate,
+} from '../services/executive-committee.service'
+import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
+import { isValidNukhForGotra } from '@/constants/gotraNukh'
 
 type SortOption = 'serial_asc' | 'name_asc' | 'name_desc' | 'city_asc'
 
@@ -81,6 +91,97 @@ export const CommitteeDirectoryView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [deactivatingMember, setDeactivatingMember] = useState<ExecutiveCommitteeMember | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Search Existing Community Person State for Committee Form
+  const [personSearchQuery, setPersonSearchQuery] = useState('')
+  const [isSearchingPerson, setIsSearchingPerson] = useState(false)
+  const [personSearchResults, setPersonSearchResults] = useState<CommitteePersonCandidate[]>([])
+  const [selectedPersonCandidate, setSelectedPersonCandidate] = useState<CommitteePersonCandidate | null>(null)
+  const [personGotraWarning, setPersonGotraWarning] = useState<string | null>(null)
+
+  // Debounced live search for existing community person
+  useEffect(() => {
+    const trimmed = personSearchQuery.trim()
+    if (trimmed.length < 2) {
+      setPersonSearchResults([])
+      setIsSearchingPerson(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingPerson(true)
+      try {
+        const results = await searchPersonsForCommittee(trimmed)
+        setPersonSearchResults(results)
+      } catch {
+        setPersonSearchResults([])
+      } finally {
+        setIsSearchingPerson(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [personSearchQuery])
+
+  // Select an existing person and autofill the form
+  const handleSelectPersonForCommittee = (candidate: CommitteePersonCandidate) => {
+    setSelectedPersonCandidate(candidate)
+    setPersonSearchQuery('')
+    setPersonSearchResults([])
+
+    // Honorific preservation / inference
+    let formattedName = candidate.full_name
+    const lower = formattedName.toLowerCase()
+    if (!lower.startsWith('shri ') && !lower.startsWith('smt. ') && !lower.startsWith('mukhi ') && !lower.startsWith('dr. ')) {
+      const honorific = candidate.gender === 'FEMALE' ? 'Smt. ' : 'Shri '
+      formattedName = `${honorific}${formattedName}`
+    }
+
+    // Check Gotra and Nukh compatibility against official register
+    let validNukh = candidate.nukh || ''
+    if (candidate.gotra && candidate.nukh) {
+      if (!isValidNukhForGotra(candidate.gotra, candidate.nukh)) {
+        setPersonGotraWarning(
+          `Notice: The person's registered Gotra (${candidate.gotra}) and Nukh (${candidate.nukh}) combination is not in the official directory. You can select the corrected values below.`
+        )
+        validNukh = ''
+      } else {
+        setPersonGotraWarning(null)
+      }
+    } else {
+      setPersonGotraWarning(null)
+    }
+
+    setEditMember((prev) => ({
+      ...prev,
+      full_name: formattedName,
+      gotra: candidate.gotra || prev?.gotra || '',
+      nukh: validNukh || prev?.nukh || '',
+      city: candidate.city || candidate.birth_place || prev?.city || '',
+      mobile_number: candidate.phone || prev?.mobile_number || '',
+      linked_person_id: candidate.id,
+    }))
+  }
+
+  // Clear selected existing person
+  const handleClearSelectedPerson = () => {
+    setSelectedPersonCandidate(null)
+    setPersonGotraWarning(null)
+    setEditMember((prev) => ({
+      ...prev,
+      linked_person_id: null,
+    }))
+  }
+
+  const handleCloseEditModal = () => {
+    setIsAddModalOpen(false)
+    setEditMember(null)
+    setSelectedPersonCandidate(null)
+    setPersonSearchQuery('')
+    setPersonSearchResults([])
+    setPersonGotraWarning(null)
+    setFormError(null)
+  }
 
   // Derived filter options
   const designations = useMemo(() => {
@@ -196,6 +297,10 @@ export const CommitteeDirectoryView: React.FC = () => {
       setFormError('Full name is required.')
       return
     }
+    if (!editMember?.gotra?.trim()) {
+      setFormError('Gotra is required.')
+      return
+    }
     if (!editMember?.nukh?.trim()) {
       setFormError('Nukh / Lineage is required.')
       return
@@ -205,11 +310,22 @@ export const CommitteeDirectoryView: React.FC = () => {
       return
     }
 
+    if (!isValidNukhForGotra(editMember.gotra, editMember.nukh)) {
+      setFormError(
+        `Nukh "${editMember.nukh}" does not belong to Gotra "${editMember.gotra}" according to the official Brahma Khatri directory.`
+      )
+      return
+    }
+
     setFormError(null)
     try {
       await upsertMember(editMember)
       setIsAddModalOpen(false)
       setEditMember(null)
+      setSelectedPersonCandidate(null)
+      setPersonSearchQuery('')
+      setPersonSearchResults([])
+      setPersonGotraWarning(null)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save committee member.')
     }
@@ -271,12 +387,18 @@ export const CommitteeDirectoryView: React.FC = () => {
                   setEditMember({
                     designation: 'Member',
                     full_name: '',
+                    gotra: '',
                     nukh: '',
                     city: '',
                     mobile_number: '',
                     is_active: true,
-                    serial_number: members.length + 1,
+                    serial_number: (members.length > 0 ? Math.max(...members.map((m) => m.serial_number)) : 31) + 1,
+                    linked_person_id: null,
                   })
+                  setSelectedPersonCandidate(null)
+                  setPersonSearchQuery('')
+                  setPersonSearchResults([])
+                  setPersonGotraWarning(null)
                   setFormError(null)
                   setIsAddModalOpen(true)
                 }}
@@ -618,18 +740,14 @@ export const CommitteeDirectoryView: React.FC = () => {
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
         >
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-navy-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-navy-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-navy-100">
               <h3 className="text-base font-bold text-navy-950">
                 {editMember?.id ? 'Edit Committee Member' : 'Add Executive Committee Member'}
               </h3>
               <button
                 type="button"
-                onClick={() => {
-                  setIsAddModalOpen(false)
-                  setEditMember(null)
-                  setFormError(null)
-                }}
+                onClick={handleCloseEditModal}
                 className="p-1 rounded-md text-navy-400 hover:text-navy-700 hover:bg-navy-50"
               >
                 <X className="h-5 w-5" />
@@ -643,11 +761,102 @@ export const CommitteeDirectoryView: React.FC = () => {
             )}
 
             <form onSubmit={handleSaveMember} className="space-y-4 text-xs">
+              {/* 1. SEARCH EXISTING COMMUNITY PERSON */}
+              <div className="rounded-xl border border-navy-200 bg-navy-50/60 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="search-existing-community-person" className="flex items-center gap-1.5 font-bold text-navy-900 text-xs">
+                    <UserCheck className="h-4 w-4 text-brand-600" />
+                    <span>Search Existing Community Person</span>
+                  </label>
+                  <span className="text-[11px] text-navy-600">Autofill from registry</span>
+                </div>
+
+                {selectedPersonCandidate || editMember?.linked_person_id ? (
+                  <div className="flex items-center justify-between rounded-lg bg-white p-2.5 border border-navy-200 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-xs font-semibold text-navy-950 block">
+                          {selectedPersonCandidate?.full_name || editMember?.full_name}
+                          {selectedPersonCandidate?.city ? ` (${selectedPersonCandidate.city})` : ''}
+                        </span>
+                        <span className="text-[10px] text-navy-500 font-mono">
+                          Linked Person ID: {selectedPersonCandidate?.id || editMember?.linked_person_id}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearSelectedPerson}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-800 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Clear / Unlink</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="relative">
+                      <input
+                        id="search-existing-community-person"
+                        type="text"
+                        value={personSearchQuery}
+                        onChange={(e) => setPersonSearchQuery(e.target.value)}
+                        placeholder="Search by Full Name, Mobile Number, or Person ID..."
+                        className="w-full rounded-lg border border-navy-200 bg-white pl-9 pr-8 py-2 text-xs text-navy-950 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-navy-400" />
+                      {isSearchingPerson && (
+                        <Loader2 className="absolute right-3 top-2.5 h-3.5 w-3.5 animate-spin text-brand-600" />
+                      )}
+                    </div>
+
+                    {/* Autocomplete Results Dropdown */}
+                    {personSearchResults.length > 0 && (
+                      <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-navy-200 bg-white shadow-xl text-xs divide-y divide-navy-100">
+                        {personSearchResults.map((cand) => (
+                          <button
+                            key={cand.id}
+                            type="button"
+                            onClick={() => handleSelectPersonForCommittee(cand)}
+                            className="w-full text-left p-2.5 hover:bg-navy-50 transition-colors flex items-center justify-between"
+                          >
+                            <div>
+                              <span className="font-semibold text-navy-950 block">
+                                {cand.full_name}
+                              </span>
+                              <span className="text-[11px] text-navy-500">
+                                {cand.city || cand.birth_place || 'Location unlisted'}
+                                {cand.phone ? ` • Mobile: ${cand.phone}` : ''}
+                                {cand.gotra ? ` • Gotra: ${cand.gotra}` : ''}
+                                {cand.nukh ? ` • Nukh: ${cand.nukh}` : ''}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">
+                              Select
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {personGotraWarning && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-2 text-[11px] text-amber-800 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                    <span>{personGotraWarning}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. SERIAL NUMBER & DESIGNATION */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Serial Number */}
                 <div>
-                  <label className="block font-semibold text-navy-700 mb-1">Serial Number *</label>
+                  <label htmlFor="committee-serial-number" className="block font-semibold text-navy-700 mb-1">Serial Number *</label>
                   <input
+                    id="committee-serial-number"
                     type="number"
                     value={editMember?.serial_number ?? ''}
                     onChange={(e) =>
@@ -709,12 +918,13 @@ export const CommitteeDirectoryView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Full Name */}
+              {/* 3. FULL NAME */}
               <div>
-                <label className="block font-semibold text-navy-700 mb-1">
+                <label htmlFor="committee-full-name" className="block font-semibold text-navy-700 mb-1">
                   Full Name (with honorific, e.g. Shri / Mukhi / Smt.) *
                 </label>
                 <input
+                  id="committee-full-name"
                   type="text"
                   value={editMember?.full_name ?? ''}
                   onChange={(e) =>
@@ -726,26 +936,43 @@ export const CommitteeDirectoryView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Nukh / Lineage */}
-                <div>
-                  <label className="block font-semibold text-navy-700 mb-1">Nukh / Lineage *</label>
-                  <input
-                    type="text"
-                    value={editMember?.nukh ?? ''}
-                    onChange={(e) =>
-                      setEditMember((prev) => ({ ...prev, nukh: e.target.value }))
-                    }
-                    placeholder="e.g. Karatela, Kapoor, Khuha"
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
+              {/* 4. GOTRA & DEPENDENT NUKH SELECT (29 OFFICIAL GOTRAS) */}
+              <div className="rounded-xl border border-navy-200 bg-navy-50/40 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-navy-900 text-xs">
+                    Community Lineage (Brahma Khatri Gotra & Nukh Register)
+                  </span>
+                  <span className="text-[10px] text-navy-500 font-medium">29 Official Gotras</span>
                 </div>
+                <GotraNukhSelect
+                  selectedGotra={editMember?.gotra || ''}
+                  selectedNukh={editMember?.nukh || ''}
+                  onGotraChange={(newGotra) => {
+                    setEditMember((prev) => ({
+                      ...prev,
+                      gotra: newGotra,
+                      nukh: '',
+                    }))
+                  }}
+                  onNukhChange={(newNukh) => {
+                    setEditMember((prev) => ({
+                      ...prev,
+                      nukh: newNukh,
+                    }))
+                  }}
+                  gotraId="committee-gotra-select"
+                  nukhId="committee-nukh-select"
+                  required={true}
+                />
+              </div>
 
+              {/* 5. CITY & MOBILE NUMBER */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* City */}
                 <div>
-                  <label className="block font-semibold text-navy-700 mb-1">City *</label>
+                  <label htmlFor="committee-city" className="block font-semibold text-navy-700 mb-1">City *</label>
                   <input
+                    id="committee-city"
                     type="text"
                     value={editMember?.city ?? ''}
                     onChange={(e) =>
@@ -756,20 +983,21 @@ export const CommitteeDirectoryView: React.FC = () => {
                     className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
-              </div>
 
-              {/* Mobile Number */}
-              <div>
-                <label className="block font-semibold text-navy-700 mb-1">Mobile Number</label>
-                <input
-                  type="text"
-                  value={editMember?.mobile_number ?? ''}
-                  onChange={(e) =>
-                    setEditMember((prev) => ({ ...prev, mobile_number: e.target.value }))
-                  }
-                  placeholder="10-digit mobile number"
-                  className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
+                {/* Mobile Number */}
+                <div>
+                  <label htmlFor="committee-mobile-number" className="block font-semibold text-navy-700 mb-1">Mobile Number</label>
+                  <input
+                    id="committee-mobile-number"
+                    type="tel"
+                    value={editMember?.mobile_number ?? ''}
+                    onChange={(e) =>
+                      setEditMember((prev) => ({ ...prev, mobile_number: e.target.value }))
+                    }
+                    placeholder="10-digit mobile number"
+                    className="w-full px-3 py-2 rounded-lg border border-navy-200 text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
               </div>
 
               {/* Active Status Checkbox */}
@@ -791,11 +1019,7 @@ export const CommitteeDirectoryView: React.FC = () => {
               <div className="pt-3 border-t border-navy-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false)
-                    setEditMember(null)
-                    setFormError(null)
-                  }}
+                  onClick={handleCloseEditModal}
                   className="px-4 py-2 rounded-lg bg-navy-100 hover:bg-navy-200 text-navy-800 font-semibold"
                 >
                   Cancel
