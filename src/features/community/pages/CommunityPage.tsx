@@ -17,12 +17,10 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Users,
   Bell,
   Calendar,
   ArrowRight,
   Pin,
-  CheckCircle,
   Clock,
   Cake,
   Moon,
@@ -32,7 +30,6 @@ import {
   FileText,
 } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
-import { useGroups } from '../hooks/useGroups'
 import { useAnnouncements } from '../hooks/useAnnouncements'
 import { useEvents } from '../hooks/useEvents'
 import { useBirthdays } from '../hooks/useBirthdays'
@@ -41,7 +38,6 @@ import { useMukhiDirectory } from '../hooks/useMukhiDirectory'
 import { useCommittees } from '../hooks/useCommittees'
 import { usePanchayat } from '../hooks/usePanchayat'
 import { useCirculars } from '../hooks/useCirculars'
-import { GroupsCatalog } from '../components/GroupsCatalog'
 import { AnnouncementsFeed } from '../components/AnnouncementsFeed'
 import { EventsFeed } from '../components/EventsFeed'
 import { BirthdaysFeed } from '../components/BirthdaysFeed'
@@ -52,7 +48,7 @@ import { PanchayatDirectoryView } from '../components/PanchayatDirectoryView'
 import { CircularsView } from '../components/CircularsView'
 
 export type CommunityTab =
-  | 'groups'
+  | 'mukhi'
   | 'circulars'
   | 'committees'
   | 'panchayat'
@@ -60,7 +56,7 @@ export type CommunityTab =
   | 'events'
   | 'birthdays'
   | 'panchang'
-  | 'mukhi'
+  | 'groups'
 
 export function CommunityPage() {
   const { t } = useLanguage()
@@ -75,16 +71,15 @@ export function CommunityPage() {
     rawTab === 'events' ||
     rawTab === 'birthdays' ||
     rawTab === 'panchang' ||
-    rawTab === 'mukhi'
+    rawTab === 'groups'
       ? rawTab
-      : 'groups'
+      : 'mukhi'
 
   const handleTabChange = (newTab: CommunityTab) => {
     setSearchParams({ tab: newTab }, { replace: true })
   }
 
   // Fetch summary counts for overview cards
-  const { data: groups, isLoading: groupsLoading } = useGroups()
   const { data: announcements, isLoading: announcementsLoading } =
     useAnnouncements()
   const { data: events, isLoading: eventsLoading } = useEvents()
@@ -100,9 +95,6 @@ export function CommunityPage() {
   const { totalCount: panchayatCount, isLoading: panchayatLoading } = usePanchayat()
   const { totalCount: circularsCount, isLoading: circularsLoading } = useCirculars()
 
-  const groupsCount = groups?.length ?? 0
-  const verifiedGroupsCount = groups?.filter((g) => g.is_verified).length ?? 0
-
   const announcementsCount = announcements?.length ?? 0
   const pinnedAnnouncementsCount =
     announcements?.filter((a) => a.is_pinned).length ?? 0
@@ -117,12 +109,11 @@ export function CommunityPage() {
   // Keyboard navigation for WAI-ARIA tablist
   const handleTabKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const tabs: CommunityTab[] = [
-      'groups',
+      'mukhi',
       'announcements',
       'events',
       'birthdays',
       'panchang',
-      'mukhi',
       'circulars',
       'committees',
       'panchayat',
@@ -139,7 +130,7 @@ export function CommunityPage() {
       handleTabChange(prevTab)
     } else if (e.key === 'Home') {
       e.preventDefault()
-      handleTabChange('groups')
+      handleTabChange('mukhi')
     } else if (e.key === 'End') {
       e.preventDefault()
       handleTabChange('panchayat')
@@ -163,46 +154,43 @@ export function CommunityPage() {
 
       {/* Community Pulse Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 community-pulse-metrics">
-        {/* Groups Metric Card */}
+        {/* Mukhi Directory Metric Card (Replacing Groups & Associations) */}
         <button
           type="button"
-          onClick={() => handleTabChange('groups')}
+          onClick={() => handleTabChange('mukhi')}
           className={`flex min-h-[44px] h-full min-h-[195px] flex-col justify-between rounded-xl border p-4 sm:p-5 text-left transition-all hover:shadow-md ${
-            activeTab === 'groups'
-              ? 'border-blue-600 bg-blue-50/40 shadow-sm ring-2 ring-blue-500/20'
+            activeTab === 'mukhi'
+              ? 'border-indigo-600 bg-indigo-50/40 shadow-sm ring-2 ring-indigo-500/20'
               : 'border-slate-200 bg-white hover:border-slate-300'
           }`}
-          aria-label={`View Groups: ${groupsCount} registered`}
+          aria-label={`View Mukhi Directory: ${mukhiCount} leaders`}
         >
           <div>
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 shrink-0">
-                <Users className="h-5 w-5" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 shrink-0">
+                <Shield className="h-5 w-5" />
               </span>
-              {verifiedGroupsCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200 shrink-0">
-                  <CheckCircle className="h-3 w-3" />
-                  {verifiedGroupsCount} {t('community.count_verified', 'verified')}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200 shrink-0">
+                {mukhiLoading ? '...' : mukhiCount} {t('mukhi.count_leaders', 'leaders')}
+              </span>
             </div>
             <div className="mt-4">
               <div className="text-2xl font-bold text-slate-900">
-                {groupsLoading ? '...' : groupsCount}
+                {mukhiLoading ? '...' : mukhiCount}
               </div>
               <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                {t('community.pulse_groups', 'Groups & Associations')}
+                {t('mukhi.pulse_mukhi', 'Mukhi Directory')}
               </div>
               <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                 {t(
-                  'community.pulse_groups_desc',
-                  'Village wings, cultural associations & committees.'
+                  'mukhi.pulse_mukhi_desc',
+                  'Community Mukhi leaders and regional representatives.'
                 )}
               </p>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-blue-600 min-h-[24px]">
-            <span>{t('community.browse_catalog', 'Browse catalog')}</span>
+          <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-indigo-600 min-h-[24px]">
+            <span>{t('mukhi.view_directory', 'View Mukhi Directory')}</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </div>
         </button>
@@ -513,47 +501,6 @@ export function CommunityPage() {
             <ArrowRight className="h-3.5 w-3.5" />
           </div>
         </button>
-
-        {/* Mukhi Directory Metric Card */}
-        <button
-          type="button"
-          onClick={() => handleTabChange('mukhi')}
-          className={`flex min-h-[44px] h-full min-h-[195px] flex-col justify-between rounded-xl border p-4 sm:p-5 text-left transition-all hover:shadow-md ${
-            activeTab === 'mukhi'
-              ? 'border-indigo-600 bg-indigo-50/40 shadow-sm ring-2 ring-indigo-500/20'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-          aria-label={`View Mukhi Directory: ${mukhiCount} leaders`}
-        >
-          <div>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 shrink-0">
-                <Shield className="h-5 w-5" />
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200 shrink-0">
-                {mukhiLoading ? '...' : mukhiCount} {t('mukhi.count_leaders', 'leaders')}
-              </span>
-            </div>
-            <div className="mt-4">
-              <div className="text-2xl font-bold text-slate-900">
-                {mukhiLoading ? '...' : mukhiCount}
-              </div>
-              <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                {t('mukhi.pulse_mukhi', 'Mukhi Directory')}
-              </div>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {t(
-                  'mukhi.pulse_mukhi_desc',
-                  'Community elders & regional Samaj Mukhis.'
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-indigo-600 min-h-[24px]">
-            <span>{t('mukhi.view_directory', 'View directory')}</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </div>
-        </button>
       </div>
 
       {/* Navigation Tabs Bar */}
@@ -567,28 +514,28 @@ export function CommunityPage() {
           <button
             type="button"
             role="tab"
-            id="tab-groups"
-            aria-selected={activeTab === 'groups'}
-            aria-controls="panel-groups"
-            tabIndex={activeTab === 'groups' ? 0 : -1}
-            onClick={() => handleTabChange('groups')}
+            id="tab-mukhi"
+            aria-selected={activeTab === 'mukhi'}
+            aria-controls="panel-mukhi"
+            tabIndex={activeTab === 'mukhi' ? 0 : -1}
+            onClick={() => handleTabChange('mukhi')}
             className={[
               'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
-              activeTab === 'groups'
-                ? 'border-blue-600 text-blue-700 font-semibold'
+              activeTab === 'mukhi'
+                ? 'border-indigo-600 text-indigo-700 font-semibold'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
             ].join(' ')}
           >
-            <Users className="h-4 w-4" aria-hidden="true" />
-            <span>{t('community.tab_groups', 'Groups & Associations')}</span>
+            <Shield className="h-4 w-4" aria-hidden="true" />
+            <span>{t('mukhi.tab_mukhi', 'Mukhi Directory')}</span>
             <span
               className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === 'groups'
-                  ? 'bg-blue-100 text-blue-700'
+                activeTab === 'mukhi'
+                  ? 'bg-indigo-100 text-indigo-700'
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {groupsCount}
+              {mukhiCount}
             </span>
           </button>
 
@@ -707,34 +654,6 @@ export function CommunityPage() {
           <button
             type="button"
             role="tab"
-            id="tab-mukhi"
-            aria-selected={activeTab === 'mukhi'}
-            aria-controls="panel-mukhi"
-            tabIndex={activeTab === 'mukhi' ? 0 : -1}
-            onClick={() => handleTabChange('mukhi')}
-            className={[
-              'flex min-h-[44px] items-center gap-2 border-b-2 py-3 px-1 text-sm font-medium transition-colors focus:outline-none whitespace-nowrap',
-              activeTab === 'mukhi'
-                ? 'border-indigo-600 text-indigo-700 font-semibold'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
-            ].join(' ')}
-          >
-            <Shield className="h-4 w-4" aria-hidden="true" />
-            <span>{t('mukhi.tab_mukhi', 'Mukhi Directory')}</span>
-            <span
-              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === 'mukhi'
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {mukhiCount}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
             id="tab-circulars"
             aria-selected={activeTab === 'circulars'}
             aria-controls="panel-circulars"
@@ -819,14 +738,14 @@ export function CommunityPage() {
       </div>
 
       {/* Tab Panels */}
-      {activeTab === 'groups' && (
+      {(activeTab === 'mukhi' || activeTab === 'groups') && (
         <div
-          id="panel-groups"
+          id="panel-mukhi"
           role="tabpanel"
-          aria-labelledby="tab-groups"
+          aria-labelledby="tab-mukhi"
           tabIndex={0}
         >
-          <GroupsCatalog />
+          <MukhiDirectoryView />
         </div>
       )}
 
@@ -904,17 +823,6 @@ export function CommunityPage() {
           tabIndex={0}
         >
           <PanchangView />
-        </div>
-      )}
-
-      {activeTab === 'mukhi' && (
-        <div
-          id="panel-mukhi"
-          role="tabpanel"
-          aria-labelledby="tab-mukhi"
-          tabIndex={0}
-        >
-          <MukhiDirectoryView />
         </div>
       )}
     </div>

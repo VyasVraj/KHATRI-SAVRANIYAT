@@ -19,6 +19,7 @@ import { useSoftDeleteFamily } from '../hooks/useFamilyMutations'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { FamilyDetail } from '../components/FamilyDetail'
 import { FamilyVerificationSection } from '@/features/verification'
+import { FamilyClaimRequestsSection } from '@/features/claims'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
@@ -164,6 +165,15 @@ export function FamilyDetailPage() {
       <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
         <FamilyDetail family={family} canManageMembers={canManageMembers} />
       </div>
+
+      {/* Head of Family: Profile Claim Requests Review Section */}
+      {canManageMembers && familyId && (
+        <FamilyClaimRequestsSection
+          familyId={familyId}
+          familyName={family.family_name}
+          isHeadOrManager={canManageMembers}
+        />
+      )}
 
       {/* Community verification section */}
       <div className="mt-6">

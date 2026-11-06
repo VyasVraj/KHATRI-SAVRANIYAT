@@ -187,14 +187,12 @@ describe('CommunityPage Dashboard Component', () => {
     const html = renderWithProviders(<CommunityPage />)
 
     // Pulse cards
-    expect(html).toContain('Groups &amp; Associations')
+    expect(html).toContain('Mukhi Directory')
     expect(html).toContain('Notice Board')
     expect(html).toContain('Events &amp; Calendar')
 
     // Metric counts
-    expect(html).toContain('2') // 2 groups
     expect(html).toContain('1') // 1 notice / 1 event
-    expect(html).toContain('1 verified')
     expect(html).toContain('1 pinned')
     expect(html).toContain('1 upcoming')
   })
@@ -203,22 +201,21 @@ describe('CommunityPage Dashboard Component', () => {
     const html = renderWithProviders(<CommunityPage />)
 
     expect(html).toContain('role="tablist"')
-    expect(html).toContain('id="tab-groups"')
+    expect(html).toContain('id="tab-mukhi"')
     expect(html).toContain('id="tab-announcements"')
     expect(html).toContain('id="tab-events"')
 
     // Tab buttons have count indicators
-    expect(html).toContain('Groups &amp; Associations')
+    expect(html).toContain('Mukhi Directory')
     expect(html).toContain('Notice Board')
     expect(html).toContain('Events &amp; Calendar')
   })
 
-  it('defaults to groups catalog tab when no tab param is specified', () => {
+  it('defaults to mukhi directory tab when no tab param is specified', () => {
     const html = renderWithProviders(<CommunityPage />, ['/community'])
 
-    expect(html).toContain('id="panel-groups"')
-    expect(html).toContain('aria-labelledby="tab-groups"')
-    expect(html).toContain('Bhuj Youth Association')
+    expect(html).toContain('id="panel-mukhi"')
+    expect(html).toContain('aria-labelledby="tab-mukhi"')
   })
 
   it('activates announcements feed when ?tab=announcements is in URL', () => {

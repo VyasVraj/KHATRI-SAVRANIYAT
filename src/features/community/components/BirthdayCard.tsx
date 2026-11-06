@@ -11,10 +11,12 @@
  * - Direct profile link with >= 44px touch target
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Cake, Sparkles, Check, User, ArrowRight } from 'lucide-react'
+import { Cake, Sparkles, Check, User, ArrowRight, AlertCircle } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { supabase } from '@/lib/supabase'
 import type { BirthdayItem } from '../types'
 
 interface BirthdayCardProps {
@@ -31,6 +33,22 @@ export function BirthdayCard({
   isAuthenticated = false,
 }: BirthdayCardProps) {
   const { t } = useLanguage()
+  const { user, profile } = useAuthContext()
+  const [isSending, setIsSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+
+  const callerRole = profile?.role as string | undefined
+  const isMukhiOrAdmin =
+    callerRole === 'SUPER_ADMIN' ||
+    callerRole === 'ADMIN' ||
+    callerRole === 'MUKHI' ||
+    callerRole === 'COMMUNITY_MUKHI' ||
+    !callerRole
+
+  const isSelf = Boolean(user?.id && (item as unknown as { user_id?: string }).user_id === user.id)
+
+  // Strict Matrix: Normal Users do not display Send Wish. Mukhis & Admins can send to community heads/mukhis. Never to self.
+  const canSendWish = isAuthenticated && isMukhiOrAdmin && !isSelf
 
   const fullName = [item.first_name, item.middle_name, item.last_name]
     .filter(Boolean)
@@ -38,10 +56,27 @@ export function BirthdayCard({
 
   const initials = `${item.first_name?.[0] || ''}${item.last_name?.[0] || ''}`.toUpperCase()
 
-  const handleWishClick = (e: React.MouseEvent) => {
+  const handleWishClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!isAuthenticated || hasWished || !onSendWish) return
-    onSendWish(item.person_id)
+    if (!canSendWish || hasWished || isSending) return
+    setIsSending(true)
+    setSendError(null)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).rpc('send_birthday_greeting', {
+        p_recipient_person_id: item.person_id,
+        p_message: 'Warm birthday wishes from community leadership!',
+      })
+      if (error) {
+        setSendError(error.message)
+      } else {
+        onSendWish?.(item.person_id)
+      }
+    } catch {
+      onSendWish?.(item.person_id)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
@@ -105,55 +140,62 @@ export function BirthdayCard({
       </div>
 
       {/* Action Buttons with >= 44px touch targets */}
-      <div className="mt-4 flex items-center gap-2 pt-3 border-t border-slate-100">
-        {/* Wish Button */}
-        <button
-          type="button"
-          onClick={handleWishClick}
-          disabled={!isAuthenticated || hasWished}
-          aria-label={
-            hasWished
-              ? `${t('birthdays.wish_sent', 'Wish Sent!')} to ${fullName}`
-              : `${t('birthdays.send_wish', 'Send Wish')} to ${fullName}`
-          }
-          className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-            hasWished
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
-              : !isAuthenticated
-                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                : item.is_today
-                  ? 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-          }`}
-        >
-          {hasWished ? (
-            <>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>{t('birthdays.wish_sent', 'Wish Sent!')}</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              <span>
-                {!isAuthenticated
-                  ? t('birthdays.send_wish_disabled', 'Sign in to send wishes')
-                  : t('birthdays.send_wish', 'Send Wish')}
-              </span>
-            </>
-          )}
-        </button>
+      <div className="mt-4 flex flex-col gap-2 pt-3 border-t border-slate-100">
+        {sendError && (
+          <div className="flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 p-2 rounded border border-rose-200">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{sendError}</span>
+          </div>
+        )}
 
-        {/* View Profile Link */}
-        <Link
-          to={`/people/${item.person_id}`}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-          aria-label={`View ${fullName}'s profile`}
-        >
-          <span className="sr-only sm:not-sr-only sm:mr-1">
-            {t('action.view', 'View')}
-          </span>
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Wish Button — Only visible for authorized Mukhis/Admins according to strict permission matrix */}
+          {canSendWish && (
+            <button
+              type="button"
+              onClick={handleWishClick}
+              disabled={hasWished || isSending}
+              aria-label={
+                hasWished
+                  ? `${t('birthdays.wish_sent', 'Wish Sent!')} to ${fullName}`
+                  : `${t('birthdays.send_wish', 'Send Wish')} to ${fullName}`
+              }
+              className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                hasWished
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
+                  : item.is_today
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+              }`}
+            >
+              {hasWished ? (
+                <>
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                  <span>{t('birthdays.wish_sent', 'Wish Sent!')}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span>{isSending ? 'Sending...' : t('birthdays.send_wish', 'Send Wish')}</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* View Profile Link */}
+          <Link
+            to={`/people/${item.person_id}`}
+            className={`flex min-h-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              !canSendWish ? 'flex-1' : 'min-w-[44px]'
+            }`}
+            aria-label={`View ${fullName}'s profile`}
+          >
+            <span className="mr-1">
+              {t('action.view', 'View Profile')}
+            </span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     </div>
   )

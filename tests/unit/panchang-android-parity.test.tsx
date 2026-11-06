@@ -363,9 +363,9 @@ describe('ANDROID-10: Community Hub Dashboard Integration', () => {
     expect(panchangCard).toBeInTheDocument()
     expect(panchangCard.className).toContain('min-h-[44px]')
 
-    // WAI-ARIA tab navigation: 9 total tabs
+    // WAI-ARIA tab navigation: 8 total tabs (Mukhi Directory replaces Groups & Associations)
     const tabs = screen.getAllByRole('tab')
-    expect(tabs).toHaveLength(9)
+    expect(tabs).toHaveLength(8)
 
     const panchangTab = screen.getByRole('tab', { name: /panchang/i })
     expect(panchangTab).toBeInTheDocument()
@@ -383,17 +383,17 @@ describe('ANDROID-10: Community Hub Dashboard Integration', () => {
   it('supports WAI-ARIA keyboard navigation across tabs', () => {
     renderWithProviders(<CommunityPage />)
 
-    const groupsTab = screen.getByRole('tab', { name: /groups & associations/i })
-    groupsTab.focus()
+    const mukhiTab = screen.getByRole('tab', { name: /mukhi/i })
+    mukhiTab.focus()
 
     // Navigate to Panchang tab via click
     const panchangTab = screen.getByRole('tab', { name: /panchang/i })
     fireEvent.click(panchangTab)
     expect(panchangTab).toHaveAttribute('aria-selected', 'true')
 
-    // Press 'Home' to return to first tab (Groups)
+    // Press 'Home' to return to first tab (Mukhi)
     fireEvent.keyDown(panchangTab, { key: 'Home' })
-    expect(screen.getByRole('tab', { name: /groups & associations/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /mukhi/i })).toHaveAttribute('aria-selected', 'true')
   })
 })
 

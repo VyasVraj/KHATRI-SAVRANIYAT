@@ -217,7 +217,7 @@ describe('ANDROID-8 — Community Hub Android Parity Tests', () => {
       renderWithProviders(<CommunityPage />)
 
       expect(screen.getByRole('heading', { level: 1, name: /community hub/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /view groups: 2 registered/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /view mukhi directory/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /view notice board: 1 notices/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /view events: 1 events/i })).toBeInTheDocument()
     })
@@ -225,8 +225,8 @@ describe('ANDROID-8 — Community Hub Android Parity Tests', () => {
     it('enforces min-h-[44px] accessible touch targets on metric cards and tabs', () => {
       renderWithProviders(<CommunityPage />)
 
-      const groupsCard = screen.getByRole('button', { name: /view groups: 2 registered/i })
-      expect(groupsCard.className).toContain('min-h-[44px]')
+      const mukhiCard = screen.getByRole('button', { name: /view mukhi directory/i })
+      expect(mukhiCard.className).toContain('min-h-[44px]')
 
       const noticesCard = screen.getByRole('button', { name: /view notice board: 1 notices/i })
       expect(noticesCard.className).toContain('min-h-[44px]')
@@ -235,7 +235,7 @@ describe('ANDROID-8 — Community Hub Android Parity Tests', () => {
       expect(eventsCard.className).toContain('min-h-[44px]')
 
       const tabs = screen.getAllByRole('tab')
-      expect(tabs).toHaveLength(9)
+      expect(tabs).toHaveLength(8)
       tabs.forEach((tab) => {
         expect(tab.className).toContain('min-h-[44px]')
       })
@@ -244,13 +244,13 @@ describe('ANDROID-8 — Community Hub Android Parity Tests', () => {
     it('navigates tabs with keyboard arrow keys according to WAI-ARIA', () => {
       renderWithProviders(<CommunityPage />)
 
-      const groupsTab = screen.getByRole('tab', { name: /groups & associations/i })
-      groupsTab.focus()
+      const mukhiTab = screen.getByRole('tab', { name: /mukhi/i })
+      mukhiTab.focus()
 
-      fireEvent.keyDown(groupsTab, { key: 'ArrowRight' })
+      fireEvent.keyDown(mukhiTab, { key: 'ArrowRight' })
       expect(screen.getByRole('tab', { name: /notice board/i })).toHaveAttribute('aria-selected', 'true')
 
-      fireEvent.keyDown(groupsTab, { key: 'ArrowRight' })
+      fireEvent.keyDown(mukhiTab, { key: 'ArrowRight' })
       expect(screen.getByRole('tab', { name: /events & calendar/i })).toHaveAttribute('aria-selected', 'true')
     })
   })
@@ -448,20 +448,20 @@ describe('ANDROID-8 — Community Hub Android Parity Tests', () => {
       renderWithProviders(<CommunityPage />, { initialLang: 'hi' })
 
       expect(screen.getByRole('heading', { level: 1, name: 'कम्युनिटी हब' })).toBeInTheDocument()
-      expect(screen.getAllByText('समूह एवं संगठन').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('मुखिया निर्देशिका').length).toBeGreaterThan(0)
       expect(screen.getAllByText('सूचना पट्ट').length).toBeGreaterThan(0)
       expect(screen.getAllByText('कार्यक्रम एवं कैलेंडर').length).toBeGreaterThan(0)
-      expect(screen.getByText('कैटलॉग देखें')).toBeInTheDocument()
+      expect(screen.getByText('निर्देशिका देखें')).toBeInTheDocument()
     })
 
     it('renders Gujarati localized Community Hub', () => {
       renderWithProviders(<CommunityPage />, { initialLang: 'gu' })
 
       expect(screen.getByRole('heading', { level: 1, name: 'કમ્યુનિટી હબ' })).toBeInTheDocument()
-      expect(screen.getAllByText('જૂથો અને સંગઠનો').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('મુખી ડિરેક્ટરી').length).toBeGreaterThan(0)
       expect(screen.getAllByText('સૂચના બોર્ડ').length).toBeGreaterThan(0)
       expect(screen.getAllByText('કાર્યક્રમો અને કેલેન્ડર').length).toBeGreaterThan(0)
-      expect(screen.getByText('સંગ્રહ બ્રાઉઝ કરો')).toBeInTheDocument()
+      expect(screen.getByText('ડિરેક્ટરી જુઓ')).toBeInTheDocument()
     })
   })
 

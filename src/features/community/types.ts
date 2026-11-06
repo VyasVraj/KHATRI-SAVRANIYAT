@@ -394,13 +394,18 @@ export type PanchangFilterType = 'ALL' | 'OBSERVANCES' | 'FESTIVALS'
 
 export interface MukhiLeaderItem {
   id: string
+  mukhi_unique_id?: string | null
+  gram?: string | null
+  official_email?: string | null
+  authority_status?: 'ACTIVE' | 'INACTIVE' | 'REVOKED' | string
+  account_linking_status?: 'NOT_REGISTERED' | 'LINKED' | 'UNLINKED' | string
   person_id: string | null
   user_id: string | null
   name: string
   display_name?: string | null
   avatar_url?: string | null
   designation: string
-  role: 'COMMUNITY_MODERATOR' | 'ADMIN' | 'SUPER_ADMIN'
+  role: 'MUKHI' | 'COMMUNITY_MODERATOR' | 'ADMIN' | 'SUPER_ADMIN' | string
   gotra?: string | null
   nukh?: string | null
   kul?: string | null

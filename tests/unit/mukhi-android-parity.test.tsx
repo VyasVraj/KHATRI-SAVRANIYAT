@@ -341,16 +341,15 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
       renderWithProviders(<CommunityPage />)
 
       const tabs = screen.getAllByRole('tab')
-      expect(tabs).toHaveLength(9)
+      expect(tabs).toHaveLength(8)
 
       const tabIds = tabs.map((t) => t.id)
       expect(tabIds).toEqual([
-        'tab-groups',
+        'tab-mukhi',
         'tab-announcements',
         'tab-events',
         'tab-birthdays',
         'tab-panchang',
-        'tab-mukhi',
         'tab-circulars',
         'tab-committees',
         'tab-panchayat',
@@ -373,24 +372,24 @@ describe('ANDROID-11: Mukhi Leadership Directory Parity Tests', () => {
     it('cycles through all tabs with keyboard arrow keys according to WAI-ARIA', async () => {
       renderWithProviders(<CommunityPage />)
 
-      const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      groupsTab.focus()
+      const mukhiTab = screen.getByRole('tab', { name: /mukhi/i })
+      mukhiTab.focus()
 
-      // ArrowRight: groups -> announcements -> events -> birthdays -> panchang -> mukhi
-      fireEvent.keyDown(groupsTab, { key: 'ArrowRight' })
+      // ArrowRight: mukhi -> announcements (Notice Board)
+      fireEvent.keyDown(mukhiTab, { key: 'ArrowRight' })
       expect(screen.getByRole('tab', { name: /Notice Board/i })).toHaveAttribute(
         'aria-selected',
         'true'
       )
 
-      fireEvent.keyDown(groupsTab, { key: 'End' })
-      expect(screen.getByRole('tab', { name: /Panchayat/i })).toHaveAttribute(
+      fireEvent.keyDown(mukhiTab, { key: 'End' })
+      expect(screen.getByRole('tab', { name: /panchayat/i })).toHaveAttribute(
         'aria-selected',
         'true'
       )
 
-      fireEvent.keyDown(groupsTab, { key: 'Home' })
-      expect(screen.getByRole('tab', { name: /Groups/i })).toHaveAttribute(
+      fireEvent.keyDown(mukhiTab, { key: 'Home' })
+      expect(screen.getByRole('tab', { name: /mukhi/i })).toHaveAttribute(
         'aria-selected',
         'true'
       )

@@ -18,6 +18,7 @@ import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { signOut } from '@/features/auth/services/auth.service'
 import { NotificationBell } from '@/features/notifications'
 import { LanguageSelector } from '@/features/i18n'
+import { useAccessibilityFontSize } from '@/hooks/useAccessibilityFontSize'
 
 const NAV_LINKS = [
   { label: 'Discover', href: ROUTES.DISCOVER },
@@ -41,6 +42,7 @@ export function AppHeader() {
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { isAuthenticated, profile, isLoading } = useAuthContext()
+  const { fontSize, decreaseFontSize, increaseFontSize, resetFontSize } = useAccessibilityFontSize()
 
   // Close user dropdown on outside click
   useEffect(() => {
@@ -233,6 +235,54 @@ export function AppHeader() {
                             </Link>
                           </>
                         )}
+                        {/* TEXT SIZE / ACCESSIBILITY */}
+                        <div className="border-t border-navy-100 px-4 py-2.5">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-navy-400 mb-1.5">
+                            Text Size / Accessibility
+                          </div>
+                          <div className="flex items-center justify-between gap-1 rounded-md bg-navy-50 p-1">
+                            <button
+                              type="button"
+                              onClick={decreaseFontSize}
+                              title="Decrease text size"
+                              aria-label="Decrease text size"
+                              className={`flex-1 rounded px-2 py-1 text-center text-xs font-bold transition ${
+                                fontSize === 'SMALL'
+                                  ? 'bg-white font-bold text-brand-700 shadow-sm'
+                                  : 'text-navy-600 hover:text-navy-900'
+                              }`}
+                            >
+                              A−
+                            </button>
+                            <button
+                              type="button"
+                              onClick={resetFontSize}
+                              title="Default text size"
+                              aria-label="Default text size"
+                              className={`flex-1 rounded px-2 py-1 text-center text-xs font-medium transition ${
+                                fontSize === 'DEFAULT'
+                                  ? 'bg-white font-bold text-brand-700 shadow-sm'
+                                  : 'text-navy-600 hover:text-navy-900'
+                              }`}
+                            >
+                              Default
+                            </button>
+                            <button
+                              type="button"
+                              onClick={increaseFontSize}
+                              title="Increase text size"
+                              aria-label="Increase text size"
+                              className={`flex-1 rounded px-2 py-1 text-center text-xs font-bold transition ${
+                                fontSize === 'LARGE'
+                                  ? 'bg-white font-bold text-brand-700 shadow-sm'
+                                  : 'text-navy-600 hover:text-navy-900'
+                              }`}
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+
                         <hr className="my-1 border-navy-100" />
                         <button
                           type="button"
@@ -406,6 +456,51 @@ export function AppHeader() {
                         </Link>
                       </>
                     )}
+                    {/* Mobile Text Size / Accessibility */}
+                    <div className="rounded border border-navy-700 bg-navy-800/60 p-2.5 my-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-navy-400 mb-1.5">
+                        Text Size / Accessibility
+                      </div>
+                      <div className="flex items-center justify-between gap-1 rounded bg-navy-900/80 p-1">
+                        <button
+                          type="button"
+                          onClick={decreaseFontSize}
+                          aria-label="Decrease text size"
+                          className={`flex-1 rounded py-1 text-center text-xs font-bold transition ${
+                            fontSize === 'SMALL'
+                              ? 'bg-brand-600 font-bold text-white shadow-sm'
+                              : 'text-navy-300 hover:text-white'
+                          }`}
+                        >
+                          A−
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetFontSize}
+                          aria-label="Default text size"
+                          className={`flex-1 rounded py-1 text-center text-xs font-medium transition ${
+                            fontSize === 'DEFAULT'
+                              ? 'bg-brand-600 font-bold text-white shadow-sm'
+                              : 'text-navy-300 hover:text-white'
+                          }`}
+                        >
+                          Default
+                        </button>
+                        <button
+                          type="button"
+                          onClick={increaseFontSize}
+                          aria-label="Increase text size"
+                          className={`flex-1 rounded py-1 text-center text-xs font-bold transition ${
+                            fontSize === 'LARGE'
+                              ? 'bg-brand-600 font-bold text-white shadow-sm'
+                              : 'text-navy-300 hover:text-white'
+                          }`}
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={handleSignOut}

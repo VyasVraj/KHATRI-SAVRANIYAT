@@ -67,6 +67,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const registerFamilyRpcSql = fs.readFileSync(path.join(migrationsDir, '20261106010000_register_complete_family_rpc.sql'), 'utf-8')
   const familyPermissionsSql = fs.readFileSync(path.join(migrationsDir, '20261106020000_family_membership_based_edit_permissions.sql'), 'utf-8')
   const fieldValidationSql = fs.readFileSync(path.join(migrationsDir, '20261106030000_enforce_person_field_validation.sql'), 'utf-8')
+  const mukhiClaimingSql = fs.readFileSync(path.join(migrationsDir, '20261106040000_mukhi_authority_and_profile_claiming.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -122,6 +123,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       CREATE TABLE IF NOT EXISTS public.profiles (
         id UUID PRIMARY KEY REFERENCES auth.users(id),
         role public.user_role NOT NULL DEFAULT 'MEMBER',
+        display_name TEXT,
         is_active BOOLEAN DEFAULT TRUE,
         email_verified BOOLEAN DEFAULT FALSE,
         avatar_url TEXT,
@@ -1859,6 +1861,289 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       expect(auditRes.rows.length).toBeGreaterThan(0)
       const firstIncomplete = auditRes.rows[0]
       expect(firstIncomplete.missing_fields.length).toBeGreaterThan(0)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // 11. Mukhi Authority, Auto-Linking, Birthday Permissions & Profile Claiming (20261106040000)
+  // ---------------------------------------------------------------------------
+  describe('11. Mukhi Authority, Auto-Linking, Birthday Permissions & Profile Claiming (20261106040000)', () => {
+    let fatherUserId: string
+    let childUserId: string
+    let testMukhiUserId: string
+    let familyId: string
+    let fatherPersonId: string
+    let childPersonId: string
+    let claimId: string
+
+    beforeAll(async () => {
+      // Setup prerequisite tables for claims and notifications if not already present
+      await pg.exec(`
+        DO $$ BEGIN
+          CREATE TYPE public.claim_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+          CREATE TYPE public.notification_category AS ENUM (
+            'CONNECTION', 'INVITATION', 'CLAIM', 'VERIFICATION', 'COMMUNITY', 'EVENT', 'FAMILY', 'SECURITY'
+          );
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+
+        CREATE TABLE IF NOT EXISTS public.person_claims (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          person_id UUID NOT NULL REFERENCES public.persons(id) ON DELETE RESTRICT,
+          claimant_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+          status public.claim_status NOT NULL DEFAULT 'PENDING',
+          evidence_notes TEXT,
+          rejection_reason TEXT,
+          reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+          reviewed_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS public.notifications (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          recipient_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+          actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+          category public.notification_category NOT NULL,
+          type VARCHAR(100) NOT NULL,
+          title VARCHAR(200) NOT NULL,
+          body TEXT NOT NULL,
+          action_url VARCHAR(500),
+          entity_type VARCHAR(50),
+          entity_id UUID,
+          metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+          read_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+          deleted_at TIMESTAMPTZ
+        );
+      `)
+
+      // Execute migration 20261106040000
+      await pg.exec(mukhiClaimingSql)
+    })
+
+    it('populates MUK-0001 through MUK-0118 for existing 118 records and generates MUK-0119 on new insert', async () => {
+      const q1 = await pg.query<{ mukhi_unique_id: string }>(`
+        SELECT mukhi_unique_id FROM public.community_mukhis WHERE source_serial_number = 1;
+      `)
+      expect(q1.rows[0].mukhi_unique_id).toBe('MUK-0001')
+
+      // Insert new Mukhi by Admin (immediate authorization with no 2nd step)
+      const qNew = await pg.query<{ mukhi_unique_id: string; authority_status: string }>(`
+        INSERT INTO public.community_mukhis (source_serial_number, full_name, gram, mobile_number, official_email)
+        VALUES (999, 'Shree Naranbhai Mukhi', 'Vadodara', '+919898000000', 'naranbhai.mukhi@example.com')
+        RETURNING mukhi_unique_id, authority_status;
+      `)
+      expect(qNew.rows[0].mukhi_unique_id).toMatch(/^MUK-\d{4}$/)
+      expect(qNew.rows[0].authority_status).toBe('ACTIVE')
+    })
+
+    it('automatically identifies Mukhi and upgrades role on verified email match', async () => {
+      // Create user account with matching email
+      const uRes = await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('naranbhai.mukhi@example.com') RETURNING id::text;
+      `)
+      testMukhiUserId = uRes.rows[0].id
+      await pg.exec(`INSERT INTO public.profiles (id, role, is_active) VALUES ('${testMukhiUserId}', 'MEMBER', TRUE);`)
+
+      // Mock session as testMukhiUserId and trigger sync
+      await pg.exec(`UPDATE public._mock_session SET uid = '${testMukhiUserId}';`)
+      const syncRes = await pg.query<{ r: any }>(`SELECT public.sync_my_mukhi_status() AS r;`)
+      expect(syncRes.rows[0].r.success).toBe(true)
+      expect(syncRes.rows[0].r.authority_level).toBe('MUKHI')
+
+      // Check community_mukhis account_linking_status
+      const mCheck = await pg.query<{ account_linking_status: string; linked_user_id: string }>(`
+        SELECT account_linking_status, linked_user_id::text
+        FROM public.community_mukhis WHERE official_email = 'naranbhai.mukhi@example.com';
+      `)
+      expect(mCheck.rows[0].account_linking_status).toBe('LINKED')
+      expect(mCheck.rows[0].linked_user_id).toBe(testMukhiUserId)
+
+      // Check profile role was upgraded to MUKHI
+      const pCheck = await pg.query<{ role: string }>(`
+        SELECT role::text FROM public.profiles WHERE id = '${testMukhiUserId}';
+      `)
+      expect(pCheck.rows[0].role).toBe('MUKHI')
+    })
+
+    it('enforces four-level authority model hierarchy (NORMAL_USER < MUKHI < ADMIN < SUPER_ADMIN)', async () => {
+      expect((await pg.query<{ r: string }>(`SELECT public.get_user_authority_level('${activeMemberId}') AS r;`)).rows[0].r).toBe('NORMAL_USER')
+      expect((await pg.query<{ r: string }>(`SELECT public.get_user_authority_level('${testMukhiUserId}') AS r;`)).rows[0].r).toBe('MUKHI')
+      expect((await pg.query<{ r: string }>(`SELECT public.get_user_authority_level('${adminId}') AS r;`)).rows[0].r).toBe('ADMIN')
+      expect((await pg.query<{ r: string }>(`SELECT public.get_user_authority_level('${superAdminId}') AS r;`)).rows[0].r).toBe('SUPER_ADMIN')
+    })
+
+    it('persists accessibility font size preference per user', async () => {
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+      await pg.query(`SELECT public.update_my_font_size_preference('LARGE');`)
+      const fCheck = await pg.query<{ font_size_preference: string }>(`
+        SELECT font_size_preference FROM public.profiles WHERE id = '${activeMemberId}';
+      `)
+      expect(fCheck.rows[0].font_size_preference).toBe('LARGE')
+
+      // Invalid option rejected
+      await expect(pg.query(`SELECT public.update_my_font_size_preference('EXTRA_HUGE');`)).rejects.toThrow()
+    })
+
+    it('enforces strict birthday greeting matrix (Normal User denied; Mukhi/Admin allowed to Mukhis & Heads; self denied)', async () => {
+      // 1. Normal user tries to send greeting -> DENIED
+      await pg.exec(`UPDATE public._mock_session SET uid = '${activeMemberId}';`)
+      await expect(
+        pg.query(`SELECT public.send_birthday_greeting((SELECT id FROM public.persons LIMIT 1), 'Happy Birthday!');`)
+      ).rejects.toThrow(/Normal Users are not permitted/)
+
+      // 2. Self-wishes -> DENIED
+      await pg.exec(`UPDATE public._mock_session SET uid = '${testMukhiUserId}';`)
+      // Link a person to testMukhi
+      const selfPerson = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id
+        ) VALUES (
+          'Naranbhai', 'Mukhi', 'MALE', 'A+', 'Vadodara', '1965-05-15', 'Agastya', 'Arora (Aroda)', 'naranbhai@example.com', '+919999900000', '${testMukhiUserId}'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      await expect(
+        pg.query(`SELECT public.send_birthday_greeting('${selfPerson}', 'Happy Birthday to me!');`)
+      ).rejects.toThrow(/cannot send a birthday greeting to yourself/)
+
+      // 3. Mukhi sends to another Mukhi / Community Head -> ALLOWED
+      // Create a head person in a family
+      const headPerson = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone
+        ) VALUES (
+          'Elder', 'Head', 'MALE', 'B+', 'Surat', '1950-01-01', 'Agastya', 'Arora (Aroda)', 'elder@example.com', '+918888800000'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      const fTemp = (await pg.query<{ id: string }>(`
+        INSERT INTO public.families (family_name) VALUES ('Elder Head Parivar') RETURNING id::text;
+      `)).rows[0].id
+
+      await pg.exec(`
+        INSERT INTO public.family_members (family_id, person_id, role, is_head)
+        VALUES ('${fTemp}', '${headPerson}', 'HEAD', TRUE);
+      `)
+
+      const wishRes = await pg.query<{ r: any }>(`
+        SELECT public.send_birthday_greeting('${headPerson}', 'Warm regards on your auspicious day!') AS r;
+      `)
+      expect(wishRes.rows[0].r.success).toBe(true)
+    })
+
+    it('implements complete Profile Claiming lifecycle (Father creates family with child -> Child creates account -> Child claims profile -> Father approves -> Person linked with zero duplicates)', async () => {
+      // 1. Setup Father account and child user account
+      const fRes = await pg.query<{ id: string }>(`INSERT INTO auth.users (email) VALUES ('father.vyas@example.com') RETURNING id::text;`)
+      fatherUserId = fRes.rows[0].id
+      await pg.exec(`INSERT INTO public.profiles (id, role, is_active) VALUES ('${fatherUserId}', 'MEMBER', TRUE);`)
+
+      const cRes = await pg.query<{ id: string }>(`INSERT INTO auth.users (email) VALUES ('child.vyas@example.com') RETURNING id::text;`)
+      childUserId = cRes.rows[0].id
+      await pg.exec(`INSERT INTO public.profiles (id, role, is_active) VALUES ('${childUserId}', 'MEMBER', TRUE);`)
+
+      // 2. Father creates family and registers himself (Head) and his child (unclaimed)
+      const famRes = await pg.query<{ id: string }>(`
+        INSERT INTO public.families (family_name, created_by, manager_user_id)
+        VALUES ('Vyas Kutumb', '${fatherUserId}', '${fatherUserId}')
+        RETURNING id::text;
+      `)
+      familyId = famRes.rows[0].id
+
+      const fatherP = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id, created_by
+        ) VALUES (
+          'Jayesh', 'Vyas', 'MALE', 'A+', 'Vadodara', '1970-01-01', 'Agastya', 'Arora (Aroda)', 'jayesh.vyas@example.com', '+919876543001', '${fatherUserId}', '${fatherUserId}'
+        ) RETURNING id::text;
+      `)
+      fatherPersonId = fatherP.rows[0].id
+
+      const childP = await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id, created_by
+        ) VALUES (
+          'Vraj', 'Vyas', 'MALE', 'B+', 'Vadodara', '2005-11-18', 'Agastya', 'Arora (Aroda)', 'vraj.vyas@example.com', '+919876543002', NULL, '${fatherUserId}'
+        ) RETURNING id::text;
+      `)
+      childPersonId = childP.rows[0].id
+
+      await pg.exec(`
+        INSERT INTO public.family_members (family_id, person_id, role, is_head, added_by)
+        VALUES
+          ('${familyId}', '${fatherPersonId}', 'HEAD', TRUE, '${fatherUserId}'),
+          ('${familyId}', '${childPersonId}', 'CHILD', FALSE, '${fatherUserId}');
+      `)
+
+      // Verify child is unclaimed
+      const initialChild = await pg.query<{ user_id: string | null }>(`
+        SELECT user_id FROM public.persons WHERE id = '${childPersonId}';
+      `)
+      expect(initialChild.rows[0].user_id).toBeNull()
+
+      // 3. Child logs in and submits Claim Request
+      await pg.exec(`UPDATE public._mock_session SET uid = '${childUserId}';`)
+      const claimSub = await pg.query<{ r: any }>(`
+        SELECT public.submit_profile_claim('${childPersonId}', '${familyId}', 'I am Jayesh Vyas son Vraj') AS r;
+      `)
+      expect(claimSub.rows[0].r.success).toBe(true)
+      claimId = claimSub.rows[0].r.claim_id
+
+      // Check notification delivered to Father
+      const notifCheck = await pg.query<{ title: string; recipient_id: string }>(`
+        SELECT title, recipient_id::text FROM public.notifications WHERE entity_id = '${claimId}';
+      `)
+      expect(notifCheck.rows.length).toBe(1)
+      expect(notifCheck.rows[0].recipient_id).toBe(fatherUserId)
+      expect(notifCheck.rows[0].title).toBe('Profile Claim Request')
+
+      // 4. Negative Test: Another unrelated member tries to approve -> REJECTED
+      await pg.exec(`UPDATE public._mock_session SET uid = '${otherMemberId}';`)
+      await expect(
+        pg.query(`SELECT public.approve_person_claim('${claimId}');`)
+      ).rejects.toThrow(/Unauthorized/)
+
+      // 5. Father logs in and approves the claim
+      await pg.exec(`UPDATE public._mock_session SET uid = '${fatherUserId}';`)
+      const approveRes = await pg.query<{ r: boolean }>(`
+        SELECT public.approve_person_claim('${claimId}') AS r;
+      `)
+      expect(approveRes.rows[0].r).toBe(true)
+
+      // 6. Verify existing person profile is now linked to child account
+      const postApprovePerson = await pg.query<{ user_id: string }>(`
+        SELECT user_id::text FROM public.persons WHERE id = '${childPersonId}';
+      `)
+      expect(postApprovePerson.rows[0].user_id).toBe(childUserId)
+
+      // 7. Verify claim status is APPROVED
+      const postApproveClaim = await pg.query<{ status: string; reviewed_by: string }>(`
+        SELECT status, reviewed_by::text FROM public.person_claims WHERE id = '${claimId}';
+      `)
+      expect(postApproveClaim.rows[0].status).toBe('APPROVED')
+      expect(postApproveClaim.rows[0].reviewed_by).toBe(fatherUserId)
+
+      // 8. Verify Father remains Head of Family and child remains CHILD (Authority & Roster intact)
+      const rosterCheck = await pg.query<{ person_id: string; is_head: boolean; role: string }>(`
+        SELECT person_id::text, is_head, role::text
+        FROM public.family_members
+        WHERE family_id = '${familyId}'
+        ORDER BY is_head DESC;
+      `)
+      expect(rosterCheck.rows[0].person_id).toBe(fatherPersonId)
+      expect(rosterCheck.rows[0].is_head).toBe(true)
+      expect(rosterCheck.rows[1].person_id).toBe(childPersonId)
+      expect(rosterCheck.rows[1].is_head).toBe(false)
+      expect(rosterCheck.rows[1].role).toBe('CHILD')
+
+      // 9. Negative Test: Attempting to claim an already claimed profile -> REJECTED
+      const anotherUser = (await pg.query<{ id: string }>(`INSERT INTO auth.users (email) VALUES ('another@example.com') RETURNING id::text;`)).rows[0].id
+      await pg.exec(`INSERT INTO public.profiles (id, role, is_active) VALUES ('${anotherUser}', 'MEMBER', TRUE);`)
+      await pg.exec(`UPDATE public._mock_session SET uid = '${anotherUser}';`)
+      await expect(
+        pg.query(`SELECT public.submit_profile_claim('${childPersonId}', '${familyId}');`)
+      ).rejects.toThrow(/already been claimed/)
     })
   })
 })

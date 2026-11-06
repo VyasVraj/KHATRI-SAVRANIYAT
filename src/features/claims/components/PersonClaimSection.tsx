@@ -96,14 +96,21 @@ export function PersonClaimSection({ person }: PersonClaimSectionProps) {
     return (
       <div
         data-testid="person-claim-self"
-        className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 flex items-center gap-3"
+        className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4 text-sm text-emerald-950 flex items-center justify-between gap-3 shadow-sm"
       >
-        <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" aria-hidden="true" />
-        <div>
-          <p className="font-semibold text-emerald-950">{t('claims.linked_profile')}</p>
-          <p className="text-xs text-emerald-800">
-            {t('claims.linked_profile_desc')}
-          </p>
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-6 w-6 text-emerald-600 shrink-0" aria-hidden="true" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+                Profile Claimed
+              </span>
+              <p className="font-semibold text-emerald-950">Your Linked Profile</p>
+            </div>
+            <p className="text-xs text-emerald-800 mt-1">
+              Your community profile has been successfully linked to your user account.
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -247,9 +254,9 @@ export function PersonClaimSection({ person }: PersonClaimSectionProps) {
           <Button
             type="button"
             onClick={() => setIsClaimModalOpen(true)}
-            className="shrink-0 text-xs min-h-[44px] min-w-[44px]"
+            className="shrink-0 text-xs min-h-[44px] min-w-[44px] bg-brand-600 hover:bg-brand-700 font-semibold"
           >
-            {t('claims.claim_record_btn')}
+            {t('claims.claim_record_btn', 'Claim record')}
           </Button>
         </div>
       </div>

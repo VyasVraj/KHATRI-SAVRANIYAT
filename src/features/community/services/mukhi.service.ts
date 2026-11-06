@@ -277,6 +277,53 @@ export async function getMukhiDirectory(
     // 1. Start with canonical registry
     let leaders: MukhiLeaderItem[] = [...CANONICAL_MUKHI_REGISTRY]
 
+    // 2. Query official 118 community_mukhis database table
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbMukhis, error: mukhisError } = await (supabase.from as any)('community_mukhis')
+        .select('*')
+        .eq('is_active', true)
+        .eq('authority_status', 'ACTIVE')
+        .order('source_serial_number', { ascending: true })
+
+      if (!mukhisError && dbMukhis && dbMukhis.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        leaders = dbMukhis.map((row: any) => ({
+          id: row.id,
+          mukhi_unique_id: row.mukhi_unique_id || `MUK-${String(row.source_serial_number).padStart(4, '0')}`,
+          person_id: row.linked_person_id ?? null,
+          user_id: row.linked_user_id ?? null,
+          name: row.full_name,
+          display_name: row.full_name,
+          avatar_url: null,
+          designation: `${row.gram} Regional Mukhi`,
+          role: 'MUKHI',
+          gotra: null,
+          nukh: null,
+          kul: null,
+          gram: row.gram,
+          city: row.gram,
+          state: 'Gujarat',
+          country: 'India',
+          birth_place: row.gram ? `${row.gram}, Gujarat` : null,
+          family_name: null,
+          family_id: null,
+          is_verified: true,
+          is_active: true,
+          status: 'ACTIVE',
+          profile_privacy: 'COMMUNITY',
+          contact_privacy: 'COMMUNITY',
+          phone: row.mobile_number,
+          official_email: row.official_email,
+          authority_status: row.authority_status || 'ACTIVE',
+          account_linking_status: row.account_linking_status || 'NOT_REGISTERED',
+          bio: `Official Mukhi representative for ${row.gram} region guiding community affairs.`,
+        }))
+      }
+    } catch {
+      // Fallback to in-memory registry if database table is not queryable
+    }
+
     // 2. Query dynamic COMMUNITY_MODERATOR profiles if caller is authorized or if database permits
     try {
       const { data: dbModerators, error: modError } = await supabase
@@ -404,13 +451,15 @@ export async function getMukhiDirectory(
     if (filters.search && filters.search.trim()) {
       const q = sanitizeSearchQuery(filters.search)
       leaders = leaders.filter((l) => {
+        const idMatch = l.mukhi_unique_id ? l.mukhi_unique_id.toLowerCase().includes(q) : false
         const nameMatch = l.name.toLowerCase().includes(q)
+        const gramMatch = l.gram ? l.gram.toLowerCase().includes(q) : false
         const cityMatch = l.city ? l.city.toLowerCase().includes(q) : false
         const stateMatch = l.state ? l.state.toLowerCase().includes(q) : false
         const nukhMatch = l.nukh ? l.nukh.toLowerCase().includes(q) : false
         const gotraMatch = l.gotra ? l.gotra.toLowerCase().includes(q) : false
         const desigMatch = l.designation.toLowerCase().includes(q)
-        return nameMatch || cityMatch || stateMatch || nukhMatch || gotraMatch || desigMatch
+        return idMatch || nameMatch || gramMatch || cityMatch || stateMatch || nukhMatch || gotraMatch || desigMatch
       })
     }
 

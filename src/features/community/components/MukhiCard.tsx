@@ -86,13 +86,18 @@ export function MukhiCard({ leader, onClick, className = '' }: MukhiCardProps) {
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
+              {leader.mukhi_unique_id && (
+                <span className="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-xs font-mono font-bold text-amber-300 border border-slate-700">
+                  {leader.mukhi_unique_id}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
                 <Shield className="h-3 w-3" />
                 {leader.designation || t('mukhi.badge_mukhi', 'Community Mukhi')}
               </span>
-              {leader.role === 'COMMUNITY_MODERATOR' && (
-                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 border border-indigo-200">
-                  {t('mukhi.badge_moderator', 'Moderator')}
+              {leader.authority_status === 'ACTIVE' && (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
+                  Active
                 </span>
               )}
             </div>
@@ -100,6 +105,12 @@ export function MukhiCard({ leader, onClick, className = '' }: MukhiCardProps) {
             <h3 className="mt-1.5 text-base font-bold text-slate-900 truncate group-hover:text-blue-700 transition-colors">
               {leader.name}
             </h3>
+
+            {leader.gram && (
+              <p className="text-xs font-medium text-slate-500 truncate">
+                Gram: <span className="text-slate-800 font-semibold">{leader.gram}</span>
+              </p>
+            )}
 
             {leader.display_name && leader.display_name !== leader.name && (
               <p className="text-xs text-slate-500 truncate">
