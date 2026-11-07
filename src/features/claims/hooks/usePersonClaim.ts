@@ -192,6 +192,9 @@ export function useReviewClaimMutations() {
       queryClient.invalidateQueries({ queryKey: ['person'] })
       queryClient.invalidateQueries({ queryKey: ['persons'] })
       queryClient.invalidateQueries({ queryKey: ['people'] })
+      queryClient.invalidateQueries({ queryKey: ['families'] })
+      queryClient.invalidateQueries({ queryKey: ['my-family-ids'] })
+      queryClient.invalidateQueries({ queryKey: ['family-members'] })
     },
   })
 

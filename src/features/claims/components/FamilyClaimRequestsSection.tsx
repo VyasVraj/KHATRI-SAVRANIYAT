@@ -101,6 +101,10 @@ export function FamilyClaimRequestsSection({
       queryClient.invalidateQueries({ queryKey: ['family-claims', familyId] })
       queryClient.invalidateQueries({ queryKey: ['family-members', familyId] })
       queryClient.invalidateQueries({ queryKey: ['family', familyId] })
+      queryClient.invalidateQueries({ queryKey: ['families'] })
+      queryClient.invalidateQueries({ queryKey: ['my-family-ids'] })
+      queryClient.invalidateQueries({ queryKey: ['persons'] })
+      queryClient.invalidateQueries({ queryKey: ['people'] })
     },
     onError: (err: { message?: string }) => {
       setActionError(err.message || 'Failed to approve claim. Please try again.')

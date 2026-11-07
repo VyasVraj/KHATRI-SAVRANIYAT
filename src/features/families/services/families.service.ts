@@ -848,3 +848,50 @@ function formatZodError(error: ZodError): string {
     .filter((msg, idx, arr) => arr.indexOf(msg) === idx) // deduplicate
     .join('; ')
 }
+
+/**
+ * Retrieves the IDs of all families that the current user created, manages,
+ * or belongs to as an active family member.
+ * Falls back to client-side resolution if the RPC is not yet created.
+ */
+export async function getMyFamilyIds(userId?: string): Promise<string[]> {
+  if (!userId) return []
+
+  try {
+    // 1. Try secure RPC get_my_family_ids
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_my_family_ids')
+    if (!rpcError && Array.isArray(rpcData)) {
+      return rpcData.map((r: { family_id: string }) => r.family_id).filter(Boolean)
+    }
+  } catch {
+    // Fall back to client query
+  }
+
+  // 2. Resilient fallback: Resolve via linked person and family_members join
+  try {
+    const { data: person } = await supabase
+      .from('persons')
+      .select('id')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (person?.id) {
+      const { data: members } = await supabase
+        .from('family_members')
+        .select('family_id')
+        .eq('person_id', person.id)
+        .is('left_at', null)
+
+      if (members && Array.isArray(members)) {
+        return members.map((m: { family_id: string }) => m.family_id).filter(Boolean)
+      }
+    }
+  } catch {
+    // Fail resiliently
+  }
+
+  return []
+}
+

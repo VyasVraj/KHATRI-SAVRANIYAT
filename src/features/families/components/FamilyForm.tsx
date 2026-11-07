@@ -29,6 +29,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type CreateFamilyInput } from '../schemas/families.schemas'
 import { Input } from '@/components/forms/Input'
+import { CitySelector } from '@/components/forms/CitySelector'
 import { Button } from '@/components/forms/Button'
 import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
@@ -218,22 +219,32 @@ export function FamilyForm({
         <legend className="mb-4 text-sm font-semibold uppercase tracking-wide text-navy-500">
           Location
         </legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Input
-            label="City"
+        <div className="space-y-3">
+          <CitySelector
+            label="City / Location"
+            value={watch('city')}
+            selectedState={watch('state')}
+            selectedCountry={watch('country')}
+            onSelectCity={(loc) => {
+              setValue('city', loc.city, { shouldValidate: true })
+              setValue('state', loc.state, { shouldValidate: true })
+              setValue('country', loc.country, { shouldValidate: true })
+            }}
             error={errors.city?.message}
-            {...register('city')}
+            placeholder="Search worldwide city..."
           />
-          <Input
-            label="State / Province"
-            error={errors.state?.message}
-            {...register('state')}
-          />
-          <Input
-            label="Country"
-            error={errors.country?.message}
-            {...register('country')}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="State / Province"
+              error={errors.state?.message}
+              {...register('state')}
+            />
+            <Input
+              label="Country"
+              error={errors.country?.message}
+              {...register('country')}
+            />
+          </div>
         </div>
       </fieldset>
 

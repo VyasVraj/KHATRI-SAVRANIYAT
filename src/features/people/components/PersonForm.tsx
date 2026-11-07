@@ -26,6 +26,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type CreatePersonInput } from '../schemas/people.schemas'
 import { Input } from '@/components/forms/Input'
+import { CitySelector } from '@/components/forms/CitySelector'
 import { Button } from '@/components/forms/Button'
 import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
@@ -427,11 +428,21 @@ export function PersonForm({
             )}
           </div>
 
-          <Input
+          <CitySelector
             label="Birthplace"
             required
+            value={watch('birth_place')}
+            onSelectCity={(loc) => {
+              const formatted = loc.city
+                ? loc.state
+                  ? `${loc.city}, ${loc.state}${loc.country ? `, ${loc.country}` : ''}`
+                  : loc.city
+                : ''
+              setValue('birth_place', formatted, { shouldValidate: true })
+            }}
             error={errors.birth_place?.message}
-            {...register('birth_place')}
+            placeholder="Search birthplace worldwide..."
+            id="birth_place"
           />
           <Input
             label="Date of birth"

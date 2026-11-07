@@ -13,6 +13,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Users, Search, PlusCircle, Compass, X, CheckCircle2, Heart } from 'lucide-react'
 import { useFamilyList } from '../hooks/useFamilyList'
+import { useMyFamilyIds } from '../hooks/useMyFamilyIds'
 import { FamilyCard } from '../components/FamilyCard'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
@@ -60,15 +61,19 @@ export function FamilyListPage() {
     }
   }, [location.state])
 
-  // Split into "My Families" (created by or managed by current user) vs all
+  const { data: myFamilyIds = [] } = useMyFamilyIds()
+  const myFamilyIdSet = useMemo(() => new Set(myFamilyIds), [myFamilyIds])
+
+  // Split into "My Families" (created by, managed by, or member of) vs all
   const myFamilies = useMemo(() => {
     if (!user?.id) return []
     return families.filter((f) => {
       const isCreator = f.created_by === user.id
       const isManager = f.manager_user_id === user.id
-      return isCreator || isManager
+      const isMember = myFamilyIdSet.has(f.id)
+      return isCreator || isManager || isMember
     })
-  }, [families, user?.id])
+  }, [families, user?.id, myFamilyIdSet])
 
   // Select base list according to active tab
   const baseList = activeTab === 'my' ? myFamilies : families
