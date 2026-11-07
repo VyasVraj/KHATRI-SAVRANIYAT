@@ -7,6 +7,7 @@ import { sanitizeText, sanitizeMultilineText } from '@/lib/sanitization'
 
 export const submitClaimSchema = z.object({
   personId: z.string().uuid({ message: 'A valid person ID is required.' }),
+  familyId: z.string().uuid({ message: 'A valid family ID is required.' }).optional().nullable(),
   evidenceNotes: z
     .string()
     .transform(sanitizeMultilineText)

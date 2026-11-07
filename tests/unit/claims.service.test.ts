@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase'
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
     auth: {
       getUser: vi.fn(),
     },
@@ -41,6 +42,12 @@ const MOCK_CLAIM = {
 describe('Claims Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default RPC to function not found so legacy direct-insert fallback is tested
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked((supabase as any).rpc).mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'function not found' },
+    })
   })
 
   describe('submitPersonClaim', () => {
@@ -168,6 +175,50 @@ describe('Claims Service', () => {
       expect(res.data).toBeNull()
       expect(res.error?.code).toBe('42501')
       expect(res.error?.message).toContain('Unable to submit claim')
+    })
+
+    it('successfully submits claim via submit_profile_claim RPC when available', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked((supabase as any).rpc).mockResolvedValue({
+        data: {
+          success: true,
+          claim_id: CLAIM_ID,
+          message: 'Claim submitted successfully.',
+        },
+        error: null,
+      })
+
+      const res = await submitPersonClaim(
+        { personId: PERSON_ID, evidenceNotes: '  RPC verification note   ' },
+        USER_ID
+      )
+
+      expect(res.error).toBeNull()
+      expect(res.data?.id).toBe(CLAIM_ID)
+      expect(res.data?.status).toBe('PENDING')
+      expect(res.data?.evidence_notes).toBe('RPC verification note')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((supabase as any).rpc).toHaveBeenCalledWith('submit_profile_claim', {
+        p_person_id: PERSON_ID,
+        p_family_id: null,
+        p_evidence_notes: 'RPC verification note',
+      })
+    })
+
+    it('preserves specific error messages returned by submit_profile_claim RPC', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked((supabase as any).rpc).mockResolvedValue({
+        data: null,
+        error: {
+          code: '23514',
+          message: 'Your account is already linked to a community person profile.',
+        },
+      })
+
+      const res = await submitPersonClaim({ personId: PERSON_ID }, USER_ID)
+      expect(res.data).toBeNull()
+      expect(res.error?.code).toBe('23514')
+      expect(res.error?.message).toBe('Your account is already linked to a community person profile.')
     })
   })
 

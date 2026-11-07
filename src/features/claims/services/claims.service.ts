@@ -63,6 +63,19 @@ function sanitizeClaimError(
   const pgError = err as { code?: string; message?: string; details?: string }
   const message = pgError.message ?? ''
 
+  // Preserve specific high-value domain messages from database RPC
+  if (
+    message.includes('already linked') ||
+    message.includes('already pending') ||
+    message.includes('already have a pending') ||
+    message.includes('already been claimed') ||
+    message.includes('Deceased') ||
+    message.includes('Only active') ||
+    message.includes('Self-approval is prohibited')
+  ) {
+    return message
+  }
+
   if (action === 'approve') {
     if (pgError.code === '42501' || message.includes('Unauthorized')) {
       return 'You do not have permission to approve claims. Community moderator access is required.'
@@ -126,7 +139,7 @@ function sanitizeClaimError(
 /**
  * Submits a new claim on an unclaimed census person record.
  *
- * @param input - Contains personId and optional evidenceNotes
+ * @param input - Contains personId, optional familyId, and optional evidenceNotes
  * @param callerUserId - The authenticated user's ID
  */
 export async function submitPersonClaim(
@@ -168,13 +181,59 @@ export async function submitPersonClaim(
   try {
     const trimmedNotes = validated.evidenceNotes?.trim() || null
 
-    const { data, error } = await personClaimsTable()
-      .insert({
-        person_id: validated.personId,
-        claimant_id: userId,
-        status: 'PENDING',
-        evidence_notes: trimmedNotes,
+    // 1. Attempt authoritative atomic RPC first if available
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any
+    if (typeof client.rpc === 'function') {
+      const { data: rpcData, error: rpcError } = await client.rpc('submit_profile_claim', {
+        p_person_id: validated.personId,
+        p_family_id: validated.familyId || null,
+        p_evidence_notes: trimmedNotes,
       })
+
+      if (!rpcError && rpcData?.claim_id) {
+        return {
+          data: {
+            id: rpcData.claim_id,
+            person_id: validated.personId,
+            claimant_id: userId,
+            status: 'PENDING',
+            evidence_notes: trimmedNotes,
+            rejection_reason: null,
+            reviewed_by: null,
+            reviewed_at: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as PersonClaim,
+          error: null,
+        }
+      }
+
+      // If RPC returned an error other than missing function (PGRST202 or 42883), return sanitized error
+      if (rpcError && rpcError.code !== 'PGRST202' && rpcError.code !== '42883') {
+        return {
+          data: null,
+          error: {
+            code: rpcError.code || 'DB_ERROR',
+            message: sanitizeClaimError(rpcError, 'Failed to submit claim. Please try again.', 'submit'),
+          },
+        }
+      }
+    }
+
+    // 2. Fallback to direct table insertion if RPC is not yet applied
+    const insertPayload: Record<string, unknown> = {
+      person_id: validated.personId,
+      claimant_id: userId,
+      status: 'PENDING',
+      evidence_notes: trimmedNotes,
+    }
+    if (validated.familyId) {
+      insertPayload.family_id = validated.familyId
+    }
+
+    const { data, error } = await personClaimsTable()
+      .insert(insertPayload)
       .select('*')
       .single()
 
@@ -183,7 +242,7 @@ export async function submitPersonClaim(
         data: null,
         error: {
           code: error.code || 'DB_ERROR',
-          message: sanitizeClaimError(error, 'Failed to submit claim. Please try again.'),
+          message: sanitizeClaimError(error, 'Failed to submit claim. Please try again.', 'submit'),
         },
       }
     }
@@ -197,7 +256,7 @@ export async function submitPersonClaim(
       data: null,
       error: {
         code: 'UNEXPECTED_ERROR',
-        message: sanitizeClaimError(err, 'An unexpected error occurred while submitting your claim.'),
+        message: sanitizeClaimError(err, 'An unexpected error occurred while submitting your claim.', 'submit'),
       },
     }
   }

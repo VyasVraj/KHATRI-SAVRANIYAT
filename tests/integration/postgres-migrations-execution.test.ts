@@ -71,6 +71,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const fiveLevelAccessibilitySql = fs.readFileSync(path.join(migrationsDir, '20261106050000_executive_committee_and_five_level_accessibility.sql'), 'utf-8')
   const fixFamilyRoleMappingSql = fs.readFileSync(path.join(migrationsDir, '20261107020000_fix_family_role_enum_mapping.sql'), 'utf-8')
   const fixBirthdayNotificationSql = fs.readFileSync(path.join(migrationsDir, '20261107030000_fix_birthday_notification_delivery.sql'), 'utf-8')
+  const fixClaimWorkflowSql = fs.readFileSync(path.join(migrationsDir, '20261107040000_fix_census_profile_claiming_workflow.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -2486,6 +2487,200 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       await expect(
         pg.query(`SELECT public.send_birthday_greeting('${selfPersonId}');`)
       ).rejects.toThrow(/Normal Users are not permitted/)
+    })
+  })
+
+  // 15. Fix Census Profile Claiming Workflow (20261107040000)
+  describe('15. Fix Census Profile Claiming Workflow (20261107040000)', () => {
+    let unlinkedMemberUser: string
+    let familyHeadUser: string
+    let testFamilyId: string
+    let headPersonId: string
+    let targetPersonId: string
+
+    beforeAll(async () => {
+      // 1. Create claimant user (unlinked member)
+      unlinkedMemberUser = (await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('claimant.member@example.com') RETURNING id::text;
+      `)).rows[0].id
+      await pg.exec(`
+        INSERT INTO public.profiles (id, role, display_name)
+        VALUES ('${unlinkedMemberUser}', 'MEMBER', 'Claimant User');
+      `)
+
+      // 2. Create family head user
+      familyHeadUser = (await pg.query<{ id: string }>(`
+        INSERT INTO auth.users (email) VALUES ('family.head@example.com') RETURNING id::text;
+      `)).rows[0].id
+      await pg.exec(`
+        INSERT INTO public.profiles (id, role, display_name)
+        VALUES ('${familyHeadUser}', 'MEMBER', 'Family Head User');
+      `)
+
+      // 3. Create head person linked to familyHeadUser
+      headPersonId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, user_id
+        ) VALUES (
+          'Babulal', 'Pamnani', 'MALE', 'O+', 'Anand', '1955-03-10', 'Krishna', 'Karatela', 'head.pamnani@example.com', '+919876543210', '${familyHeadUser}'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 4. Create family
+      testFamilyId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.families (
+          family_name, city, state, country, gotra, nukh, created_by
+        ) VALUES (
+          'PAMNANI FAMILY', 'Anand', 'Gujarat', 'India', 'Krishna', 'Karatela', '${familyHeadUser}'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 5. Add head to family_members
+      await pg.exec(`
+        INSERT INTO public.family_members (
+          family_id, person_id, role, is_head
+        ) VALUES (
+          '${testFamilyId}', '${headPersonId}', 'HEAD', true
+        );
+      `)
+
+      // 6. Create target census person (unlinked, private profile)
+      targetPersonId = (await pg.query<{ id: string }>(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, birth_place, date_of_birth, gotra, nukh, email_contact, phone, profile_privacy, status
+        ) VALUES (
+          'NANAK', 'PAMNANI', 'MALE', 'B+', 'Anand', '1985-06-15', 'Krishna', 'Karatela', 'nanak.pamnani@example.com', '+919876543211', 'PRIVATE', 'ACTIVE'
+        ) RETURNING id::text;
+      `)).rows[0].id
+
+      // 7. Add target person as family member
+      await pg.exec(`
+        INSERT INTO public.family_members (
+          family_id, person_id, role, is_head
+        ) VALUES (
+          '${testFamilyId}', '${targetPersonId}', 'CHILD', false
+        );
+      `)
+    })
+
+    it('executes 20261107040000_fix_census_profile_claiming_workflow.sql without error', async () => {
+      await expect(pg.exec(fixClaimWorkflowSql)).resolves.not.toThrow()
+    })
+
+    it('verifies helper functions check_person_claim_eligibility and is_user_already_linked', async () => {
+      // Check targetPersonId is eligible
+      const eligRes = await pg.query<{ check_person_claim_eligibility: boolean }>(`
+        SELECT public.check_person_claim_eligibility('${targetPersonId}');
+      `)
+      expect(eligRes.rows[0].check_person_claim_eligibility).toBe(true)
+
+      // unlinkedMemberUser is NOT linked
+      const userLinkedRes1 = await pg.query<{ is_user_already_linked: boolean }>(`
+        SELECT public.is_user_already_linked('${unlinkedMemberUser}');
+      `)
+      expect(userLinkedRes1.rows[0].is_user_already_linked).toBe(false)
+
+      // familyHeadUser IS linked
+      const userLinkedRes2 = await pg.query<{ is_user_already_linked: boolean }>(`
+        SELECT public.is_user_already_linked('${familyHeadUser}');
+      `)
+      expect(userLinkedRes2.rows[0].is_user_already_linked).toBe(true)
+    })
+
+    it('submits claim via submit_profile_claim RPC and creates pending claim with notification to family head', async () => {
+      // Claimant user calls submit_profile_claim
+      await pg.exec(`UPDATE public._mock_session SET uid = '${unlinkedMemberUser}';`)
+
+      const claimRes = await pg.query<{ res: any }>(`
+        SELECT public.submit_profile_claim(
+          '${targetPersonId}'::UUID,
+          '${testFamilyId}'::UUID,
+          'I am Nanak Pamnani, son of Babulal Pamnani.'
+        ) AS res;
+      `)
+
+      const out = claimRes.rows[0].res
+      expect(out.success).toBe(true)
+      expect(out.claim_id).toBeDefined()
+
+      // Verify claim row in person_claims
+      const claimRow = (await pg.query<{
+        id: string
+        person_id: string
+        claimant_id: string
+        family_id: string
+        assigned_family_head_id: string
+        status: string
+        declaration_confirmed: boolean
+      }>(`
+        SELECT id::text, person_id::text, claimant_id::text, family_id::text, assigned_family_head_id::text, status, declaration_confirmed
+        FROM public.person_claims
+        WHERE id = '${out.claim_id}';
+      `)).rows[0]
+
+      expect(claimRow.status).toBe('PENDING')
+      expect(claimRow.claimant_id).toBe(unlinkedMemberUser)
+      expect(claimRow.person_id).toBe(targetPersonId)
+      expect(claimRow.family_id).toBe(testFamilyId)
+      expect(claimRow.assigned_family_head_id).toBe(headPersonId)
+      expect(claimRow.declaration_confirmed).toBe(true)
+
+      // Verify in-app notification delivered to familyHeadUser
+      const notifs = await pg.query<{
+        id: string
+        recipient_id: string
+        type: string
+        title: string
+        body: string
+      }>(`
+        SELECT id::text, recipient_id::text, type, title, body
+        FROM public.notifications
+        WHERE recipient_id = '${familyHeadUser}' AND type = 'PROFILE_CLAIM_SUBMITTED';
+      `)
+      expect(notifs.rows.length).toBe(1)
+      expect(notifs.rows[0].title).toBe('Profile Claim Request')
+      expect(notifs.rows[0].body).toContain('NANAK PAMNANI')
+
+      // Verifies duplicate submission is rejected
+      await expect(
+        pg.query(`SELECT public.submit_profile_claim('${targetPersonId}'::UUID, '${testFamilyId}'::UUID, 'duplicate');`)
+      ).rejects.toThrow(/already have a pending profile claim/)
+    })
+
+    it('allows family head to approve claim and links person to user account', async () => {
+      // Find pending claim
+      const claimId = (await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.person_claims WHERE person_id = '${targetPersonId}' AND status = 'PENDING';
+      `)).rows[0].id
+
+      // Switch to familyHeadUser
+      await pg.exec(`UPDATE public._mock_session SET uid = '${familyHeadUser}';`)
+
+      // Call approve_person_claim
+      const approveRes = await pg.query<{ approve_person_claim: boolean }>(`
+        SELECT public.approve_person_claim('${claimId}');
+      `)
+      expect(approveRes.rows[0].approve_person_claim).toBe(true)
+
+      // Target person now has user_id = unlinkedMemberUser
+      const personCheck = (await pg.query<{ user_id: string }>(`
+        SELECT user_id::text FROM public.persons WHERE id = '${targetPersonId}';
+      `)).rows[0]
+      expect(personCheck.user_id).toBe(unlinkedMemberUser)
+
+      // Claim status is APPROVED
+      const claimCheck = (await pg.query<{ status: string; reviewed_by: string }>(`
+        SELECT status, reviewed_by::text FROM public.person_claims WHERE id = '${claimId}';
+      `)).rows[0]
+      expect(claimCheck.status).toBe('APPROVED')
+      expect(claimCheck.reviewed_by).toBe(familyHeadUser)
+
+      // Notification delivered to claimant
+      const claimantNotif = await pg.query<{ title: string; body: string }>(`
+        SELECT title, body FROM public.notifications WHERE recipient_id = '${unlinkedMemberUser}' AND type = 'PROFILE_CLAIM_APPROVED';
+      `)
+      expect(claimantNotif.rows.length).toBe(1)
+      expect(claimantNotif.rows[0].title).toBe('Profile Claim Approved!')
     })
   })
 })

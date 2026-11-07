@@ -156,24 +156,13 @@ export function ClaimPersonModal({
       if (submitClaim?.mutateAsync) {
         await submitClaim.mutateAsync({
           personId: person.id,
+          familyId: selectedFamilyId || undefined,
           evidenceNotes: evidenceNotes.trim() || undefined,
         })
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc('submit_profile_claim', {
-        p_person_id: person.id,
-        p_family_id: selectedFamilyId || null,
-        p_evidence_notes: evidenceNotes.trim() || null,
-      })
-
-      if (error) {
-        throw error
-      }
-
       setSuccessMsg(
-        (data as { message?: string })?.message ||
-          'Your profile claim request has been submitted successfully. It is waiting for approval from your Head of Family.'
+        'Your profile claim request has been submitted successfully. It is waiting for approval from your Head of Family.'
       )
       setTimeout(() => {
         onSuccess?.()

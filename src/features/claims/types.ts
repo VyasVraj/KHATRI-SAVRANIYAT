@@ -23,6 +23,7 @@ export interface PersonClaim {
 
 export interface SubmitClaimInput {
   personId: string
+  familyId?: string | null
   evidenceNotes?: string
 }
 
