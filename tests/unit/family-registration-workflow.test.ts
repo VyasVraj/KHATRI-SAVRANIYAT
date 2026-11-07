@@ -451,5 +451,81 @@ describe('Khatri Sarvaniyat Family Registration & Add Person Workflow', () => {
         ],
       })
     })
+
+    it('maps duplicate member 23505 error to user-friendly message', async () => {
+      vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: '23505',
+          message: 'DUPLICATE_MEMBER: Member is already added to this family.',
+        },
+      } as any)
+
+      const payload: CompleteFamilyRegistrationPayload = {
+        family: {
+          family_name: 'Patel Family',
+          selected_mukhi_id: 'mukhi-uuid',
+          city: 'Anand',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+        },
+        head: {
+          is_existing: false,
+          first_name: 'Hem',
+          last_name: 'Patel',
+          gender: 'MALE',
+          date_of_birth: '2005-11-02',
+          city: 'Anand',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+          phone: '1234567890',
+          email: 'hem@gmail.com',
+        },
+      }
+
+      const res = await registerCompleteFamily(payload, 'user-creator')
+      expect(res.error).toBeDefined()
+      expect(res.error?.message).toBe('A member has already been added to this family.')
+    })
+
+    it('maps unique constraint on persons user_id (23505) to account conflict message', async () => {
+      vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: '23505',
+          message: 'duplicate key value violates unique constraint "idx_persons_user_id_unique"',
+        },
+      } as any)
+
+      const payload: CompleteFamilyRegistrationPayload = {
+        family: {
+          family_name: 'Patel Family',
+          selected_mukhi_id: 'mukhi-uuid',
+          city: 'Anand',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+        },
+        head: {
+          is_existing: false,
+          first_name: 'Hem',
+          last_name: 'Patel',
+          gender: 'MALE',
+          date_of_birth: '2005-11-02',
+          city: 'Anand',
+          state: 'Gujarat',
+          gotra: 'Agastya',
+          nukh: 'Arora (Aroda)',
+          phone: '1234567890',
+          email: 'hem@gmail.com',
+        },
+      }
+
+      const res = await registerCompleteFamily(payload, 'user-creator')
+      expect(res.error).toBeDefined()
+      expect(res.error?.message).toBe('The user account is already linked to another person profile.')
+    })
   })
 })

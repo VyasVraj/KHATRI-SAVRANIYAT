@@ -72,6 +72,7 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
   const fixFamilyRoleMappingSql = fs.readFileSync(path.join(migrationsDir, '20261107020000_fix_family_role_enum_mapping.sql'), 'utf-8')
   const fixBirthdayNotificationSql = fs.readFileSync(path.join(migrationsDir, '20261107030000_fix_birthday_notification_delivery.sql'), 'utf-8')
   const fixClaimWorkflowSql = fs.readFileSync(path.join(migrationsDir, '20261107040000_fix_census_profile_claiming_workflow.sql'), 'utf-8')
+  const fixDuplicateFamilySql = fs.readFileSync(path.join(migrationsDir, '20261108010000_fix_family_registration_duplicate_error.sql'), 'utf-8')
 
   beforeAll(async () => {
     pg = new PGlite()
@@ -2681,6 +2682,156 @@ describe('Real PostgreSQL Engine — Migration Execution & Invariants Audit', ()
       `)
       expect(claimantNotif.rows.length).toBe(1)
       expect(claimantNotif.rows[0].title).toBe('Profile Claim Approved!')
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // 15. Fix Family Registration Duplicate Error (20261108010000)
+  // ---------------------------------------------------------------------------
+  describe('15. Fix Family Registration Duplicate Error (20261108010000)', () => {
+    it('executes 20261108010000_fix_family_registration_duplicate_error.sql without error', async () => {
+      await pg.exec(fixDuplicateFamilySql)
+    })
+
+    it('allows an authenticated user who already has a linked person record to register a new family without 23505 unique error', async () => {
+      // User with an already linked person record
+      const linkedUserId = '00000000-0000-0000-0000-000000000777'
+      await pg.exec(`
+        INSERT INTO auth.users (id, email) VALUES ('${linkedUserId}', 'darshan@example.com')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.profiles (id, role, is_active)
+        VALUES ('${linkedUserId}', 'MEMBER', TRUE)
+        ON CONFLICT (id) DO UPDATE SET is_active = TRUE;
+      `)
+
+      // Insert pre-existing linked person record for this user
+      await pg.exec(`
+        INSERT INTO public.persons (
+          first_name, last_name, gender, blood_group, date_of_birth,
+          birth_place, city, state, country, gotra, nukh, phone, email_contact,
+          created_by, user_id
+        ) VALUES (
+          'Darshan', 'Admin', 'MALE', 'B+', '1990-01-01',
+          'Anand', 'Anand', 'Gujarat', 'India', 'Agastya', 'Arora (Aroda)', '9898989898', 'darshan@example.com',
+          '${linkedUserId}', '${linkedUserId}'
+        );
+      `)
+
+      // Set mock session to linkedUserId
+      await pg.exec(`UPDATE public._mock_session SET uid = '${linkedUserId}';`)
+
+      const mukhiRes = await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.community_mukhis LIMIT 1;
+      `)
+      const mukhiId = mukhiRes.rows[0].id
+
+      // Now linkedUserId registers a brand new family (Patel Family) with a new Head (Hem B Patel)
+      const rpcResult = await pg.query<{ register_complete_family: any }>(`
+        SELECT public.register_complete_family(
+          jsonb_build_object(
+            'family_name', 'Patel Family',
+            'selected_mukhi_id', '${mukhiId}',
+            'city', 'Anand',
+            'state', 'Gujarat',
+            'country', 'India',
+            'gotra', 'Agastya',
+            'nukh', 'Arora (Aroda)'
+          ),
+          jsonb_build_object(
+            'is_existing', false,
+            'first_name', 'Hem',
+            'middle_name', 'B',
+            'last_name', 'Patel',
+            'gender', 'MALE',
+            'blood_group', 'A+',
+            'date_of_birth', '2005-11-02',
+            'city', 'Anand',
+            'state', 'Gujarat',
+            'country', 'India',
+            'gotra', 'Agastya',
+            'nukh', 'Arora (Aroda)',
+            'phone', '1234567890',
+            'email', 'hem@gmail.com'
+          ),
+          jsonb_build_array(
+            jsonb_build_object(
+              'is_existing', false,
+              'relationship_to_head', 'Wife',
+              'first_name', 'Rutva',
+              'middle_name', 'H',
+              'last_name', 'Patel',
+              'gender', 'FEMALE',
+              'blood_group', 'B+',
+              'date_of_birth', '2008-03-12',
+              'city', 'Anand',
+              'state', 'Gujarat',
+              'country', 'India',
+              'gotra', 'Agastya',
+              'nukh', 'Arora (Aroda)',
+              'phone', '0987654321',
+              'email', 'rutva@gmail.com'
+            )
+          )
+        );
+      `)
+
+      const output = rpcResult.rows[0].register_complete_family
+      expect(output.success).toBe(true)
+      expect(output.member_count).toBe(2)
+      expect(output.family_id).toBeDefined()
+
+      // The new Head person should have user_id = NULL (preserving PERSON != USER)
+      const headCheck = await pg.query<{ user_id: string | null }>(`
+        SELECT user_id::text FROM public.persons WHERE id = '${output.head_person_id}';
+      `)
+      expect(headCheck.rows[0].user_id).toBeNull()
+
+      // The family's created_by and manager_user_id belong to the caller (Darshan)
+      const famCheck = await pg.query<{ created_by: string; manager_user_id: string }>(`
+        SELECT created_by::text, manager_user_id::text FROM public.families WHERE id = '${output.family_id}';
+      `)
+      expect(famCheck.rows[0].created_by).toBe(linkedUserId)
+      expect(famCheck.rows[0].manager_user_id).toBe(linkedUserId)
+    })
+
+    it('rejects adding the Family Head as an additional member', async () => {
+      const mukhiRes = await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.community_mukhis LIMIT 1;
+      `)
+      const mukhiId = mukhiRes.rows[0].id
+
+      // Attempt to register a family where a member has the exact same person_id as the existing head
+      const existingPersonRes = await pg.query<{ id: string }>(`
+        SELECT id::text FROM public.persons LIMIT 1;
+      `)
+      const existingPersonId = existingPersonRes.rows[0].id
+
+      await expect(
+        pg.query(`
+          SELECT public.register_complete_family(
+            jsonb_build_object(
+              'family_name', 'Test Head In Members',
+              'selected_mukhi_id', '${mukhiId}',
+              'city', 'Anand',
+              'state', 'Gujarat',
+              'country', 'India',
+              'gotra', 'Agastya',
+              'nukh', 'Arora (Aroda)'
+            ),
+            jsonb_build_object(
+              'is_existing', true,
+              'person_id', '${existingPersonId}'
+            ),
+            jsonb_build_array(
+              jsonb_build_object(
+                'is_existing', true,
+                'person_id', '${existingPersonId}',
+                'relationship_to_head', 'Self'
+              )
+            )
+          );
+        `)
+      ).rejects.toThrow(/Family Head cannot also be added as an additional family member/)
     })
   })
 })

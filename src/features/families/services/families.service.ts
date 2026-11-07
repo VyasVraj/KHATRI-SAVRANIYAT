@@ -822,7 +822,17 @@ function mapFamilyError(message: string, code?: string): string {
     return 'Family not found.'
   }
   if (code === '23505') {
-    return 'A duplicate record already exists.'
+    const lowerMsg = (message || '').toLowerCase()
+    if (lowerMsg.includes('duplicate_member') || lowerMsg.includes('family_members')) {
+      return 'A member has already been added to this family.'
+    }
+    if (lowerMsg.includes('idx_persons_user_id_unique')) {
+      return 'The user account is already linked to another person profile.'
+    }
+    if (lowerMsg.includes('idx_family_members_one_head')) {
+      return 'This family already has a designated head.'
+    }
+    return message || 'A duplicate record already exists.'
   }
   if (code === '23503') {
     return 'Related record not found.'
