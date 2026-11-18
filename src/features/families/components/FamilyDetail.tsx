@@ -13,19 +13,22 @@
 
 import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Crown, User, GitBranch, ShieldAlert, Award } from 'lucide-react'
+import { Crown, User, GitBranch, ShieldAlert, Award, Pencil } from 'lucide-react'
 import type { Tables } from '@/types/database.types'
 import { PRIVACY_LEVEL_LABELS, canManagePrivacy, ROUTES } from '@/constants/app'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import type { PrivacyLevel } from '@/types'
 import { MemberList } from '@/features/family-members'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
-import { AvatarImage, AvatarUploadDialog } from '@/features/media'
+import { AvatarImage } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { useTranslation } from '@/features/i18n'
 import { useCommunityMukhis } from '@/features/community/hooks/useCommunityMukhis'
 import type { CommunityMukhi } from '@/features/community/services/community-mukhis.service'
+import { MukhiDetailsModal } from '@/features/community/components/MukhiDetailsModal'
+import type { MukhiLeaderItem } from '@/features/community/types'
 import { ChangeMukhiDialog } from './ChangeMukhiDialog'
+import { toProperCaseName, toSentenceCase } from '@/utils/text-casing'
 
 type FamilyRow = Tables<'families'> & {
   selected_mukhi_id?: string | null
@@ -61,19 +64,19 @@ export interface FamilyDetailProps {
 /**
  * Full read-only family detail panel.
  */
-export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated }: FamilyDetailProps) {
+export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated: _onAvatarUpdated }: FamilyDetailProps) {
   const auth = useContext(AuthContext)
   const { t } = useTranslation()
   const isPrivacyManager = canManagePrivacy(auth?.profile?.role)
 
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(family.avatar_url ?? null)
+  const currentAvatarUrl = family.avatar_url ?? null
 
   const { mukhis: communityMukhis } = useCommunityMukhis({ priorityLocation: family.city ?? undefined })
   const [currentMukhi, setCurrentMukhi] = useState<CommunityMukhi | null>(
     family.selected_mukhi ?? null
   )
   const [changeMukhiOpen, setChangeMukhiOpen] = useState(false)
+  const [viewMukhiModalOpen, setViewMukhiModalOpen] = useState(false)
 
   // Resolve Mukhi from list if not already resolved on family prop
   const effectiveMukhi = currentMukhi || (
@@ -82,9 +85,31 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
       : null
   )
 
+  const selectedMukhiLeaderItem: MukhiLeaderItem | null = effectiveMukhi ? {
+    id: effectiveMukhi.id,
+    name: effectiveMukhi.full_name,
+    gram: effectiveMukhi.gram,
+    phone: effectiveMukhi.mobile_number,
+    mukhi_unique_id: `MUK-${String(effectiveMukhi.source_serial_number || 1).padStart(4, '0')}`,
+    authority_status: effectiveMukhi.is_active ? 'ACTIVE' : 'INACTIVE',
+    account_linking_status: effectiveMukhi.linked_user_id ? 'LINKED' : 'UNLINKED',
+    person_id: effectiveMukhi.linked_person_id ?? null,
+    user_id: effectiveMukhi.linked_user_id ?? null,
+    gotra: effectiveMukhi.gotra ?? null,
+    nukh: effectiveMukhi.nukh ?? null,
+    designation: 'Mukhi',
+    role: 'MUKHI',
+    is_active: effectiveMukhi.is_active,
+    status: effectiveMukhi.is_active ? 'ACTIVE' : 'INACTIVE',
+    is_verified: true,
+    profile_privacy: 'COMMUNITY',
+  } : null
+
   // Fetch active family members for census head and stats
   const { data: members = [] } = useFamilyMembers(family.id, { includeFormer: false })
-  const currentHead = members.find((m) => (m.is_head || m.role === 'HEAD') && !m.left_at)
+  const activeMembers = members.filter((m) => !m.left_at)
+  const activeCount = activeMembers.length
+  const currentHead = activeMembers.find((m) => (m.is_head || m.role === 'HEAD'))
   const lineageCount = [family.gotra, family.nukh].filter(Boolean).length
 
   return (
@@ -101,20 +126,20 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
             isFamily
           />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-brand-700 border border-brand-200">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-slate-700 border border-slate-200">
                 {t('census.page_title')}
               </span>
-              <span className="text-xs text-navy-500">
-                • {members.length} active
+              <span className="inline-flex items-center text-xs font-medium text-slate-500">
+                • {activeCount} active {activeCount === 1 ? 'member' : 'members'}
               </span>
             </div>
             <h2 id="family-name-heading" className="mt-1 text-2xl font-bold text-navy-900">
-              {family.family_name}
+              {toProperCaseName(family.family_name)}
             </h2>
             {family.description && (
               <p className="mt-1 text-sm text-navy-600 whitespace-pre-line">
-                {family.description}
+                {toSentenceCase(family.description)}
               </p>
             )}
           </div>
@@ -122,15 +147,13 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
         <div className="flex flex-wrap items-center gap-2">
           {canManageMembers && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setAvatarDialogOpen(true)}
-              className="flex items-center gap-2 text-xs"
+            <Link
+              to={ROUTES.FAMILY_EDIT(family.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-navy-300 bg-white px-3 py-1.5 text-xs font-semibold text-navy-700 shadow-2xs hover:bg-navy-50 hover:text-navy-900 transition-colors"
             >
-              <Camera className="h-4 w-4" />
-              Change crest
-            </Button>
+              <Pencil className="h-3.5 w-3.5 text-navy-500" />
+              <span>Edit Family</span>
+            </Link>
           )}
 
           {members.length > 0 ? (
@@ -170,7 +193,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
                     className="text-base font-bold text-navy-900 hover:text-brand-700 hover:underline block"
                   >
                     {currentHead.person
-                      ? `${currentHead.person.first_name} ${currentHead.person.last_name}`
+                      ? toProperCaseName(`${currentHead.person.first_name} ${currentHead.person.last_name}`)
                       : 'Head of Family'}
                   </Link>
                   <p className="text-xs text-navy-600 mt-0.5">
@@ -228,14 +251,31 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
             </div>
 
             {effectiveMukhi ? (
-              <div className="mt-3 flex items-start gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shrink-0 shadow-xs">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setViewMukhiModalOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setViewMukhiModalOpen(true)
+                  }
+                }}
+                className="mt-3 flex items-start gap-3.5 p-3 rounded-xl border border-blue-100 bg-blue-50/40 hover:bg-blue-100/50 hover:border-blue-300 transition-all cursor-pointer group shadow-2xs"
+                title="Click to view full Mukhi details"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shrink-0 shadow-xs group-hover:scale-105 transition-transform">
                   #{effectiveMukhi.source_serial_number}
                 </div>
-                <div>
-                  <h4 className="text-base font-bold text-navy-900">
-                    {effectiveMukhi.full_name}
-                  </h4>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-bold text-navy-900 group-hover:text-brand-700 transition-colors truncate">
+                      {effectiveMukhi.full_name}
+                    </h4>
+                    <span className="text-[11px] font-medium text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      View details →
+                    </span>
+                  </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                     <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-800">
                       Official Mukhi
@@ -246,16 +286,22 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
                   </div>
                   {effectiveMukhi.mobile_number && (
                     <p className="text-xs text-navy-500 mt-1.5">
-                      📞 <a href={`tel:${effectiveMukhi.mobile_number}`} className="hover:underline font-medium text-navy-700">{effectiveMukhi.mobile_number}</a>
+                      📞 <a
+                        href={`tel:${effectiveMukhi.mobile_number}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline font-medium text-navy-700"
+                      >
+                        {effectiveMukhi.mobile_number}
+                      </a>
                     </p>
                   )}
                 </div>
               </div>
             ) : (
               <div className="py-2">
-                <p className="text-sm font-semibold text-navy-800">No Mukhi Designated</p>
+                <p className="text-sm font-semibold text-navy-800">No Mukhi assigned to this family or region.</p>
                 <p className="text-xs text-navy-500 mt-1">
-                  Designate an official Community Mukhi from the 118-member Community Mukhi Directory for this family unit.
+                  Designate an official Community Mukhi from the Community Mukhi Directory for this family unit.
                 </p>
                 {canManageMembers && (
                   <Button
@@ -274,7 +320,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
           {effectiveMukhi && (
             <div className="mt-4 pt-3 border-t border-brand-100 flex items-center justify-between text-[11px] text-brand-800">
-              <span>Official Community Representative</span>
+              <span>Official Mukhi representing all {activeCount} registered members of this family</span>
               {canManageMembers && (
                 <button
                   type="button"
@@ -300,6 +346,15 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
           onMukhiChanged={(newMukhi) => {
             setCurrentMukhi(newMukhi)
           }}
+        />
+      )}
+
+      {/* Mukhi Details Modal (Phase Enhancement: Interactive Mukhi card) */}
+      {viewMukhiModalOpen && selectedMukhiLeaderItem && (
+        <MukhiDetailsModal
+          isOpen={viewMukhiModalOpen}
+          onClose={() => setViewMukhiModalOpen(false)}
+          mukhi={selectedMukhiLeaderItem}
         />
       )}
 
@@ -340,20 +395,6 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
           </p>
         </div>
       </section>
-
-      {avatarDialogOpen && (
-        <AvatarUploadDialog
-          isOpen={avatarDialogOpen}
-          onClose={() => setAvatarDialogOpen(false)}
-          target={{ type: 'family', id: family.id }}
-          currentAvatarUrl={currentAvatarUrl}
-          onSuccess={(newUrl) => {
-            setCurrentAvatarUrl(newUrl)
-            setAvatarDialogOpen(false)
-            onAvatarUpdated?.(newUrl)
-          }}
-        />
-      )}
 
       {/* Location */}
       <section aria-labelledby="location-heading">
@@ -411,7 +452,11 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
       {/* Family Membership Roster (Phase 4 Subtask 2) */}
       <section aria-labelledby="family-roster-section-heading">
-        <MemberList familyId={family.id} canManageMembers={canManageMembers} />
+        <MemberList
+          familyId={family.id}
+          canManageMembers={canManageMembers}
+          familyMukhi={effectiveMukhi}
+        />
       </section>
 
 

@@ -14,7 +14,6 @@ import {
   Shield,
   CheckCircle,
   AlertCircle,
-  Camera,
   ArrowRight,
   GitBranch,
   Search,
@@ -28,7 +27,7 @@ import { updateProfile } from '../services/profile.service'
 import { ROUTES } from '@/constants/app'
 import { Input } from '@/components/forms/Input'
 import { Button } from '@/components/forms/Button'
-import { AvatarImage, AvatarUploadDialog } from '@/features/media'
+import { AvatarImage } from '@/features/media'
 import { useLanguage } from '@/features/i18n'
 import { calculatePersonDataQuality } from '@/features/verification/services/dataQuality.service'
 
@@ -52,8 +51,7 @@ export function ProfileOverviewSection({
   const { t } = useLanguage()
   const [updateSuccess, setUpdateSuccess] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(profile.avatar_url ?? null)
+  const currentAvatar = profile.avatar_url ?? null
 
   const {
     register,
@@ -125,31 +123,7 @@ export function ProfileOverviewSection({
             </div>
           </div>
         </div>
-
-        <div className="w-full sm:w-auto shrink-0">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setAvatarDialogOpen(true)}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 min-h-[44px]"
-          >
-            <Camera className="h-4 w-4" aria-hidden="true" />
-            {t('profile.change_photo', 'Change photo')}
-          </Button>
-        </div>
       </div>
-
-      <AvatarUploadDialog
-        isOpen={avatarDialogOpen}
-        onClose={() => setAvatarDialogOpen(false)}
-        target={{ type: 'profile', id: userId }}
-        currentAvatarUrl={currentAvatar}
-        onSuccess={(newUrl) => {
-          setCurrentAvatar(newUrl)
-          setAvatarDialogOpen(false)
-          onProfileUpdated?.()
-        }}
-      />
 
       {/* Mini Completeness Callout Card */}
       {linkedPerson && quality && (

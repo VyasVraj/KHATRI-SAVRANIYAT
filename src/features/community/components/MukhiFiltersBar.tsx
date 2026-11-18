@@ -21,6 +21,7 @@ interface MukhiFiltersBarProps {
   availableNukhs: string[]
   onFilterChange: (key: keyof MukhiDirectoryFilters, value: string) => void
   onReset: () => void
+  isAdmin?: boolean
   className?: string
 }
 
@@ -30,6 +31,7 @@ export function MukhiFiltersBar({
   availableCities,
   onFilterChange,
   onReset,
+  isAdmin = false,
   className = '',
 }: MukhiFiltersBarProps) {
   const { t } = useLanguage()
@@ -39,6 +41,7 @@ export function MukhiFiltersBar({
       (filters.state && filters.state !== 'ALL') ||
       (filters.city && filters.city !== 'ALL') ||
       (filters.nukh && filters.nukh !== 'ALL') ||
+      (filters.status && filters.status !== 'ACTIVE') ||
       (filters.sort && filters.sort !== 'NAME_ASC')
   )
 
@@ -137,6 +140,25 @@ export function MukhiFiltersBar({
             </select>
           </div>
         </div>
+
+        {/* Administrative Status Filter (Admins only) */}
+        {isAdmin && (
+          <div className="flex-1 min-w-[160px]">
+            <label htmlFor="mukhi-admin-status-filter" className="sr-only">
+              Authority Status
+            </label>
+            <select
+              id="mukhi-admin-status-filter"
+              value={filters.status ?? 'ACTIVE'}
+              onChange={(e) => onFilterChange('status', e.target.value)}
+              className="min-h-[44px] w-full rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-xs font-semibold text-amber-900 shadow-xs transition hover:border-amber-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="ACTIVE">Active Mukhis Only</option>
+              <option value="INACTIVE">Deactivated / Inactive Only</option>
+              <option value="ALL">All Mukhis (Active & Inactive)</option>
+            </select>
+          </div>
+        )}
 
         {/* Clear Search and Filters Button */}
         {hasActiveFilters && (

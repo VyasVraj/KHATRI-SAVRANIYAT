@@ -11,6 +11,8 @@ import { User, GitFork, Crown, Calendar, ArrowRight } from 'lucide-react'
 import type { TreeNode } from '../types'
 import { ROUTES } from '@/constants/app'
 import { cn } from '@/lib/utils'
+import { toProperCaseName } from '@/utils/text-casing'
+import { formatRelationshipDisplay } from '@/constants/familyRelationships'
 
 interface FamilyMemberListViewProps {
   nodes: TreeNode[]
@@ -58,9 +60,11 @@ export const FamilyMemberListView: React.FC<FamilyMemberListViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedNodes.map((node) => {
           const { person, isHead, relationshipLabel, age } = node
-          const fullName = [person.first_name, person.middle_name, person.last_name]
-            .filter(Boolean)
-            .join(' ')
+          const fullName = toProperCaseName(
+            [person.first_name, person.middle_name, person.last_name]
+              .filter(Boolean)
+              .join(' ')
+          )
           const initials = getInitials(person.first_name, person.last_name)
           const isFemale = person.gender === 'FEMALE'
 
@@ -93,20 +97,21 @@ export const FamilyMemberListView: React.FC<FamilyMemberListViewProps> = ({
                   </div>
 
                   <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                    {isHead ? (
+                    {isHead && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold text-[#92400E] border border-amber-200">
                         <Crown className="h-3 w-3 fill-amber-500 text-amber-600" />
                         <span>Head of Family</span>
                       </span>
-                    ) : relationshipLabel ? (
+                    )}
+                    {relationshipLabel && relationshipLabel !== 'Head of Family' ? (
                       <span className="inline-flex items-center rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-semibold text-[#92400E] border border-amber-200/60">
-                        {relationshipLabel}
+                        {formatRelationshipDisplay(relationshipLabel)}
                       </span>
-                    ) : (
+                    ) : !isHead ? (
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
                         Member
                       </span>
-                    )}
+                    ) : null}
 
                     {person.gender && (
                       <span className="capitalize text-[11px] text-slate-500">

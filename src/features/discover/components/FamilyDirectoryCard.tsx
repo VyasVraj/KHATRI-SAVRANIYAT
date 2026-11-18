@@ -13,11 +13,14 @@
  * - Navigates to /families/:id on interaction.
  */
 
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, MapPin, CheckCircle2, Clock, AlertCircle, GitFork, Home } from 'lucide-react'
+import { Users, MapPin, CheckCircle2, Clock, AlertCircle, GitFork, Home, ShieldCheck } from 'lucide-react'
 import type { FamilyDiscoveryResult } from '../types'
 import { ROUTES } from '@/constants/app'
 import { useTranslation } from '@/features/i18n'
+import { toProperCaseName, toSentenceCase } from '@/utils/text-casing'
+import { ClaimFamilyModal } from '@/features/claims/components/ClaimFamilyModal'
 
 interface FamilyDirectoryCardProps {
   family: FamilyDiscoveryResult
@@ -32,14 +35,16 @@ export function FamilyDirectoryCard({
 }: FamilyDirectoryCardProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const [claimModalOpen, setClaimModalOpen] = useState(false)
 
   const location = [family.city, family.state, family.country]
     .filter(Boolean)
+    .map(toProperCaseName)
     .join(', ')
 
   const lineageBadges = [
-    family.gotra ? `Gotra: ${family.gotra}` : null,
-    family.nukh ? `Nukh: ${family.nukh}` : null,
+    family.gotra ? `Gotra: ${toProperCaseName(family.gotra)}` : null,
+    family.nukh ? `Nukh: ${toProperCaseName(family.nukh)}` : null,
   ].filter(Boolean)
 
   function handleClick() {
@@ -81,7 +86,7 @@ export function FamilyDirectoryCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <h3 className="truncate text-base font-semibold text-navy-900 group-hover:text-brand-600">
-                {family.family_name}
+                {toProperCaseName(family.family_name)}
               </h3>
               {family.verification_status === 'VERIFIED' && (
                 <span title="Verified Family" aria-label="Verified Family">
@@ -103,7 +108,7 @@ export function FamilyDirectoryCard({
         {/* Description preview */}
         {family.description && (
           <p className="mt-3 line-clamp-2 text-xs text-navy-600">
-            {family.description}
+            {toSentenceCase(family.description)}
           </p>
         )}
 
@@ -189,8 +194,33 @@ export function FamilyDirectoryCard({
             <GitFork className="h-3.5 w-3.5 text-navy-400" />
             <span>{t('directory.view_tree')}</span>
           </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setClaimModalOpen(true)
+            }}
+            className="flex-1 inline-flex min-h-[44px] items-center justify-center gap-1 rounded border border-indigo-200 bg-indigo-50/60 py-2 px-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            aria-label={`Claim ${family.family_name} family`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Claim Family</span>
+          </button>
         </div>
       </div>
+
+      {claimModalOpen && (
+        <ClaimFamilyModal
+          isOpen={claimModalOpen}
+          onClose={() => setClaimModalOpen(false)}
+          family={{
+            id: family.id,
+            family_name: family.family_name,
+            city: family.city,
+          }}
+        />
+      )}
     </div>
   )
 }

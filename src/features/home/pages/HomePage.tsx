@@ -40,6 +40,7 @@ export function HomePage() {
       <section className="bg-navy-900 py-16 text-white sm:py-20" aria-labelledby="hero-heading">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
+            {/* 1. Existing KHATRI SARVANIYAT logo */}
             <div className="mb-6 flex justify-center">
               <div className="relative inline-flex items-center justify-center p-2 rounded-2xl bg-[#081B55] border-2 border-[#D9A62E] shadow-xl">
                 <BrandLogo
@@ -51,16 +52,20 @@ export function HomePage() {
               </div>
             </div>
 
+            {/* 2. Official organization name (Most prominent text in hero section - Multilingual) */}
             <h1
               id="hero-heading"
-              className="mb-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl"
+              className="mb-3 text-2xl font-black uppercase tracking-wider text-white sm:text-4xl lg:text-5xl leading-tight sm:leading-snug"
             >
-              {t('home.hero_title')}
+              {t('home.organization_title')}
             </h1>
 
-            <p className="mb-8 text-base text-navy-300 sm:text-lg leading-relaxed">
-              {t('home.hero_description')}
-            </p>
+            {/* 3. Existing heading: Smaller than newly added organization name but clearly visible */}
+            <h2
+              className="mb-8 text-xl font-bold tracking-tight text-brand-300 sm:text-2xl lg:text-3xl"
+            >
+              {t('home.hero_title')}
+            </h2>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link

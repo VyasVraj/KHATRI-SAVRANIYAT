@@ -24,6 +24,7 @@ export type UserRole =
   | 'SUPER_ADMIN'
   | 'ADMIN'
   | 'COMMUNITY_MODERATOR'
+  | 'MUKHI'
   | 'COMMUNITY_MUKHI'
   | 'ASSISTANT_MUKHI'
   | 'COMMITTEE_MEMBER'
@@ -133,11 +134,14 @@ export interface PersonRow {
   dob_year?: number | null      // Generated public birth year (YYYY)
   age?: number | null           // Calculated age in years
   date_of_death: string | null
+  is_deceased?: boolean
   birth_place: string | null
   // Community Identity
   gotra: string | null
   nukh: string | null
   kul: string | null
+  occupation?: string | null
+  occupation_category?: string | null
   // Contact (access controlled by contact_privacy + RLS)
   phone: string | null
   phone_secondary: string | null
@@ -204,6 +208,7 @@ export interface FamilyRow {
   gotra: string | null
   nukh: string | null
   kul: string | null
+  occupation?: string | null
   // Location (freeform in Phase 1)
   city: string | null
   state: string | null
@@ -370,6 +375,7 @@ export interface PersonUpdate {
   gender?: Gender | null
   date_of_birth?: string | null
   date_of_death?: string | null
+  is_deceased?: boolean
   gotra?: string | null
   nukh?: string | null
   kul?: string | null
@@ -377,6 +383,7 @@ export interface PersonUpdate {
   email?: string | null
   bio?: string | null
   occupation?: string | null
+  occupation_category?: string | null
   education?: string | null
   birth_place?: string | null
   residence_place?: string | null

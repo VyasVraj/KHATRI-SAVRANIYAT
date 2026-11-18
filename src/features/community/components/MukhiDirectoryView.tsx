@@ -14,6 +14,7 @@
  */
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Shield, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Plus } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
@@ -23,16 +24,29 @@ import { MukhiCard } from './MukhiCard'
 import { MukhiFiltersBar } from './MukhiFiltersBar'
 import { MukhiDetailsModal } from './MukhiDetailsModal'
 import { MukhiFormModal } from './MukhiFormModal'
+import { RemoveMukhiModal } from './RemoveMukhiModal'
+import { DeactivateMukhiModal } from './DeactivateMukhiModal'
+import { ReactivateMukhiModal } from './ReactivateMukhiModal'
 import type { MukhiLeaderItem } from '../types'
 
 export function MukhiDirectoryView() {
   const { t } = useLanguage()
   const { profile } = useAuthContext()
   const isAdmin = Boolean(profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role))
+  let queryClient: ReturnType<typeof useQueryClient> | null = null
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    queryClient = useQueryClient()
+  } catch {
+    // Graceful fallback if rendered outside QueryClientProvider
+  }
 
   const [selectedMukhi, setSelectedMukhi] = useState<MukhiLeaderItem | null>(null)
   const [isAddMukhiOpen, setIsAddMukhiOpen] = useState(false)
   const [editingMukhi, setEditingMukhi] = useState<MukhiLeaderItem | null>(null)
+  const [removingMukhi, setRemovingMukhi] = useState<MukhiLeaderItem | null>(null)
+  const [deactivatingMukhi, setDeactivatingMukhi] = useState<MukhiLeaderItem | null>(null)
+  const [reactivatingMukhi, setReactivatingMukhi] = useState<MukhiLeaderItem | null>(null)
 
   const {
     leaders,
@@ -51,6 +65,16 @@ export function MukhiDirectoryView() {
     availableNukhs,
     refresh,
   } = useMukhiDirectory(12)
+
+  const handleActionSuccess = () => {
+    refresh()
+    if (queryClient) {
+      queryClient.invalidateQueries({ queryKey: ['community-mukhis'] })
+      queryClient.invalidateQueries({ queryKey: ['mukhi-directory'] })
+      queryClient.invalidateQueries({ queryKey: ['mukhi-count'] })
+      queryClient.invalidateQueries({ queryKey: ['platform-metrics'] })
+    }
+  }
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1
 
@@ -98,6 +122,7 @@ export function MukhiDirectoryView() {
         availableNukhs={availableNukhs}
         onFilterChange={setFilter}
         onReset={resetFilters}
+        isAdmin={isAdmin}
       />
 
       {/* Main Content Area: Loading, Error, Empty, or Cards Grid */}
@@ -165,6 +190,27 @@ export function MukhiDirectoryView() {
                       }
                     : undefined
                 }
+                onRemove={
+                  isAdmin
+                    ? (selected) => {
+                        setRemovingMukhi(selected)
+                      }
+                    : undefined
+                }
+                onDeactivate={
+                  isAdmin
+                    ? (selected) => {
+                        setDeactivatingMukhi(selected)
+                      }
+                    : undefined
+                }
+                onReactivate={
+                  isAdmin
+                    ? (selected) => {
+                        setReactivatingMukhi(selected)
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -213,6 +259,48 @@ export function MukhiDirectoryView() {
           setEditingMukhi(m)
           setIsAddMukhiOpen(true)
         }}
+        onRemove={(m) => {
+          setRemovingMukhi(m)
+        }}
+        onDeactivate={(m) => {
+          setDeactivatingMukhi(m)
+        }}
+        onReactivate={(m) => {
+          setReactivatingMukhi(m)
+        }}
+      />
+
+      {/* Remove as Mukhi Modal */}
+      <RemoveMukhiModal
+        isOpen={Boolean(removingMukhi)}
+        mukhi={removingMukhi}
+        onClose={() => setRemovingMukhi(null)}
+        onSuccess={() => {
+          setSelectedMukhi(null)
+          handleActionSuccess()
+        }}
+      />
+
+      {/* Deactivate Mukhi Modal */}
+      <DeactivateMukhiModal
+        isOpen={Boolean(deactivatingMukhi)}
+        mukhi={deactivatingMukhi}
+        onClose={() => setDeactivatingMukhi(null)}
+        onSuccess={() => {
+          setSelectedMukhi(null)
+          handleActionSuccess()
+        }}
+      />
+
+      {/* Reactivate Mukhi Modal */}
+      <ReactivateMukhiModal
+        isOpen={Boolean(reactivatingMukhi)}
+        mukhi={reactivatingMukhi}
+        onClose={() => setReactivatingMukhi(null)}
+        onSuccess={() => {
+          setSelectedMukhi(null)
+          handleActionSuccess()
+        }}
       />
 
       {/* Mukhi Form Modal (Add / Edit) */}
@@ -224,7 +312,7 @@ export function MukhiDirectoryView() {
           setEditingMukhi(null)
         }}
         onSuccess={() => {
-          refresh()
+          handleActionSuccess()
         }}
       />
     </div>

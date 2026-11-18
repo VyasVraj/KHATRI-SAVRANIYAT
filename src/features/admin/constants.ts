@@ -10,8 +10,10 @@ import {
   History,
   ShieldCheck,
   CheckCircle2,
-  Copy,
-  UploadCloud,
+  Download,
+  Briefcase,
+  ClipboardList,
+  Mail,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/app'
 import type { UserRole, AuditAction } from '@/types'
@@ -50,16 +52,28 @@ export const ADMIN_NAV_ITEMS: AdminNavigationItem[] = [
     description: 'Pending census record verifications',
   },
   {
-    label: 'Duplicates',
-    href: ROUTES.ADMIN_DUPLICATES,
-    icon: Copy,
-    description: 'Review potential duplicate records',
+    label: 'Data Export and Reports',
+    href: ROUTES.ADMIN_EXPORT,
+    icon: Download,
+    description: 'Export census, families & Mukhis in Excel/PDF',
   },
   {
-    label: 'Data Import',
-    href: ROUTES.ADMIN_IMPORT,
-    icon: UploadCloud,
-    description: 'Staging batches & data migration',
+    label: 'Profession Directory',
+    href: ROUTES.ADMIN_PROFESSION_DIRECTORY,
+    icon: Briefcase,
+    description: '30 Official Occupation Categories directory',
+  },
+  {
+    label: 'Occupation Requests',
+    href: ROUTES.ADMIN_OCCUPATION_REQUESTS,
+    icon: ClipboardList,
+    description: 'Review and approve member occupation change requests',
+  },
+  {
+    label: 'Occupation Contact Requests',
+    href: ROUTES.ADMIN_OCCUPATION_CONTACT_REQUESTS,
+    icon: Mail,
+    description: 'Review and moderate visitor & member occupation contact requests',
   },
 ]
 
@@ -90,6 +104,12 @@ export const ROLE_CONFIG: Record<
   COMMUNITY_MODERATOR: {
     label: 'Community Moderator',
     description: 'Verification review queue, claims review, and community content moderation.',
+    badgeClasses: 'bg-sky-100 text-sky-800 border-sky-200',
+    badgeDotClass: 'bg-sky-600',
+  },
+  MUKHI: {
+    label: 'Community Mukhi',
+    description: 'Territorial community leadership, claim/verification review, family moderation, and governance.',
     badgeClasses: 'bg-sky-100 text-sky-800 border-sky-200',
     badgeDotClass: 'bg-sky-600',
   },
@@ -152,14 +172,10 @@ export const ROLE_CONFIG: Record<
 export const ALL_USER_ROLES: UserRole[] = [
   'SUPER_ADMIN',
   'ADMIN',
-  'COMMUNITY_MUKHI',
   'COMMUNITY_MODERATOR',
+  'COMMUNITY_MUKHI',
   'ASSISTANT_MUKHI',
   'COMMITTEE_MEMBER',
-  'FAMILY_HEAD',
-  'FAMILY_MANAGER',
-  'FAMILY_MEMBER',
-  'COMMUNITY_MEMBER',
   'MEMBER',
   'GUEST',
 ]

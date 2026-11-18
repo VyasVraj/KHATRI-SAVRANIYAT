@@ -76,27 +76,37 @@ export function ClaimPersonModal({
         const options: FamilyOption[] = []
 
         if (memberRows && memberRows.length > 0) {
+          // Batch fetch heads for all family IDs in a single query to eliminate N+1 latency
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const familyIds = memberRows.map((r: any) => r.family_id || r.families?.id).filter(Boolean)
+
+          const headMap = new Map<string, string>()
+          if (familyIds.length > 0) {
+            const { data: headRows } = await supabase
+              .from('family_members')
+              .select('family_id, person:persons(first_name, middle_name, last_name)')
+              .in('family_id', familyIds)
+              .eq('is_head', true)
+              .is('left_at', null)
+
+            if (headRows) {
+              for (const hr of headRows) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const p = (hr as any).person
+                if (p && hr.family_id) {
+                  const name = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ')
+                  headMap.set(hr.family_id, name)
+                }
+              }
+            }
+          }
+
           for (const row of memberRows) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const fam = (row as any).families
             const famId = row.family_id || fam?.id
             const famName = fam?.family_name || 'Community Household'
-
-            // Fetch head of family
-            let headName = 'Head of Family'
-            const { data: headRow } = await supabase
-              .from('family_members')
-              .select('person:persons(first_name, middle_name, last_name)')
-              .eq('family_id', famId)
-              .eq('is_head', true)
-              .is('left_at', null)
-              .maybeSingle()
-
-            if (headRow && headRow.person) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const p = headRow.person as any
-              headName = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ')
-            }
+            const headName = headMap.get(famId) || 'Head of Family'
 
             options.push({
               family_id: famId,
@@ -170,7 +180,28 @@ export function ClaimPersonModal({
       }, 2000)
     } catch (err: unknown) {
       const msg = (err as { message?: string }).message || 'Unable to submit claim request. Please try again.'
-      setErrorMsg(msg)
+      if (
+        msg.includes('already linked') ||
+        msg.includes('account may already be linked')
+      ) {
+        setErrorMsg(
+          'Your account is already linked to another community person profile. Each user account can be linked to only one person record. Please contact your family head or community administrator if you need assistance.'
+        )
+      } else if (msg.includes('already claimed') || msg.includes('already been claimed')) {
+        setErrorMsg('This community person profile has already been claimed by another member account.')
+      } else if (msg.includes('Deceased') || msg.includes('deceased')) {
+        setErrorMsg('Cannot claim record: Deceased person profiles cannot be linked to active user accounts.')
+      } else if (msg.includes('inactive') || msg.includes('Only active')) {
+        setErrorMsg('Cannot claim record: Only active census person profiles can be claimed.')
+      } else if (msg.includes('already pending') || msg.includes('already have a pending')) {
+        setErrorMsg('A claim request is already pending review for this person profile.')
+      } else if (msg.includes('does not exist') || msg.includes('not found')) {
+        setErrorMsg('The selected community person record does not exist or has been removed.')
+      } else if (msg.includes('signed in') || msg.includes('unauthorized') || msg.includes('permission denied')) {
+        setErrorMsg('You must be signed in to submit a profile claim.')
+      } else {
+        setErrorMsg(msg)
+      }
     } finally {
       setIsSubmitting(false)
     }

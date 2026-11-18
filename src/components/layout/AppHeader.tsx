@@ -10,7 +10,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Settings, Shield } from 'lucide-react'
+import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_NAME, ROUTES, ADMIN_ROLES, PLATFORM_ADMIN_ROLES } from '@/constants/app'
 import { BrandLogo } from '@/components/common/BrandLogo'
@@ -22,6 +22,8 @@ import { AccessibilityFontSizeSlider } from '@/components/common/AccessibilityFo
 
 const NAV_LINKS = [
   { label: 'Discover', href: ROUTES.DISCOVER },
+  { label: 'Occupations', href: ROUTES.OCCUPATION_DIRECTORY },
+  { label: 'Blood Directory', href: ROUTES.BLOOD_GROUP_DIRECTORY },
   { label: 'My Family', href: ROUTES.FAMILIES },
   { label: 'Community', href: ROUTES.COMMUNITY },
 ] as const
@@ -192,15 +194,17 @@ export function AppHeader() {
                           <Bell className="h-4 w-4" />
                           Notifications
                         </Link>
-                        <Link
-                          to={ROUTES.NOTIFICATION_PREFERENCES}
-                          role="menuitem"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2 text-sm text-navy-700 hover:bg-navy-50"
-                        >
-                          <Settings className="h-4 w-4" />
-                          Notification Settings
-                        </Link>
+                        {profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI', 'SUPER_ADMIN', 'ADMIN'].includes(profile.role) && (
+                          <Link
+                            to={ROUTES.MUKHI_PORTAL}
+                            role="menuitem"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
+                          >
+                            <Shield className="h-4 w-4 text-amber-600" />
+                            Mukhi Portal
+                          </Link>
+                        )}
                         {profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role) && (
                           <Link
                             to={ROUTES.ADMIN}
@@ -374,14 +378,16 @@ export function AppHeader() {
                       <Bell className="h-4 w-4" />
                       Notifications
                     </Link>
-                    <Link
-                      to={ROUTES.NOTIFICATION_PREFERENCES}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Notification Settings
-                    </Link>
+                    {profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI', 'SUPER_ADMIN', 'ADMIN'].includes(profile.role) && (
+                      <Link
+                        to={ROUTES.MUKHI_PORTAL}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-navy-700 hover:text-white"
+                      >
+                        <Shield className="h-4 w-4 text-amber-400" />
+                        Mukhi Portal
+                      </Link>
+                    )}
                     {profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role) && (
                       <Link
                         to={ROUTES.ADMIN}

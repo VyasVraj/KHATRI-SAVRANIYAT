@@ -140,32 +140,51 @@ const nukhField = z
       .max(100, 'Nukh must not exceed 100 characters')
   )
 
-/** Deployed: email_contact VARCHAR - MANDATORY */
-const emailContactField = z
-  .string({ required_error: 'Valid Email Address is required' })
+/** Optional Occupation (Two-Level System) */
+export const optionalOccupationField = z
+  .string()
   .transform(sanitizeText)
   .pipe(
     z
       .string()
-      .min(1, 'Valid Email Address is required')
-      .email('Valid Email Address is required')
+      .max(100, 'Occupation must not exceed 100 characters')
+  )
+  .nullable()
+  .optional()
+  .or(z.literal(''))
+
+export const occupationField = optionalOccupationField
+
+/** Optional Email Address for contact details */
+const optionalEmailField = z
+  .string()
+  .transform(sanitizeText)
+  .pipe(
+    z
+      .string()
+      .email('Please enter a valid email address')
       .max(254, 'Email must not exceed 254 characters')
   )
+  .nullable()
+  .optional()
+  .or(z.literal(''))
 
-/** Deployed: phone VARCHAR - MANDATORY */
-const phoneField = z
-  .string({ required_error: 'Valid Primary Phone Number is required' })
+/** Optional Phone Number for contact details */
+const optionalPhoneField = z
+  .string()
   .transform(sanitizeText)
   .pipe(
     z
       .string()
-      .min(1, 'Valid Primary Phone Number is required')
       .max(30, 'Phone number must not exceed 30 characters')
       .refine(
-        (val) => /^[0-9+\s\-()]{7,25}$/.test(val),
-        'Valid Primary Phone Number is required'
+        (val) => !val || /^[0-9+\s\-()]{7,25}$/.test(val),
+        'Please enter a valid phone number'
       )
   )
+  .nullable()
+  .optional()
+  .or(z.literal(''))
 
 /** Deployed: phone_secondary VARCHAR nullable */
 const phoneSecondaryField = z
@@ -219,14 +238,23 @@ export const createPersonSchema = z
     maiden_name: maidenNameField,
     gender: genderField,
     blood_group: bloodGroupField,
+    show_blood_group_in_directory: z.boolean().optional().default(false),
+    blood_group_consent: z.boolean().optional().default(false),
     date_of_birth: dateOfBirthField,
     date_of_death: dateOfDeathField,
+    is_deceased: z.boolean().optional().default(false),
     birth_place: birthPlaceField,
+    city: z.string().max(100).optional().nullable(),
+    state: z.string().max(100).optional().nullable(),
+    country: z.string().max(100).optional().nullable(),
     gotra: gotraField,
     kul: kulField,
     nukh: nukhField,
-    email_contact: emailContactField,
-    phone: phoneField,
+    occupation: optionalOccupationField,
+    occupation_category: z.string().max(100).optional().nullable(),
+    custom_occupation: z.string().max(100).optional().nullable(),
+    email_contact: optionalEmailField,
+    phone: optionalPhoneField,
     phone_secondary: phoneSecondaryField,
     // Privacy fields — default to PRIVATE per project privacy model & ANDROID-2 lock
     // Optional in input: if omitted by caller, the database default (PRIVATE) applies.
@@ -299,14 +327,23 @@ export const updatePersonSchema = z
     maiden_name: maidenNameField,
     gender: genderField.optional(),
     blood_group: bloodGroupField.optional(),
+    show_blood_group_in_directory: z.boolean().optional(),
+    blood_group_consent: z.boolean().optional(),
     date_of_birth: dateOfBirthField.optional(),
     date_of_death: dateOfDeathField,
+    is_deceased: z.boolean().optional(),
     birth_place: birthPlaceField.optional(),
+    city: z.string().max(100).optional().nullable(),
+    state: z.string().max(100).optional().nullable(),
+    country: z.string().max(100).optional().nullable(),
     gotra: gotraField.optional(),
     kul: kulField,
     nukh: nukhField.optional(),
-    email_contact: emailContactField.optional(),
-    phone: phoneField.optional(),
+    occupation: occupationField.optional(),
+    occupation_category: z.string().max(100).optional().nullable(),
+    custom_occupation: z.string().max(100).optional().nullable(),
+    email_contact: optionalEmailField,
+    phone: optionalPhoneField,
     phone_secondary: phoneSecondaryField,
     profile_privacy: privacyLevelField.optional(),
     contact_privacy: privacyLevelField.optional(),

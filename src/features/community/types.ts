@@ -286,6 +286,7 @@ export interface BirthdayItem {
   is_this_month: boolean
   target_date: string // ISO string for the upcoming celebration
   is_living: boolean
+  user_id?: string | null
 }
 
 export type BirthdayFilterType = 'ALL' | 'TODAY' | 'THIS_MONTH'
@@ -430,7 +431,7 @@ export interface MukhiDirectoryFilters {
   city?: string
   nukh?: string
   gotra?: string
-  status?: 'ALL' | 'ACTIVE'
+  status?: 'ALL' | 'ACTIVE' | 'INACTIVE' | 'REMOVED'
   sort?: 'NAME_ASC' | 'NAME_DESC' | 'SERIAL_ASC'
 }
 
@@ -588,6 +589,7 @@ export interface CircularItem {
   circular_number: string
   title: string
   summary: string
+  description?: string | null
   content: string
   category: Exclude<CircularCategory, 'ALL'>
   issuing_authority: string
@@ -596,11 +598,20 @@ export interface CircularItem {
   issue_date: string
   formatted_date: string
   is_pinned: boolean
-  status: 'PUBLISHED'
+  status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED'
   committee_id?: string | null
   committee_name?: string | null
   announcement_id?: string | null
   official_seal_text?: string
+  pdf_url?: string | null
+  original_pdf_url?: string | null
+  creation_method?: 'PDF_UPLOAD' | 'ONLINE_EDITOR'
+  effective_date?: string | null
+  subject?: string | null
+  instructions?: string | null
+  contact_info?: string | null
+  group_id?: string | null
+  can_manage?: boolean
 }
 
 export interface CircularFilters {

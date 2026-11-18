@@ -31,11 +31,14 @@ const EMPTY_LAYOUT: TreeLayoutResult = {
  * @param treeGraph - The domain TreeGraph, or null/undefined if loading/empty
  * @returns React Flow layout representation with positions and geometry bounds
  */
-export function useTreeLayout(treeGraph?: TreeGraph | null): TreeLayoutResult {
+export function useTreeLayout(
+  treeGraph?: TreeGraph | null,
+  savedPositions?: Record<string, { x: number; y: number }>
+): TreeLayoutResult {
   return useMemo(() => {
     if (!treeGraph) {
       return EMPTY_LAYOUT
     }
-    return computeTreeLayout(treeGraph)
-  }, [treeGraph])
+    return computeTreeLayout(treeGraph, savedPositions)
+  }, [treeGraph, savedPositions])
 }

@@ -41,10 +41,12 @@ interface BirthdayPersonQueryRow {
   middle_name: string | null
   last_name: string
   avatar_url: string | null
+  birth_day?: number | null
+  birth_month?: number | null
   date_of_birth: string | null
-  dob_privacy: string
-  profile_privacy: string
-  status: string
+  dob_privacy?: string | null
+  profile_privacy?: string | null
+  status?: string | null
   date_of_death: string | null
   user_id: string | null
   created_by: string | null
@@ -70,27 +72,15 @@ export interface CalculatedBirthday {
 }
 
 /**
- * Calculates deterministic upcoming celebration metrics for a given ISO date of birth (YYYY-MM-DD).
+ * Calculates deterministic upcoming celebration metrics from birth month and birth day.
  *
  * Conceals the birth year and returns only calendar day and month representations.
  */
-export function calculateUpcomingBirthday(
-  dateOfBirth: string | null | undefined,
+export function calculateUpcomingBirthdayFromParts(
+  birthMonth: number,
+  birthDay: number,
   now: Date = new Date()
 ): CalculatedBirthday | null {
-  if (!dateOfBirth || typeof dateOfBirth !== 'string') {
-    return null
-  }
-
-  // Expect YYYY-MM-DD
-  const parts = dateOfBirth.trim().split('-')
-  if (parts.length < 3) {
-    return null
-  }
-
-  const birthMonth = parseInt(parts[1], 10) // 1-12
-  const birthDay = parseInt(parts[2], 10) // 1-31
-
   if (
     isNaN(birthMonth) ||
     isNaN(birthDay) ||
@@ -171,6 +161,31 @@ export function calculateUpcomingBirthday(
 }
 
 /**
+ * Calculates deterministic upcoming celebration metrics for a given ISO date of birth (YYYY-MM-DD).
+ *
+ * Conceals the birth year and returns only calendar day and month representations.
+ */
+export function calculateUpcomingBirthday(
+  dateOfBirth: string | null | undefined,
+  now: Date = new Date()
+): CalculatedBirthday | null {
+  if (!dateOfBirth || typeof dateOfBirth !== 'string') {
+    return null
+  }
+
+  // Expect YYYY-MM-DD
+  const parts = dateOfBirth.trim().split('-')
+  if (parts.length < 3) {
+    return null
+  }
+
+  const birthMonth = parseInt(parts[1], 10) // 1-12
+  const birthDay = parseInt(parts[2], 10) // 1-31
+
+  return calculateUpcomingBirthdayFromParts(birthMonth, birthDay, now)
+}
+
+/**
  * Fetches upcoming birthdays visible to the caller while strictly enforcing
  * the 5-level privacy model and concealing full birth dates.
  */
@@ -180,27 +195,42 @@ export async function getUpcomingBirthdays(
   try {
     const { currentUserId = null, isModerator = false, limit, now } = options
 
-    // Primary attempt: community_persons security barrier view
-    const { data, error } = await supabase
-      .from('community_persons')
+    // Primary attempt: community_birthdays security barrier view
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('community_birthdays')
       .select(
-        'id, first_name, middle_name, last_name, avatar_url, date_of_birth, dob_privacy, profile_privacy, status, date_of_death, user_id, created_by'
+        'id, first_name, middle_name, last_name, avatar_url, date_of_birth, birth_day, birth_month, dob_privacy, profile_privacy, status, date_of_death, user_id, created_by'
       )
-      .not('date_of_birth', 'is', null)
+      .not('id', 'is', null)
       .is('deleted_at', null)
 
     let personsData = data as unknown as BirthdayPersonQueryRow[] | null
     let fetchError = error
-    if (error && (error.code === 'PGRST205' || error.code === '42P01')) {
+
+    // Fallback 1: community_persons security barrier view
+    if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.code === '42703')) {
       const fallback = await supabase
+        .from('community_persons')
+        .select(
+          'id, first_name, middle_name, last_name, avatar_url, date_of_birth, user_id, created_by'
+        )
+        .not('date_of_birth', 'is', null)
+        .is('deleted_at', null)
+      personsData = fallback.data as unknown as BirthdayPersonQueryRow[] | null
+      fetchError = fallback.error
+    }
+
+    // Fallback 2: persons table
+    if (fetchError && (fetchError.code === 'PGRST205' || fetchError.code === '42P01')) {
+      const fallback2 = await supabase
         .from('persons')
         .select(
           'id, first_name, middle_name, last_name, avatar_url, date_of_birth, dob_privacy, profile_privacy, status, date_of_death, user_id, created_by'
         )
         .not('date_of_birth', 'is', null)
         .is('deleted_at', null)
-      personsData = fallback.data as unknown as BirthdayPersonQueryRow[] | null
-      fetchError = fallback.error
+      personsData = fallback2.data as unknown as BirthdayPersonQueryRow[] | null
+      fetchError = fallback2.error
     }
 
     if (fetchError) {
@@ -248,7 +278,12 @@ export async function getUpcomingBirthdays(
       }
 
       // 3. Deterministic calculation
-      const calculated = calculateUpcomingBirthday(person.date_of_birth, now)
+      let calculated: CalculatedBirthday | null = null
+      if (person.date_of_birth) {
+        calculated = calculateUpcomingBirthday(person.date_of_birth, now)
+      } else if (person.birth_month && person.birth_day) {
+        calculated = calculateUpcomingBirthdayFromParts(person.birth_month, person.birth_day, now)
+      }
       if (!calculated) {
         continue
       }
@@ -270,6 +305,7 @@ export async function getUpcomingBirthdays(
         is_this_month: calculated.isThisMonth,
         target_date: calculated.targetDate,
         is_living: true,
+        user_id: person.user_id ?? null,
       })
     }
 

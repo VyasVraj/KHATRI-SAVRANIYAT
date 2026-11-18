@@ -11,7 +11,6 @@
  */
 
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Bell,
   CheckCheck,
@@ -20,9 +19,7 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
-  Settings,
 } from 'lucide-react'
-import { ROUTES } from '@/constants/app'
 import { useNotifications } from '../hooks/useNotifications'
 import { useUnreadCount } from '../hooks/useUnreadCount'
 import { useNotificationMutations } from '../hooks/useNotificationMutations'
@@ -149,15 +146,6 @@ export function NotificationsPage() {
               Mark all as read
             </button>
           )}
-
-          <Link
-            to={ROUTES.NOTIFICATION_PREFERENCES}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-navy-300 bg-white px-3 py-2 text-xs font-medium text-navy-700 shadow-sm transition-colors hover:bg-navy-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 min-h-[44px]"
-            title="Notification preferences"
-          >
-            <Settings className="h-4 w-4 text-navy-500" aria-hidden="true" />
-            Preferences
-          </Link>
 
           <button
             type="button"

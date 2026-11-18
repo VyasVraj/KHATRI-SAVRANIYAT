@@ -57,6 +57,8 @@ export type PersonSummary = Pick<
   nukh?: string | null
   avatar_url?: string | null
   is_same_family?: boolean
+  is_deceased?: boolean
+  date_of_death?: string | null
 }
 
 /** Canonical relationship row representation matching public.relationships */

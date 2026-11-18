@@ -50,6 +50,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'action.clear': 'Clear',
 
     // Home Page
+    'home.organization_title': 'AKHIL BHARAT SINDHI BRAHMKHATRI PANCHAYAT (SARVANIYAT)',
     'home.hero_title': 'Preserve Your Family Legacy',
     'home.hero_description':
       'KHATRI SARVANIYAT is a digital platform dedicated to preserving our community identity, family heritage, genealogy and connections. Register your family, discover relatives and keep our traditions alive for future generations.',
@@ -582,6 +583,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'action.clear': 'हटाएं',
 
     // Home Page
+    'home.organization_title': 'अखिल भारत सिंधी ब्रह्मखत्री पंचायत (सरवाणियत)',
     'home.hero_title': 'अपनी पारिवारिक विरासत को सुरक्षित रखें',
     'home.hero_description':
       'खत्री सरवानियत हमारे समाज की पारिवारिक जनगणना, वंशावली वृक्ष, निर्देशिका और सत्यापित संबंधों के लिए एक विश्वसनीय मंच है। अपने परिवार को पंजीकृत करें और आने वाली पीढ़ियों के लिए अपनी विरासत को संजोएं।',
@@ -1112,6 +1114,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'action.clear': 'સાફ કરો',
 
     // Home Page
+    'home.organization_title': 'અખિલ ભારત સિંધી બ્રહ્મખત્રી પંચાયત (સરવાણિયત)',
     'home.hero_title': 'તમારા પરિવારનો વારસો સાચવો',
     'home.hero_description':
       'ખત્રી સરવાણિયાત એ આપણા સમાજની પારિવારિક જનગણના, વંશાવળી વૃક્ષ અને પ્રમાણિત સંબંધો માટેનું વિશ્વસનીય પ્લેટફોર્મ છે. તમારા પરિવારની નોંધણી કરો અને વારસો સાચવો.',

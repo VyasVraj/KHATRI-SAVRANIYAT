@@ -46,7 +46,15 @@ export const TREE_VERTICAL_SPACING = 140
 // ---------------------------------------------------------------------------
 
 /** Genealogical roles relative to the root person within the visualized tree */
-export type TreeRole = 'ROOT' | 'PARENT' | 'CHILD' | 'SPOUSE' | 'SIBLING' | 'EXTENDED'
+export type TreeRole =
+  | 'ROOT'
+  | 'PARENT'
+  | 'CHILD'
+  | 'SPOUSE'
+  | 'SIBLING'
+  | 'GRANDPARENT'
+  | 'GRANDCHILD'
+  | 'EXTENDED'
 
 /**
  * Domain tree node representing a census person positioned in the genealogical graph.

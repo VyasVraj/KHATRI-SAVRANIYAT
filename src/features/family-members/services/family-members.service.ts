@@ -66,7 +66,35 @@ export interface ListPersonFamiliesOptions {
 
 /** Safe projection for person join to prevent leaking protected contact or full DOB fields */
 const PERSON_MEMBER_SAFE_COLUMNS =
-  'id, first_name, middle_name, last_name, maiden_name, gender, date_of_death, birth_place, gotra, kul, nukh, status, verification_status, profile_privacy, avatar_url'
+  'id, first_name, middle_name, last_name, maiden_name, gender, date_of_death, is_deceased, birth_place, gotra, kul, nukh, occupation, status, verification_status, profile_privacy, avatar_url, email_contact, phone'
+
+/**
+ * Retrieves the registered contact email of the current Family Head for a family.
+ *
+ * Used to automatically prefill the email field when adding new family members.
+ * Returns null if the family has no designated head or the head has no registered email.
+ */
+export async function getFamilyHeadEmail(familyId: string): Promise<string | null> {
+  if (!isValidUuid(familyId)) return null
+
+  try {
+    const { data, error } = await supabase
+      .from('family_members')
+      .select('person:persons(email_contact)')
+      .eq('family_id', familyId)
+      .eq('is_head', true)
+      .is('left_at', null)
+      .maybeSingle()
+
+    if (error || !data) return null
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const person = (data as any).person
+    return person?.email_contact ? String(person.email_contact).trim() : null
+  } catch {
+    return null
+  }
+}
 
 /** Options for removing a family member */
 export interface RemoveFamilyMemberOptions {
@@ -118,10 +146,12 @@ export async function addFamilyMember(
       family_id: validated.family_id,
       person_id: validated.person_id,
       role: validated.role,
+      relationship_to_head: validated.relationship_to_head,
       is_head: validated.is_head,
       joined_at: validated.joined_at,
       added_by: callerUserId,
-    })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .select()
     .single()
 
@@ -133,6 +163,24 @@ export async function addFamilyMember(
         code: error.code,
         cause: error,
       },
+    }
+  }
+
+  // If structured reference or connecting person supplied, persist via RPC
+  if (data && (validated.reference_person_id || validated.connected_person_id)) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)('save_member_structured_relationship', {
+        p_family_id: validated.family_id,
+        p_member_id: data.id,
+        p_role: validated.role,
+        p_relationship_to_head: validated.relationship_to_head ?? null,
+        p_is_head: validated.is_head ?? false,
+        p_reference_person_id: validated.reference_person_id ?? null,
+        p_connected_person_id: validated.connected_person_id ?? null,
+      })
+    } catch {
+      // Non-blocking: table record is already saved
     }
   }
 
@@ -406,12 +454,117 @@ export async function updateFamilyMember(
     }
   }
 
-  const { data, error } = await supabase
+  // 1. Resolve membership record: check by id, fallback to person_id if passed
+  let targetMembershipId = memberId
+  let targetFamilyId: string | null = null
+
+  try {
+    const fromBuilder = supabase.from('family_members')
+    if (typeof fromBuilder.select === 'function') {
+      const { data: directRow } = await fromBuilder
+        .select('id, family_id, person_id')
+        .eq('id', memberId)
+        .maybeSingle()
+
+      if (directRow) {
+        targetMembershipId = directRow.id
+        targetFamilyId = directRow.family_id
+      } else {
+        const { data: byPerson } = await fromBuilder
+          .select('id, family_id, person_id')
+          .eq('person_id', memberId)
+          .is('left_at', null)
+          .maybeSingle()
+
+        if (byPerson) {
+          targetMembershipId = byPerson.id
+          targetFamilyId = byPerson.family_id
+        }
+      }
+    }
+  } catch {
+    // Graceful fallback to memberId directly
+  }
+
+  // 2. Attempt server-authoritative RPC save_member_structured_relationship
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpcRes = await (supabase.rpc as any)('save_member_structured_relationship', {
+      p_family_id: targetFamilyId,
+      p_member_id: targetMembershipId,
+      p_role: parseResult.data.role ?? null,
+      p_relationship_to_head: parseResult.data.relationship_to_head ?? null,
+      p_is_head: parseResult.data.is_head ?? null,
+      p_reference_person_id: parseResult.data.reference_person_id ?? null,
+      p_connected_person_id: parseResult.data.connected_person_id ?? null,
+    })
+
+    if (!rpcRes.error && rpcRes.data) {
+      return { data: rpcRes.data as FamilyMemberRow, error: null }
+    }
+  } catch {
+    // Graceful fallback to update_family_member_record below
+  }
+
+  // 3. Fallback to update_family_member_record
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpcRes = await (supabase.rpc as any)('update_family_member_record', {
+      p_member_id: targetMembershipId,
+      p_role: parseResult.data.role ?? null,
+      p_relationship_to_head: parseResult.data.relationship_to_head ?? null,
+      p_is_head: parseResult.data.is_head ?? null,
+      p_family_id: targetFamilyId,
+    })
+
+    if (!rpcRes.error && rpcRes.data) {
+      return { data: rpcRes.data as FamilyMemberRow, error: null }
+    }
+    if (rpcRes.error && rpcRes.error.code !== 'PGRST202' && rpcRes.error.code !== '42883') {
+      return {
+        data: null,
+        error: {
+          message: mapFamilyMemberError(rpcRes.error.message, rpcRes.error.code),
+          code: rpcRes.error.code,
+          cause: rpcRes.error,
+        },
+      }
+    }
+  } catch {
+    // Fallback to direct table update below
+  }
+
+  // 3. Fallback: Direct table update with authorized RLS
+  if (parseResult.data.is_head && targetFamilyId) {
+    await supabase
+      .from('family_members')
+      .update({ is_head: false })
+      .eq('family_id', targetFamilyId)
+      .neq('id', targetMembershipId)
+      .eq('is_head', true)
+  }
+
+  const { role, relationship_to_head, is_head, left_at } = parseResult.data
+  const updatePayload = {
+    ...(role !== undefined && { role }),
+    ...(relationship_to_head !== undefined && { relationship_to_head }),
+    ...(is_head !== undefined && { is_head }),
+    ...(left_at !== undefined && { left_at }),
+  }
+
+  const updateSelect = supabase
     .from('family_members')
-    .update(parseResult.data)
-    .eq('id', memberId)
+    .update(updatePayload)
+    .eq('id', targetMembershipId)
     .select()
-    .single()
+
+  const executor = updateSelect as unknown as {
+    maybeSingle?: () => Promise<{ data: FamilyMemberRow | null; error: { message: string; code: string } | null }>
+    single: () => Promise<{ data: FamilyMemberRow | null; error: { message: string; code: string } | null }>
+  }
+  const { data, error } = typeof executor.maybeSingle === 'function'
+    ? await executor.maybeSingle()
+    : await executor.single()
 
   if (error) {
     return {
@@ -420,6 +573,17 @@ export async function updateFamilyMember(
         message: mapFamilyMemberError(error.message, error.code),
         code: error.code,
         cause: error,
+      },
+    }
+  }
+
+  if (!data) {
+    return {
+      data: null,
+      error: {
+        message:
+          'You do not have permission to update this family member. Only authorized family managers or administrators can edit members.',
+        code: '42501',
       },
     }
   }
@@ -629,11 +793,11 @@ export async function transferFamilyHead(
     return { data: existingHead, error: null }
   }
 
-  // 2. Demote existing head if one exists
+  // 2. Demote existing head if one exists without modifying their interpersonal relationship role
   if (existingHead) {
     const { error: demoteError } = await supabase
       .from('family_members')
-      .update({ is_head: false, role: 'EXTENDED' })
+      .update({ is_head: false })
       .eq('id', existingHead.id)
 
     if (demoteError) {
@@ -648,10 +812,10 @@ export async function transferFamilyHead(
     }
   }
 
-  // 3. Promote new head
+  // 3. Promote new head (administrative designation only; keeps interpersonal relationships intact)
   const { data: updatedNewHead, error: promoteError } = await supabase
     .from('family_members')
-    .update({ is_head: true, role: 'HEAD' })
+    .update({ is_head: true })
     .eq('id', newHeadMemberId)
     .eq('family_id', familyId)
     .select()
@@ -662,7 +826,7 @@ export async function transferFamilyHead(
     if (existingHead) {
       await supabase
         .from('family_members')
-        .update({ is_head: true, role: 'HEAD' })
+        .update({ is_head: true })
         .eq('id', existingHead.id)
     }
 
@@ -682,6 +846,85 @@ export async function transferFamilyHead(
 // ---------------------------------------------------------------------------
 // Error handling helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Retrieve recently removed family members (within 30 days) for recovery.
+ */
+export async function getRecentlyRemovedMembers(
+  familyId: string
+): Promise<ApiResponse<FamilyMemberWithPerson[]>> {
+  if (!isValidUuid(familyId)) {
+    return { data: null, error: { message: 'Invalid family ID format.', code: 'VALIDATION_ERROR' } }
+  }
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('family_members')
+    .select(`
+      id,
+      family_id,
+      person_id,
+      role,
+      is_head,
+      relationship_to_head,
+      joined_at,
+      left_at,
+      notes,
+      created_at,
+      person:community_persons(*)
+    `)
+    .eq('family_id', familyId)
+    .not('left_at', 'is', null)
+    .gte('left_at', thirtyDaysAgo)
+    .order('left_at', { ascending: false })
+
+  if (error) {
+    return {
+      data: null,
+      error: { message: mapFamilyMemberError(error.message, error.code), code: error.code },
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { data: (data as any) || [], error: null }
+}
+
+/**
+ * Restore a recently removed family member back into the family.
+ */
+export async function restoreFamilyMember(
+  memberId: string
+): Promise<ApiResponse<void>> {
+  if (!isValidUuid(memberId)) {
+    return { data: null, error: { message: 'Invalid member ID format.', code: 'VALIDATION_ERROR' } }
+  }
+
+  const { error } = await supabase
+    .from('family_members')
+    .update({ left_at: null })
+    .eq('id', memberId)
+
+  if (error) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: rpcError } = await (supabase.rpc as any)('restore_family_member', {
+        p_member_id: memberId,
+      })
+      if (!rpcError) {
+        return { data: undefined, error: null }
+      }
+    } catch {
+      // Fall through to error handling
+    }
+    return {
+      data: null,
+      error: { message: mapFamilyMemberError(error.message, error.code), code: error.code },
+    }
+  }
+
+  return { data: undefined, error: null }
+}
 
 /**
  * Maps raw Supabase / PostgreSQL error messages to user-friendly text.

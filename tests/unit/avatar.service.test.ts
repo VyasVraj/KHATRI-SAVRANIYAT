@@ -161,58 +161,15 @@ describe('Media service: avatar.service', () => {
   })
 
   describe('uploadAvatar', () => {
-    it('rejects oversized or invalid file types without calling storage', async () => {
-      const oversizedFile = new File([new Uint8Array(6 * 1024 * 1024)], 'too-large.png', {
-        type: 'image/png',
-      })
-      const res = await uploadAvatar(oversizedFile, { type: 'profile', id: 'user-1' })
-
-      expect(res.error).not.toBeNull()
-      expect(res.error?.message).toMatch(/exceeds/i)
-      expect(mockUpload).not.toHaveBeenCalled()
-    })
-
-    it('persists strictly canonical storage path avatars/... to database RPC', async () => {
+    it('permanently blocks all photo uploads with PHOTO_UPLOADS_DISABLED error', async () => {
       const validFile = new File(['mock data'], 'avatar.png', { type: 'image/png' })
-      mockUpload.mockResolvedValue({ error: null })
-      vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never)
-
-      const personId = '11111111-1111-1111-1111-111111111111'
-      const res = await uploadAvatar(validFile, { type: 'person', id: personId })
-
-      expect(res.error).toBeNull()
-      expect(res.data?.url).toMatch(/^avatars\/persons\/11111111-1111-1111-1111-111111111111\/avatar_\d+\.png$/)
-      // Asserts that database RPC received canonical internal path, NOT a signed or public URL
-      expect(supabase.rpc).toHaveBeenCalledWith('set_person_avatar', {
-        p_person_id: personId,
-        p_avatar_url: expect.stringMatching(/^avatars\/persons\/11111111-1111-1111-1111-111111111111\/avatar_\d+\.png$/),
-      })
-      expect(supabase.rpc).not.toHaveBeenCalledWith(
-        'set_person_avatar',
-        expect.objectContaining({
-          p_avatar_url: expect.stringContaining('http'),
-        })
-      )
-    })
-
-    it('rolls back storage upload if database RPC fails', async () => {
-      const validFile = new File(['mock data'], 'avatar.png', { type: 'image/png' })
-      mockUpload.mockResolvedValue({ error: null })
-      mockGetPublicUrl.mockReturnValue({
-        data: { publicUrl: 'https://abc.supabase.co/storage/v1/object/public/avatars/persons/p-1/photo.png' },
-      })
-      mockRemove.mockResolvedValue({ error: null })
-
-      vi.mocked(supabase.rpc).mockResolvedValue({
-        error: { message: 'Database RLS violation' },
-      } as never)
-
       const res = await uploadAvatar(validFile, { type: 'person', id: '11111111-1111-1111-1111-111111111111' })
 
+      expect(res.data).toBeNull()
       expect(res.error).not.toBeNull()
-      expect(res.error?.message).toBe('Database RLS violation')
-      // Rolled back storage object
-      expect(mockRemove).toHaveBeenCalled()
+      expect(res.error?.code).toBe('PHOTO_UPLOADS_DISABLED')
+      expect(res.error?.message).toContain('permanently disabled')
+      expect(mockUpload).not.toHaveBeenCalled()
     })
   })
 })

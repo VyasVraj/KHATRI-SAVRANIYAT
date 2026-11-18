@@ -1,23 +1,40 @@
 /**
- * Circular Card Component (Screen 47 — ANDROID-13 Parity)
+ * Circular Card Component
+ *
+ * Displays official community notice card with:
+ * - Ref number, title, category, authority, date, pinned badge
+ * - "Read Official Circular" (View PDF)
+ * - "Download Official PDF" button
+ * - Admin management options (for Admin & Super Admin)
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   FileText,
   Pin,
   Calendar,
   Building,
-  ChevronRight,
   ShieldAlert,
   Award,
+  Download,
+  MoreVertical,
+  Edit2,
+  Trash2,
 } from 'lucide-react'
 import { useLanguage, type TranslationKey } from '@/features/i18n'
 import type { CircularItem } from '../types'
+import {
+  generateOnlineNoticePdf,
+  triggerPdfDownload,
+} from '@/utils/circular-pdf-generator'
 
 interface CircularCardProps {
   circular: CircularItem
   onView: (circular: CircularItem) => void
+  isAdmin?: boolean
+  onEdit?: (circular: CircularItem) => void
+  onTogglePin?: (circular: CircularItem) => void
+  onDelete?: (circular: CircularItem) => void
 }
 
 const getCategoryTranslationKey = (category: string): TranslationKey => {
@@ -40,8 +57,14 @@ const getCategoryTranslationKey = (category: string): TranslationKey => {
 export const CircularCard: React.FC<CircularCardProps> = ({
   circular,
   onView,
+  isAdmin = false,
+  onEdit,
+  onTogglePin,
+  onDelete,
 }) => {
   const { t } = useLanguage()
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -60,18 +83,60 @@ export const CircularCard: React.FC<CircularCardProps> = ({
     }
   }
 
+  const handleDownloadPdf = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      setIsDownloading(true)
+
+      // If PDF URL already exists and is an external or storage link
+      if (circular.pdf_url && circular.pdf_url.startsWith('http')) {
+        const link = document.createElement('a')
+        link.href = circular.pdf_url
+        link.download = `${circular.circular_number}.pdf`
+        link.target = '_blank'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        return
+      }
+
+      // Generate branded PDF on the fly
+      const result = await generateOnlineNoticePdf({
+        title: circular.title,
+        circular_number: circular.circular_number,
+        category: circular.category,
+        issuing_authority: circular.issuing_authority,
+        issue_date: circular.issue_date,
+        effective_date: circular.effective_date,
+        subject: circular.subject,
+        content: circular.content,
+        instructions: circular.instructions,
+        contact_info: circular.contact_info,
+        signatory_name: circular.signatory_name,
+        signatory_title: circular.signatory_title,
+        creation_method: circular.creation_method,
+      })
+
+      triggerPdfDownload(result.blob, result.filename)
+    } catch {
+      // Non-blocking download exception
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   return (
     <div
       role="article"
       aria-label={`${circular.circular_number} - ${circular.title}`}
-      className={`flex flex-col justify-between rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md ${
+      className={`relative flex flex-col justify-between rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md ${
         circular.is_pinned
           ? 'border-amber-300 bg-amber-50/20 dark:border-amber-700/50 dark:bg-amber-950/10'
           : 'border-slate-200 dark:border-slate-800'
       }`}
     >
       <div className="space-y-3">
-        {/* Top Badges */}
+        {/* Top Badges & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-900 text-white dark:bg-slate-800 dark:text-slate-100 px-2 py-0.5 text-xs font-mono font-bold tracking-wide">
@@ -89,19 +154,86 @@ export const CircularCard: React.FC<CircularCardProps> = ({
               )}
               {t(getCategoryTranslationKey(circular.category), circular.category)}
             </span>
+
+            {circular.status === 'DRAFT' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 dark:bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Draft
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {circular.is_pinned && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                 <Pin className="h-3 w-3 fill-amber-600 dark:fill-amber-400" />
                 {t('circular.pinned', 'Pinned')}
               </span>
             )}
+
             <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
               <Calendar className="h-3.5 w-3.5" />
               {circular.formatted_date}
             </span>
+
+            {/* Admin Management Dropdown */}
+            {isAdmin && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                  aria-label="Admin options"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+
+                {isMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 shadow-lg z-30 space-y-0.5 text-xs">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false)
+                          onEdit(circular)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      >
+                        <Edit2 className="h-3.5 w-3.5 text-blue-500" />
+                        <span>Edit Notice</span>
+                      </button>
+                    )}
+
+                    {onTogglePin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false)
+                          onTogglePin(circular)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      >
+                        <Pin className="h-3.5 w-3.5 text-amber-500" />
+                        <span>{circular.is_pinned ? 'Unpin Directive' : 'Pin Directive'}</span>
+                      </button>
+                    )}
+
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false)
+                          onDelete(circular)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Archive Notice</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -135,19 +267,27 @@ export const CircularCard: React.FC<CircularCardProps> = ({
         </div>
       </div>
 
-      {/* Action Button */}
-      <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+      {/* Action Buttons: Read & Download */}
+      <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => onView(circular)}
-          className="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-blue-50 dark:bg-blue-950/40 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label={`${t('circular.read_circular', 'Read Official Circular')}: ${circular.circular_number}`}
         >
-          <span className="flex items-center gap-1.5">
-            <Award className="h-4 w-4" />
-            {t('circular.read_circular', 'Read Official Circular')}
-          </span>
-          <ChevronRight className="h-4 w-4" />
+          <Award className="h-3.5 w-3.5" />
+          <span>{t('circular.read_circular', 'Read Official Circular')}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownloadPdf}
+          disabled={isDownloading}
+          className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          title="Download Official Branded PDF"
+        >
+          <Download className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          <span>{isDownloading ? 'Preparing...' : 'Download PDF'}</span>
         </button>
       </div>
     </div>

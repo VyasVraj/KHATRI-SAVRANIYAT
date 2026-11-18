@@ -45,3 +45,49 @@ export { PersonListPage } from './pages/PersonListPage'
 export { PersonCreatePage } from './pages/PersonCreatePage'
 export { PersonDetailPage } from './pages/PersonDetailPage'
 export { PersonEditPage } from './pages/PersonEditPage'
+
+// Occupation Update Requests
+export {
+  submitOccupationUpdateRequest,
+  getAdminOccupationRequests,
+  getOccupationRequestCounts,
+  getMyOccupationRequests,
+  approveOccupationRequest,
+  rejectOccupationRequest,
+  type OccupationUpdateRequest,
+  type OccupationRequestCounts,
+  type MyOccupationRequestItem,
+  type AdminOccupationFilters,
+} from './services/occupation-request.service'
+export {
+  useAdminOccupationRequests,
+  useOccupationRequestCounts,
+  useMyOccupationRequests,
+  useOccupationRequestMutations,
+} from './hooks/useOccupationRequests'
+export { RequestOccupationModal } from './components/RequestOccupationModal'
+export { MyOccupationRequestsSection } from './components/MyOccupationRequestsSection'
+
+// Public Occupation Directory & Contact Requests
+export { PublicOccupationDirectoryPage } from './pages/PublicOccupationDirectoryPage'
+export { ContactThroughMukhiModal } from './components/ContactThroughMukhiModal'
+export { ContactThroughAdminModal } from './components/ContactThroughAdminModal'
+export {
+  getPublicOccupationDirectory,
+  submitOccupationContactRequest,
+  submitOccupationAdminContactRequest,
+  getAdminOccupationContactRequests,
+  getOccupationContactRequestCounts,
+  updateOccupationContactStatus,
+  type PublicOccupationItem,
+  type SubmitContactRequestInput,
+  type SubmitAdminContactRequestInput,
+  type AdminOccupationContactRequestItem,
+  type OccupationContactCounts,
+  type OccupationContactStatus,
+} from './services/public-occupation.service'
+export {
+  useAdminOccupationContactRequests,
+  useOccupationContactCounts,
+  useOccupationContactMutations,
+} from './hooks/useOccupationContactRequests'

@@ -293,6 +293,20 @@ describe('CLIENT-PRIVACY-1: PersonDetail Protected Data Rendering Security', () 
   }
 
   function renderPersonDetail(role: UserRole | null, currentUserId: string | null) {
+    queryClient.setQueryData(['person-family-mukhi', mockPerson.id], {
+      status: 'ASSIGNED',
+      mukhi: {
+        id: 'mukhi-uuid-1',
+        full_name: 'Mukhi Mulchand Khanumal Valera',
+        gram: 'Palanpur',
+        mobile_number: '+91 98765 11111',
+      },
+      family: {
+        id: 'fam-uuid-1',
+        family_name: 'Mehta Parivar',
+      },
+    })
+
     const authValue: AuthContextValue = {
       user: currentUserId
         ? ({ id: currentUserId, email: 'test@example.com' } as unknown as User)

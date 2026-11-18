@@ -270,6 +270,14 @@ describe('PersonDetailPage Integration with Family Tree', () => {
   })
 
   it('renders "Family tree" navigation button in PersonDetailPage actions row', () => {
+    vi.mocked(authContext.useAuthContext).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      session: null,
+      user: { id: 'secret-auth-user-id-999' } as unknown as authContext.AuthContextValue['user'],
+      profile: { id: 'prof-admin', role: 'ADMIN', is_active: true } as unknown as authContext.AuthContextValue['profile'],
+    })
+
     vi.mocked(usePersonHook.usePerson).mockReturnValue({
       data: MOCK_PERSON,
       isLoading: false,

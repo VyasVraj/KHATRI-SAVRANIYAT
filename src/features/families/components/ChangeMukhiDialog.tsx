@@ -65,6 +65,12 @@ export const ChangeMukhiDialog: React.FC<ChangeMukhiDialogProps> = ({
 
       await queryClient.invalidateQueries({ queryKey: ['family', familyId] })
       await queryClient.invalidateQueries({ queryKey: ['families'] })
+      await queryClient.invalidateQueries({ queryKey: ['family-members'] })
+      await queryClient.invalidateQueries({ queryKey: ['person-family-mukhi'] })
+      await queryClient.invalidateQueries({ queryKey: ['people'] })
+      await queryClient.invalidateQueries({ queryKey: ['person'] })
+      await queryClient.invalidateQueries({ queryKey: ['public-occupations'] })
+      await queryClient.invalidateQueries({ queryKey: ['admin-export'] })
 
       onMukhiChanged?.(res.data?.selected_mukhi ?? currentlySelected)
       onClose()

@@ -2,21 +2,19 @@
  * Graph Builder — Pure utility for constructing a TreeGraph domain model
  * from raw relationships, family roster data, and person census records.
  *
- * ARCHITECTURAL INVARIANTS:
+ * ARCHITECTURAL PRINCIPLES:
  * 1. REAL SAVED RELATIONSHIPS:
  *    Integrates verified interpersonal relationships (public.relationships)
  *    and synchronized family roster records (public.family_members).
- *    No synthetic placeholders, fake parents, or imaginary UUIDs.
- * 2. BOUNDED TRAVERSAL:
- *    Clamped to [-2, +2] generations from root. Hard limits on max nodes (100) and edges (150).
- * 3. STRICT GENERATION MAPPING:
- *    - Grandparents: -2
- *    - Parents (Father, Mother): -1
- *    - Head of Family & Spouses: 0
- *    - Children, Siblings & Extended: +1
+ * 2. INDEPENDENT FAMILY HEAD DESIGNATION:
+ *    Head of Family is strictly an administrative status (isHead). It NEVER alters,
+ *    demotes, or changes actual genealogical relationships (Father, Mother, Son, Wife, Brother).
+ * 3. HIERARCHICAL DAG GENERATION LEVELING:
+ *    Assigns generations based on the actual genealogical parent-child DAG.
+ *    Grandparents/ancestors are at the top tier, children and grandchildren below.
+ *    Changing Family Head never warps or inverts the generation tiers.
  * 4. SOLID COLOR & BADGE METADATA:
- *    Injects edge pill labels ('Father', 'Mother', 'Son', 'Brother', 'Other'),
- *    couple indicators, calculated age, and family context for instant display.
+ *    Injects edge pill labels, couple indicators, calculated age, and family context.
  */
 
 import type {
@@ -41,6 +39,7 @@ export interface FamilyTreeContext {
     person_id: string
     role: string | null
     is_head: boolean
+    relationship_to_head?: string | null
   }>
 }
 
@@ -72,7 +71,7 @@ function calculateAge(
 }
 
 /**
- * Builds a deterministic, bounded TreeGraph centered on rootPerson,
+ * Builds a deterministic, bounded TreeGraph centered on family genealogy,
  * enriched with family roster metadata.
  */
 export function buildTreeGraph(
@@ -86,29 +85,22 @@ export function buildTreeGraph(
   const generations = new Map<number, string[]>()
   let isBounded = false
 
-  for (let g = -MAX_GENERATION_DISTANCE; g <= MAX_GENERATION_DISTANCE; g++) {
+  for (let g = 0; g <= 4; g++) {
+    generations.set(g, [])
+  }
+  for (let g = -MAX_GENERATION_DISTANCE; g < 0; g++) {
     generations.set(g, [])
   }
 
-  // Check if root person is Head of Family
-  const isRootHead =
-    familyContext?.members?.find((m) => m.person_id === rootPerson.id)?.is_head ??
-    true
-
-  // 1. Initialize root node
-  const rootNode: TreeNode = {
-    id: rootPerson.id,
-    person: rootPerson,
-    generation: 0,
-    isRoot: true,
-    rolesInTree: new Set(['ROOT']),
-    isHead: isRootHead,
-    relationshipLabel: isRootHead ? 'Head of Family' : 'Primary Member',
-    age: calculateAge(rootPerson.date_of_birth, rootPerson.dob_year),
+  // 1. Gather all unique person IDs in the family graph
+  const allPersonIds = new Set<string>([rootPerson.id])
+  if (familyContext?.members) {
+    for (const m of familyContext.members) {
+      allPersonIds.add(m.person_id)
+    }
   }
-  nodes.set(rootPerson.id, rootNode)
 
-  // 2. Filter and deduplicate explicit relationships
+  // 2. Filter and deduplicate relationships
   const validRelationships: RelationshipRow[] = []
   const seenPairKeys = new Set<string>()
 
@@ -121,471 +113,542 @@ export function buildTreeGraph(
     seenPairKeys.add(pairKey)
 
     validRelationships.push(rel)
+    allPersonIds.add(rel.person_a_id)
+    allPersonIds.add(rel.person_b_id)
   }
 
-  // 3. BFS Traversal across explicit relationships
-  interface QueueItem {
-    personId: string
-    generation: number
-    isLateral: boolean
+  // Graph adjacencies for DAG leveling and edge generation
+  const parentToChildren = new Map<string, Set<string>>()
+  const childToParents = new Map<string, Set<string>>()
+  const spouses = new Map<string, Set<string>>()
+  const siblings = new Map<string, Set<string>>()
+
+  for (const rel of validRelationships) {
+    if (rel.relationship_type === 'PARENT') {
+      const pId = rel.person_a_id
+      const cId = rel.person_b_id
+      if (!parentToChildren.has(pId)) parentToChildren.set(pId, new Set())
+      parentToChildren.get(pId)!.add(cId)
+
+      if (!childToParents.has(cId)) childToParents.set(cId, new Set())
+      childToParents.get(cId)!.add(pId)
+    } else if (rel.relationship_type === 'SPOUSE') {
+      const { person_a_id: a, person_b_id: b } = rel
+      if (!spouses.has(a)) spouses.set(a, new Set())
+      spouses.get(a)!.add(b)
+      if (!spouses.has(b)) spouses.set(b, new Set())
+      spouses.get(b)!.add(a)
+    } else if (rel.relationship_type === 'SIBLING') {
+      const { person_a_id: a, person_b_id: b } = rel
+      if (!siblings.has(a)) siblings.set(a, new Set())
+      siblings.get(a)!.add(b)
+      if (!siblings.has(b)) siblings.set(b, new Set())
+      siblings.get(b)!.add(a)
+    }
   }
 
-  const queue: QueueItem[] = [
-    { personId: rootPerson.id, generation: 0, isLateral: false },
-  ]
-  const visitedForExpansion = new Set<string>([rootPerson.id])
+  if (!familyContext) {
+    // ---------------------------------------------------------------------------
+    // MODE A: Standalone BFS Traversal (Individual Person Relative Tree View)
+    // ---------------------------------------------------------------------------
+    const rootNode: TreeNode = {
+      id: rootPerson.id,
+      person: rootPerson,
+      generation: 0,
+      isRoot: true,
+      rolesInTree: new Set(['ROOT']),
+      isHead: false,
+      relationshipLabel: 'Primary Member',
+      age: calculateAge(rootPerson.date_of_birth, rootPerson.dob_year),
+    }
+    nodes.set(rootPerson.id, rootNode)
+
+    interface QueueItem {
+      personId: string
+      generation: number
+      isLateral: boolean
+    }
+
+    const queue: QueueItem[] = [
+      { personId: rootPerson.id, generation: 0, isLateral: false },
+    ]
+    const visitedForExpansion = new Set<string>([rootPerson.id])
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+
+      if (nodes.size >= MAX_TREE_NODES) {
+        isBounded = true
+        break
+      }
+
+      const adjacentRels = validRelationships.filter(
+        (r) => r.person_a_id === current.personId || r.person_b_id === current.personId
+      )
+
+      for (const rel of adjacentRels) {
+        const isA = rel.person_a_id === current.personId
+        const otherPersonId = isA ? rel.person_b_id : rel.person_a_id
+        const otherPerson = personsMap.get(otherPersonId)
+        if (!otherPerson) continue
+
+        let nextGen = current.generation
+        let isLateral = false
+        let role: TreeRole = 'EXTENDED'
+
+        if (rel.relationship_type === 'PARENT') {
+          if (isA) {
+            nextGen = current.generation + 1
+            role = nextGen === 1 ? 'CHILD' : 'GRANDCHILD'
+          } else {
+            nextGen = current.generation - 1
+            role = nextGen === -1 ? 'PARENT' : 'GRANDPARENT'
+          }
+        } else if (rel.relationship_type === 'SPOUSE') {
+          nextGen = current.generation
+          isLateral = true
+          role = 'SPOUSE'
+        } else if (rel.relationship_type === 'SIBLING') {
+          nextGen = current.generation
+          isLateral = true
+          role = 'SIBLING'
+        }
+
+        if (current.isLateral && isLateral) continue
+        if (nextGen < -MAX_GENERATION_DISTANCE || nextGen > MAX_GENERATION_DISTANCE) continue
+
+        if (!nodes.has(otherPersonId)) {
+          if (nodes.size >= MAX_TREE_NODES) {
+            isBounded = true
+            break
+          }
+          let label = 'Member'
+          if (role === 'PARENT') label = otherPerson.gender === 'FEMALE' ? 'Mother' : 'Father'
+          else if (role === 'CHILD') label = otherPerson.gender === 'FEMALE' ? 'Daughter' : 'Son'
+          else if (role === 'SPOUSE') label = otherPerson.gender === 'FEMALE' ? 'Wife' : 'Husband'
+          else if (role === 'SIBLING') label = otherPerson.gender === 'FEMALE' ? 'Sister' : 'Brother'
+          else if (role === 'GRANDPARENT') label = otherPerson.gender === 'FEMALE' ? 'Grandmother' : 'Grandfather'
+          else if (role === 'GRANDCHILD') label = otherPerson.gender === 'FEMALE' ? 'Granddaughter' : 'Grandson'
+
+          nodes.set(otherPersonId, {
+            id: otherPersonId,
+            person: otherPerson,
+            generation: nextGen,
+            isRoot: false,
+            rolesInTree: new Set([role]),
+            isHead: false,
+            relationshipLabel: label,
+            age: calculateAge(otherPerson.date_of_birth, otherPerson.dob_year),
+          })
+        }
+
+        if (!visitedForExpansion.has(otherPersonId)) {
+          visitedForExpansion.add(otherPersonId)
+          queue.push({
+            personId: otherPersonId,
+            generation: nextGen,
+            isLateral,
+          })
+        }
+      }
+    }
+  } else {
+    // ---------------------------------------------------------------------------
+    // MODE B: Hierarchical DAG Leveling (Family Tree View)
+    // ---------------------------------------------------------------------------
+
+    // Also infer connections from familyContext.members roles & relationships
+  if (familyContext?.members) {
+    const headMember = familyContext.members.find((m) => m.is_head)
+
+    // Infer sibling connections relative to Head
+    if (headMember) {
+      for (const m of familyContext.members) {
+        if (m.person_id === headMember.person_id) continue
+        const rel = (m.relationship_to_head || '').toLowerCase()
+        const isSib = m.role === 'SIBLING' || /brother|sister|sibling|भाई|बहन/.test(rel)
+        if (isSib) {
+          if (!siblings.has(m.person_id)) siblings.set(m.person_id, new Set())
+          siblings.get(m.person_id)!.add(headMember.person_id)
+          if (!siblings.has(headMember.person_id)) siblings.set(headMember.person_id, new Set())
+          siblings.get(headMember.person_id)!.add(m.person_id)
+        }
+      }
+    }
+
+    // Infer spouse connections for In-Laws (e.g. Sister-in-law Maya married to Tushar, Nephew's wife Rajvi married to Harsh)
+    for (const m of familyContext.members) {
+      const rel = (m.relationship_to_head || '').toLowerCase()
+      const isSisterInLaw = /sister-in-law|भाभी|साली|जेठानी|देवरानी/.test(rel)
+      if (isSisterInLaw && (!spouses.has(m.person_id) || spouses.get(m.person_id)!.size === 0)) {
+        // Find brother in family
+        const brotherMember = familyContext.members.find(
+          (other) =>
+            other.person_id !== m.person_id &&
+            (other.role === 'SIBLING' || /brother|भाई/.test((other.relationship_to_head || '').toLowerCase()))
+        )
+        if (brotherMember) {
+          if (!spouses.has(m.person_id)) spouses.set(m.person_id, new Set())
+          spouses.get(m.person_id)!.add(brotherMember.person_id)
+          if (!spouses.has(brotherMember.person_id)) spouses.set(brotherMember.person_id, new Set())
+          spouses.get(brotherMember.person_id)!.add(m.person_id)
+        }
+      }
+
+      const isNephewsWife = /nephew's wife|भतीजे की पत्नी|भांजे की पत्नी/.test(rel)
+      if (isNephewsWife && (!spouses.has(m.person_id) || spouses.get(m.person_id)!.size === 0)) {
+        // Find nephew in family
+        const nephewMember = familyContext.members.find(
+          (other) =>
+            other.person_id !== m.person_id &&
+            /nephew|भतीजा|भांजा/.test((other.relationship_to_head || '').toLowerCase())
+        )
+        if (nephewMember) {
+          if (!spouses.has(m.person_id)) spouses.set(m.person_id, new Set())
+          spouses.get(m.person_id)!.add(nephewMember.person_id)
+          if (!spouses.has(nephewMember.person_id)) spouses.set(nephewMember.person_id, new Set())
+          spouses.get(nephewMember.person_id)!.add(m.person_id)
+        }
+      }
+
+      const isNiecesHusband = /niece's husband|भतीजी का पति|भांजी का पति/.test(rel)
+      if (isNiecesHusband && (!spouses.has(m.person_id) || spouses.get(m.person_id)!.size === 0)) {
+        // Find niece in family
+        const nieceMember = familyContext.members.find(
+          (other) =>
+            other.person_id !== m.person_id &&
+            /niece|भतीजी|भांजी/.test((other.relationship_to_head || '').toLowerCase())
+        )
+        if (nieceMember) {
+          if (!spouses.has(m.person_id)) spouses.set(m.person_id, new Set())
+          spouses.get(m.person_id)!.add(nieceMember.person_id)
+          if (!spouses.has(nieceMember.person_id)) spouses.set(nieceMember.person_id, new Set())
+          spouses.get(nieceMember.person_id)!.add(m.person_id)
+        }
+      }
+    }
+
+    // Infer parentage for Nephew / Niece relative to Head (Brother's/Sister's children)
+    for (const m of familyContext.members) {
+      const rel = (m.relationship_to_head || '').toLowerCase()
+      const isNephewOrNiece = /nephew|niece|भतीजा|भतीजी|भांजा|भांजी/.test(rel)
+      if (isNephewOrNiece && (!childToParents.has(m.person_id) || childToParents.get(m.person_id)!.size === 0)) {
+        const sibMember = familyContext.members.find(
+          (other) =>
+            other.person_id !== m.person_id &&
+            (other.role === 'SIBLING' || /brother|sister|भाई|बहन/.test((other.relationship_to_head || '').toLowerCase()))
+        )
+        if (sibMember) {
+          if (!childToParents.has(m.person_id)) childToParents.set(m.person_id, new Set())
+          childToParents.get(m.person_id)!.add(sibMember.person_id)
+          if (!parentToChildren.has(sibMember.person_id)) parentToChildren.set(sibMember.person_id, new Set())
+          parentToChildren.get(sibMember.person_id)!.add(m.person_id)
+
+          for (const spId of spouses.get(sibMember.person_id) || []) {
+            childToParents.get(m.person_id)!.add(spId)
+            if (!parentToChildren.has(spId)) parentToChildren.set(spId, new Set())
+            parentToChildren.get(spId)!.add(m.person_id)
+          }
+        }
+      }
+    }
+
+    // Fallback parent/child inference if no explicit parent-child edges exist in validRelationships
+    const hasExplicitParentChild = childToParents.size > 0
+    if (!hasExplicitParentChild) {
+      const parentMembers = familyContext.members.filter((m) => m.role === 'PARENT')
+      const childMembers = familyContext.members.filter((m) => m.role === 'CHILD')
+      const gpMembers = familyContext.members.filter((m) => m.role === 'GRANDPARENT')
+
+      if (gpMembers.length > 0 && parentMembers.length > 0) {
+        for (const gp of gpMembers) {
+          for (const p of parentMembers) {
+            if (!parentToChildren.has(gp.person_id)) parentToChildren.set(gp.person_id, new Set())
+            parentToChildren.get(gp.person_id)!.add(p.person_id)
+            if (!childToParents.has(p.person_id)) childToParents.set(p.person_id, new Set())
+            childToParents.get(p.person_id)!.add(gp.person_id)
+          }
+        }
+      }
+
+      if (parentMembers.length > 0 && childMembers.length > 0) {
+        for (const p of parentMembers) {
+          for (const c of childMembers) {
+            if (!parentToChildren.has(p.person_id)) parentToChildren.set(p.person_id, new Set())
+            parentToChildren.get(p.person_id)!.add(c.person_id)
+            if (!childToParents.has(c.person_id)) childToParents.set(c.person_id, new Set())
+            childToParents.get(c.person_id)!.add(p.person_id)
+          }
+        }
+      }
+    }
+  }
+
+  // Sibling parentage inheritance: siblings share the exact same parents
+  for (let pass = 0; pass < 3; pass++) {
+    for (const [pId, sibSet] of siblings.entries()) {
+      for (const sibId of sibSet) {
+        const sibParents = childToParents.get(sibId)
+        if (sibParents && sibParents.size > 0) {
+          if (!childToParents.has(pId)) childToParents.set(pId, new Set())
+          for (const parId of sibParents) {
+            childToParents.get(pId)!.add(parId)
+            if (!parentToChildren.has(parId)) parentToChildren.set(parId, new Set())
+            parentToChildren.get(parId)!.add(pId)
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Compute deterministic generation levels for each person using parent-child DAG
+  const personGeneration = new Map<string, number>()
+
+  // Find root ancestors (persons in family with no parents in the family graph)
+  const candidateAncestors = Array.from(allPersonIds).filter(
+    (id) => !childToParents.has(id) || childToParents.get(id)!.size === 0
+  )
+
+  // Filter out spouses or siblings of persons who DO have parents
+  const trueAncestors = candidateAncestors.filter((id) => {
+    const spSet = spouses.get(id)
+    if (spSet && spSet.size > 0) {
+      for (const spId of spSet) {
+        if (childToParents.has(spId) && childToParents.get(spId)!.size > 0) {
+          return false
+        }
+      }
+    }
+    const sibSet = siblings.get(id)
+    if (sibSet && sibSet.size > 0) {
+      for (const sibId of sibSet) {
+        if (childToParents.has(sibId) && childToParents.get(sibId)!.size > 0) {
+          return false
+        }
+      }
+    }
+    return true
+  })
+
+  // Assign depth 0 to true root ancestors
+  const ancestorList = trueAncestors.length > 0 ? trueAncestors : candidateAncestors
+  for (const ancId of ancestorList) {
+    personGeneration.set(ancId, 0)
+    // Spouses of root ancestors also depth 0
+    for (const spId of spouses.get(ancId) || []) {
+      personGeneration.set(spId, 0)
+    }
+  }
+
+  // Propagate depth down parent-child relationships
+  const queue = Array.from(ancestorList)
+  for (const ancId of ancestorList) {
+    for (const spId of spouses.get(ancId) || []) {
+      if (!queue.includes(spId)) {
+        queue.push(spId)
+      }
+    }
+  }
 
   while (queue.length > 0) {
-    const current = queue.shift()!
+    const currId = queue.shift()!
+    const currGen = personGeneration.get(currId) ?? 0
 
+    // Down to children
+    for (const childId of parentToChildren.get(currId) || []) {
+      const nextGen = currGen + 1
+      const existing = personGeneration.get(childId)
+      if (existing === undefined || nextGen > existing) {
+        personGeneration.set(childId, nextGen)
+        queue.push(childId)
+
+        // Spouses of child get same generation
+        for (const spId of spouses.get(childId) || []) {
+          const spExisting = personGeneration.get(spId)
+          if (spExisting === undefined || nextGen > spExisting) {
+            personGeneration.set(spId, nextGen)
+            queue.push(spId)
+          }
+        }
+      }
+    }
+  }
+
+  // Ensure all persons in allPersonIds have a generation assigned
+  for (const id of allPersonIds) {
+    if (!personGeneration.has(id)) {
+      // Check if spouse or sibling has generation
+      let assigned = false
+      for (const spId of spouses.get(id) || []) {
+        if (personGeneration.has(spId)) {
+          personGeneration.set(id, personGeneration.get(spId)!)
+          assigned = true
+          break
+        }
+      }
+      if (!assigned) {
+        for (const sibId of siblings.get(id) || []) {
+          if (personGeneration.has(sibId)) {
+            personGeneration.set(id, personGeneration.get(sibId)!)
+            assigned = true
+            break
+          }
+        }
+      }
+      if (!assigned) {
+        const fm = familyContext?.members?.find((m) => m.person_id === id)
+        const rel = (fm?.relationship_to_head || '').toLowerCase()
+        const headMember = familyContext?.members?.find((m) => m.is_head)
+        const headGen = headMember && personGeneration.has(headMember.person_id)
+          ? personGeneration.get(headMember.person_id)!
+          : 1
+
+        if (fm?.is_head) {
+          personGeneration.set(id, headGen)
+        } else if (fm?.role === 'PARENT' || /father|mother|parent|माता|पिता/.test(rel)) {
+          personGeneration.set(id, Math.max(0, headGen - 1))
+        } else if (fm?.role === 'GRANDPARENT' || /grandfather|grandmother|दादा|नाना|दादी|नानी/.test(rel)) {
+          personGeneration.set(id, Math.max(0, headGen - 2))
+        } else if (
+          fm?.role === 'SIBLING' ||
+          fm?.role === 'SPOUSE' ||
+          /brother|sister|sibling|spouse|wife|husband|sister-in-law|brother-in-law|भाई|बहन|पत्नी|पति|भाभी|साली|जेठानी|देवरानी/.test(rel)
+        ) {
+          personGeneration.set(id, headGen)
+        } else if (
+          fm?.role === 'CHILD' ||
+          /child|son|daughter|nephew|niece|बेटा|बेटी|संतान|भतीजा|भतीजी|भांजा|भांजी/.test(rel)
+        ) {
+          personGeneration.set(id, headGen + 1)
+        } else {
+          personGeneration.set(id, headGen)
+        }
+      }
+    }
+  }
+
+  // Check total generations depth in this family
+  const allGens = Array.from(personGeneration.values())
+  const maxGen = Math.max(0, ...allGens)
+
+  // 4. Construct TreeNode domain models with accurate relationship labels
+  for (const personId of allPersonIds) {
     if (nodes.size >= MAX_TREE_NODES) {
       isBounded = true
       break
     }
 
-    // A. Vertical Traversal (Parent & Child)
-    if (!current.isLateral) {
-      for (const rel of validRelationships) {
-        if (rel.relationship_type !== 'PARENT') continue
+    const p = personsMap.get(personId)
+    if (!p) continue
 
-        // Upward: current is child -> find parent
-        if (rel.person_b_id === current.personId) {
-          const parentId = rel.person_a_id
-          const targetGen = current.generation - 1
+    const gen = personGeneration.get(personId) ?? 0
+    const fm = familyContext?.members?.find((m) => m.person_id === personId)
+    const isHead = fm?.is_head ?? (personId === rootPerson.id && (fm?.is_head || false))
 
-          if (targetGen >= -MAX_GENERATION_DISTANCE) {
-            const parentPerson = personsMap.get(parentId)
-            if (parentPerson) {
-              let existingParent = nodes.get(parentId)
-              if (!existingParent) {
-                if (nodes.size < MAX_TREE_NODES) {
-                  existingParent = {
-                    id: parentId,
-                    person: parentPerson,
-                    generation: targetGen,
-                    isRoot: false,
-                    rolesInTree: new Set(['PARENT']),
-                    relationshipLabel: parentPerson.gender === 'FEMALE' ? 'Mother' : 'Father',
-                    age: calculateAge(parentPerson.date_of_birth, parentPerson.dob_year),
-                  }
-                  nodes.set(parentId, existingParent)
-                  if (!visitedForExpansion.has(parentId)) {
-                    visitedForExpansion.add(parentId)
-                    queue.push({
-                      personId: parentId,
-                      generation: targetGen,
-                      isLateral: false,
-                    })
-                  }
-                } else {
-                  isBounded = true
-                }
-              } else {
-                existingParent.rolesInTree.add('PARENT')
-              }
-            }
-          }
+    // Derive semantic relationship label strictly from genealogy & reference PDF
+    let label = 'Member'
+    const isFemale = p.gender === 'FEMALE'
+
+    if (isHead) {
+      label = 'Head of Family'
+    } else if (
+      fm?.relationship_to_head &&
+      fm.relationship_to_head !== 'Other' &&
+      !['Head of Family', 'Member'].includes(fm.relationship_to_head)
+    ) {
+      label = fm.relationship_to_head
+    } else if (maxGen >= 2) {
+      // 3-Generation Family Tree (e.g. Grandparents, Parents, Grandchildren)
+      if (gen === 0) {
+        label = isFemale ? 'Grandmother' : 'Grandfather'
+      } else if (gen === 1) {
+        const isSpouseOfDescendant = Array.from(spouses.get(personId) || []).some(
+          (spId) => childToParents.has(spId) && childToParents.get(spId)!.size > 0
+        )
+        if (isSpouseOfDescendant) {
+          label = isFemale ? 'Wife' : 'Husband'
+        } else {
+          label = isFemale ? 'Daughter' : 'Son'
         }
-
-        // Downward: current is parent -> find child
-        if (rel.person_a_id === current.personId) {
-          const childId = rel.person_b_id
-          const targetGen = current.generation + 1
-
-          if (targetGen <= MAX_GENERATION_DISTANCE) {
-            const childPerson = personsMap.get(childId)
-            if (childPerson) {
-              let existingChild = nodes.get(childId)
-              if (!existingChild) {
-                if (nodes.size < MAX_TREE_NODES) {
-                  existingChild = {
-                    id: childId,
-                    person: childPerson,
-                    generation: targetGen,
-                    isRoot: false,
-                    rolesInTree: new Set(['CHILD']),
-                    relationshipLabel: childPerson.gender === 'FEMALE' ? 'Daughter' : 'Son',
-                    age: calculateAge(childPerson.date_of_birth, childPerson.dob_year),
-                  }
-                  nodes.set(childId, existingChild)
-                  if (!visitedForExpansion.has(childId)) {
-                    visitedForExpansion.add(childId)
-                    queue.push({
-                      personId: childId,
-                      generation: targetGen,
-                      isLateral: false,
-                    })
-                  }
-                } else {
-                  isBounded = true
-                }
-              } else {
-                existingChild.rolesInTree.add('CHILD')
-              }
-            }
-          }
-        }
+      } else if (gen >= 2) {
+        label = isFemale ? 'Daughter' : 'Son'
       }
-    }
-
-    // B. Lateral Traversal (Spouse & Sibling)
-    if (!current.isLateral) {
-      for (const rel of validRelationships) {
-        if (rel.relationship_type === 'SPOUSE') {
-          const isEndpoint =
-            rel.person_a_id === current.personId ||
-            rel.person_b_id === current.personId
-
-          if (isEndpoint) {
-            const spouseId =
-              rel.person_a_id === current.personId
-                ? rel.person_b_id
-                : rel.person_a_id
-            const spousePerson = personsMap.get(spouseId)
-
-            if (spousePerson) {
-              let existingSpouse = nodes.get(spouseId)
-              if (!existingSpouse) {
-                if (nodes.size < MAX_TREE_NODES) {
-                  existingSpouse = {
-                    id: spouseId,
-                    person: spousePerson,
-                    generation: current.generation,
-                    isRoot: false,
-                    rolesInTree: new Set(['SPOUSE']),
-                    relationshipLabel:
-                      spousePerson.gender === 'FEMALE' ? 'Wife' : spousePerson.gender === 'MALE' ? 'Husband' : 'Spouse',
-                    age: calculateAge(spousePerson.date_of_birth, spousePerson.dob_year),
-                  }
-                  nodes.set(spouseId, existingSpouse)
-                  if (!visitedForExpansion.has(spouseId)) {
-                    visitedForExpansion.add(spouseId)
-                    queue.push({
-                      personId: spouseId,
-                      generation: current.generation,
-                      isLateral: true,
-                    })
-                  }
-                } else {
-                  isBounded = true
-                }
-              } else {
-                existingSpouse.rolesInTree.add('SPOUSE')
-              }
-            }
-          }
+    } else if (maxGen === 1) {
+      // 2-Generation Family Tree (Parents & Children)
+      if (gen === 0) {
+        const hasSpouseInGen0 = Array.from(spouses.get(personId) || []).some(
+          (spId) => (personGeneration.get(spId) ?? 0) === 0
+        )
+        if (isFemale) {
+          label = hasSpouseInGen0 ? 'Wife' : 'Mother'
+        } else {
+          label = 'Father'
         }
-
-        if (rel.relationship_type === 'SIBLING') {
-          const isEndpoint =
-            rel.person_a_id === current.personId ||
-            rel.person_b_id === current.personId
-
-          if (isEndpoint) {
-            const siblingId =
-              rel.person_a_id === current.personId
-                ? rel.person_b_id
-                : rel.person_a_id
-            const siblingPerson = personsMap.get(siblingId)
-
-            if (siblingPerson) {
-              let existingSibling = nodes.get(siblingId)
-              if (!existingSibling) {
-                if (nodes.size < MAX_TREE_NODES) {
-                  existingSibling = {
-                    id: siblingId,
-                    person: siblingPerson,
-                    generation: current.generation,
-                    isRoot: false,
-                    rolesInTree: new Set(['SIBLING']),
-                    relationshipLabel: siblingPerson.gender === 'FEMALE' ? 'Sister' : 'Brother',
-                    age: calculateAge(siblingPerson.date_of_birth, siblingPerson.dob_year),
-                  }
-                  nodes.set(siblingId, existingSibling)
-                  if (!visitedForExpansion.has(siblingId)) {
-                    visitedForExpansion.add(siblingId)
-                    queue.push({
-                      personId: siblingId,
-                      generation: current.generation,
-                      isLateral: true,
-                    })
-                  }
-                } else {
-                  isBounded = true
-                }
-              } else {
-                existingSibling.rolesInTree.add('SIBLING')
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // 4. Integrate Family Roster members if provided
-  if (familyContext?.members && familyContext.members.length > 0) {
-    const headMember =
-      familyContext.members.find((m) => m.is_head) ?? familyContext.members[0]
-    const headId = headMember ? headMember.person_id : rootPerson.id
-
-    for (const fm of familyContext.members) {
-      if (nodes.has(fm.person_id)) {
-        const existing = nodes.get(fm.person_id)!
-        if (fm.is_head) {
-          existing.isHead = true
-          existing.relationshipLabel = 'Head of Family'
-        }
-        continue
-      }
-
-      const p = personsMap.get(fm.person_id)
-      if (!p) continue
-
-      let gen = 0
-      let label = 'Member'
-      const roles = new Set<TreeRole>()
-
-      if (fm.is_head) {
-        gen = 0
-        label = 'Head of Family'
-        roles.add('ROOT')
-      } else if (fm.role === 'PARENT') {
-        gen = -1
-        label = p.gender === 'FEMALE' ? 'Mother' : 'Father'
-        roles.add('PARENT')
-      } else if (fm.role === 'SPOUSE') {
-        gen = 0
-        label = p.gender === 'FEMALE' ? 'Wife' : p.gender === 'MALE' ? 'Husband' : 'Spouse'
-        roles.add('SPOUSE')
-      } else if (fm.role === 'CHILD') {
-        gen = 1
-        label = p.gender === 'FEMALE' ? 'Daughter' : 'Son'
-        roles.add('CHILD')
-      } else if (fm.role === 'SIBLING') {
-        gen = 1
-        label = p.gender === 'FEMALE' ? 'Sister' : 'Brother'
-        roles.add('SIBLING')
       } else {
-        gen = 1
-        label = 'Other'
-        roles.add('EXTENDED')
+        label = isFemale ? 'Daughter' : 'Son'
       }
+    } else if (fm?.role === 'PARENT') {
+      label = isFemale ? 'Mother' : 'Father'
+    } else if (fm?.role === 'SPOUSE') {
+      label = isFemale ? 'Wife' : 'Husband'
+    } else if (fm?.role === 'SIBLING') {
+      label = isFemale ? 'Sister' : 'Brother'
+    } else if (fm?.role === 'CHILD') {
+      label = isFemale ? 'Daughter' : 'Son'
+    } else if (fm?.role === 'GRANDPARENT') {
+      label = isFemale ? 'Grandmother' : 'Grandfather'
+    } else if (fm?.role === 'GRANDCHILD') {
+      label = isFemale ? 'Granddaughter' : 'Grandson'
+    } else {
+      label = 'Member'
+    }
 
-      nodes.set(fm.person_id, {
-        id: fm.person_id,
+    const roles = new Set<TreeRole>()
+    if (personId === rootPerson.id) roles.add('ROOT')
+    if (/father|mother|पिता|माता/.test(label.toLowerCase())) roles.add('PARENT')
+    else if (gen === 0 && maxGen >= 2) roles.add('GRANDPARENT')
+    else if (gen === 0) roles.add('PARENT')
+    else if (gen === 1 && maxGen >= 2) roles.add('PARENT')
+    else if (gen >= 2) roles.add('CHILD')
+
+      nodes.set(personId, {
+        id: personId,
         person: p,
         generation: gen,
-        isRoot: fm.person_id === rootPerson.id,
+        isRoot: personId === rootPerson.id,
         rolesInTree: roles,
-        isHead: fm.is_head,
+        isHead,
         relationshipLabel: label,
         age: calculateAge(p.date_of_birth, p.dob_year),
       })
     }
+  }
 
-    // Synthesize edges from family structure if explicit edges do not already exist
-    const parents = familyContext.members.filter((m) => m.role === 'PARENT')
-    const children = familyContext.members.filter((m) => m.role === 'CHILD')
-    const siblings = familyContext.members.filter((m) => m.role === 'SIBLING')
-    const extended = familyContext.members.filter((m) => m.role === 'EXTENDED')
-    const spouses = familyContext.members.filter((m) => m.role === 'SPOUSE')
-
-    // Couple edge between parents
-    if (parents.length >= 2) {
-      const p1 = parents[0]
-      const p2 = parents[1]
-      const coupleEdgeId = `family-couple-${p1.person_id}-${p2.person_id}`
-      if (!edges.has(coupleEdgeId)) {
-        edges.set(coupleEdgeId, {
-          id: coupleEdgeId,
-          relationshipId: coupleEdgeId,
-          relationshipType: 'SPOUSE',
-          sourceId: p1.person_id,
-          targetId: p2.person_id,
-          isCouple: true,
-          color: '#9333EA',
-          relationship: {
-            id: coupleEdgeId,
-            person_a_id: p1.person_id,
-            person_b_id: p2.person_id,
-            relationship_type: 'SPOUSE',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
-    }
-
-    // Connect parents to Head
-    for (const p of parents) {
-      const pEdgeId = `family-parent-${p.person_id}-${headId}`
-      if (!edges.has(pEdgeId)) {
-        const pPerson = personsMap.get(p.person_id)
-        const isMother = pPerson?.gender === 'FEMALE'
-        edges.set(pEdgeId, {
-          id: pEdgeId,
-          relationshipId: pEdgeId,
-          relationshipType: 'PARENT',
-          sourceId: p.person_id,
-          targetId: headId,
-          label: isMother ? 'Mother' : 'Father',
-          color: isMother ? '#DB2777' : '#2563EB',
-          relationship: {
-            id: pEdgeId,
-            person_a_id: p.person_id,
-            person_b_id: headId,
-            relationship_type: 'PARENT',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
-    }
-
-    // Connect Spouses to Head
-    for (const s of spouses) {
-      const sEdgeId = `family-spouse-${headId}-${s.person_id}`
-      if (!edges.has(sEdgeId)) {
-        edges.set(sEdgeId, {
-          id: sEdgeId,
-          relationshipId: sEdgeId,
-          relationshipType: 'SPOUSE',
-          sourceId: headId,
-          targetId: s.person_id,
-          isCouple: true,
-          color: '#9333EA',
-          label: 'Spouse',
-          relationship: {
-            id: sEdgeId,
-            person_a_id: headId,
-            person_b_id: s.person_id,
-            relationship_type: 'SPOUSE',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
-    }
-
-    // Connect Head to Children
-    for (const c of children) {
-      const cEdgeId = `family-child-${headId}-${c.person_id}`
-      if (!edges.has(cEdgeId)) {
-        const cPerson = personsMap.get(c.person_id)
-        const isDaughter = cPerson?.gender === 'FEMALE'
-        edges.set(cEdgeId, {
-          id: cEdgeId,
-          relationshipId: cEdgeId,
-          relationshipType: 'PARENT',
-          sourceId: headId,
-          targetId: c.person_id,
-          label: isDaughter ? 'Daughter' : 'Son',
-          color: '#2563EB',
-          isDashed: true,
-          relationship: {
-            id: cEdgeId,
-            person_a_id: headId,
-            person_b_id: c.person_id,
-            relationship_type: 'PARENT',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
-    }
-
-    // Connect Head to Siblings
-    for (const sib of siblings) {
-      const sibEdgeId = `family-sib-${headId}-${sib.person_id}`
-      if (!edges.has(sibEdgeId)) {
-        const sibPerson = personsMap.get(sib.person_id)
-        const isSister = sibPerson?.gender === 'FEMALE'
-        edges.set(sibEdgeId, {
-          id: sibEdgeId,
-          relationshipId: sibEdgeId,
-          relationshipType: 'SIBLING',
-          sourceId: headId,
-          targetId: sib.person_id,
-          label: isSister ? 'Sister' : 'Brother',
-          color: '#2563EB',
-          isDashed: true,
-          relationship: {
-            id: sibEdgeId,
-            person_a_id: headId,
-            person_b_id: sib.person_id,
-            relationship_type: 'SIBLING',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
-    }
-
-    // Connect Head to Extended
-    for (const ext of extended) {
-      const extEdgeId = `family-ext-${headId}-${ext.person_id}`
-      if (!edges.has(extEdgeId)) {
-        edges.set(extEdgeId, {
-          id: extEdgeId,
-          relationshipId: extEdgeId,
-          relationshipType: 'SIBLING',
-          sourceId: headId,
-          targetId: ext.person_id,
-          label: 'Other',
-          color: '#2563EB',
-          isDashed: true,
-          relationship: {
-            id: extEdgeId,
-            person_a_id: headId,
-            person_b_id: ext.person_id,
-            relationship_type: 'SIBLING',
-            notes: null,
-            verification_status: 'VERIFIED',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            deleted_at: null,
-          },
-        })
-      }
+  // Ensure all node IDs are registered in their generation bucket
+  for (const node of nodes.values()) {
+    const bucket = generations.get(node.generation)
+    if (bucket && !bucket.includes(node.id)) {
+      bucket.push(node.id)
     }
   }
 
-  // 5. Construct edges from explicit relationships
+  // 5. Build Relationship Edges
+  const connectedPairs = new Set<string>()
+  const getPairKey = (a: string, b: string) => [a, b].sort().join('::')
+
   for (const rel of validRelationships) {
     if (edges.size >= MAX_TREE_EDGES) {
       isBounded = true
       break
     }
 
-    const hasEndpointA = nodes.has(rel.person_a_id)
-    const hasEndpointB = nodes.has(rel.person_b_id)
-
-    if (!hasEndpointA || !hasEndpointB) continue
+    if (!nodes.has(rel.person_a_id) || !nodes.has(rel.person_b_id)) continue
     if (edges.has(rel.id)) continue
 
-    let label: string | undefined = undefined
+    const pairKey = getPairKey(rel.person_a_id, rel.person_b_id)
+    if (connectedPairs.has(pairKey)) continue
+    connectedPairs.add(pairKey)
+
     let color = '#2563EB'
     let isCouple = false
     let isDashed = false
@@ -593,13 +656,7 @@ export function buildTreeGraph(
     if (rel.relationship_type === 'SPOUSE') {
       isCouple = true
       color = '#9333EA'
-    } else if (rel.relationship_type === 'PARENT') {
-      const p = personsMap.get(rel.person_a_id)
-      label = p?.gender === 'FEMALE' ? 'Mother' : 'Father'
-      color = p?.gender === 'FEMALE' ? '#DB2777' : '#2563EB'
     } else if (rel.relationship_type === 'SIBLING') {
-      const p = personsMap.get(rel.person_b_id)
-      label = p?.gender === 'FEMALE' ? 'Sister' : 'Brother'
       isDashed = true
     }
 
@@ -610,14 +667,79 @@ export function buildTreeGraph(
       sourceId: rel.person_a_id,
       targetId: rel.person_b_id,
       relationship: rel,
-      label,
       color,
       isCouple,
       isDashed,
     })
   }
 
-  // 6. Precalculate parentsNames and siblingsNames
+  // Also ensure synthetic couple edges for all known spouses in the family
+  for (const [p1, spSet] of spouses.entries()) {
+    for (const p2 of spSet) {
+      const pairKey = getPairKey(p1, p2)
+      if (!connectedPairs.has(pairKey) && nodes.has(p1) && nodes.has(p2)) {
+        connectedPairs.add(pairKey)
+        const sId = p1 < p2 ? p1 : p2
+        const tId = p1 < p2 ? p2 : p1
+        const coupleEdgeId = `family-couple-${sId}-${tId}`
+        edges.set(coupleEdgeId, {
+          id: coupleEdgeId,
+          relationshipId: coupleEdgeId,
+          relationshipType: 'SPOUSE',
+          sourceId: sId,
+          targetId: tId,
+          isCouple: true,
+          color: '#9333EA',
+          relationship: {
+            id: coupleEdgeId,
+            person_a_id: sId,
+            person_b_id: tId,
+            relationship_type: 'SPOUSE',
+            notes: null,
+            verification_status: 'VERIFIED',
+            created_by: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            deleted_at: null,
+          },
+        })
+      }
+    }
+  }
+
+  // Also ensure parent-child edges for all derived childToParents
+  for (const [cId, parSet] of childToParents.entries()) {
+    for (const pId of parSet) {
+      const pairKey = getPairKey(pId, cId)
+      if (!connectedPairs.has(pairKey) && nodes.has(pId) && nodes.has(cId)) {
+        connectedPairs.add(pairKey)
+        const parentEdgeId = `family-parent-${pId}-${cId}`
+        edges.set(parentEdgeId, {
+          id: parentEdgeId,
+          relationshipId: parentEdgeId,
+          relationshipType: 'PARENT',
+          sourceId: pId,
+          targetId: cId,
+          isCouple: false,
+          color: '#2563EB',
+          relationship: {
+            id: parentEdgeId,
+            person_a_id: pId,
+            person_b_id: cId,
+            relationship_type: 'PARENT',
+            notes: null,
+            verification_status: 'VERIFIED',
+            created_by: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            deleted_at: null,
+          },
+        })
+      }
+    }
+  }
+
+  // 6. Precalculate parentsNames and siblingsNames for card details
   for (const node of nodes.values()) {
     const parentNodes = Array.from(edges.values())
       .filter((e) => e.relationshipType === 'PARENT' && e.targetId === node.id)
@@ -630,14 +752,33 @@ export function buildTreeGraph(
         .join(' & ')
     }
 
-    const siblingNodes = Array.from(nodes.values()).filter(
-      (other) =>
-        other.id !== node.id &&
-        (other.rolesInTree.has('SIBLING') ||
-          (other.generation === node.generation &&
-            other.generation > 0 &&
-            !other.rolesInTree.has('SPOUSE')))
-    )
+    const parentNodeIds = new Set(parentNodes.map((p) => p.id))
+
+    // Sibling calculation: strictly shared parents or explicit SIBLING relationship edge
+    // NEVER group by same generation or family membership alone
+    const siblingNodes = Array.from(nodes.values()).filter((other) => {
+      if (other.id === node.id) return false
+
+      // 1. Check for explicit SIBLING edge between node and other
+      const hasSiblingEdge = Array.from(edges.values()).some(
+        (e) =>
+          e.relationshipType === 'SIBLING' &&
+          ((e.sourceId === node.id && e.targetId === other.id) ||
+            (e.targetId === node.id && e.sourceId === other.id))
+      )
+      if (hasSiblingEdge) return true
+
+      // 2. Check for shared parent(s) if parents are known
+      if (parentNodeIds.size > 0) {
+        const otherParentIds = Array.from(edges.values())
+          .filter((e) => e.relationshipType === 'PARENT' && e.targetId === other.id)
+          .map((e) => e.sourceId)
+        const sharesParent = otherParentIds.some((pId) => parentNodeIds.has(pId))
+        if (sharesParent) return true
+      }
+
+      return false
+    })
 
     if (siblingNodes.length > 0) {
       node.siblingsNames = siblingNodes
@@ -646,43 +787,11 @@ export function buildTreeGraph(
     }
   }
 
-  // 7. Group node IDs into generation buckets with deterministic sorting
-  for (const node of nodes.values()) {
-    const tierList = generations.get(node.generation)
-    if (tierList) {
-      tierList.push(node.id)
-    }
-  }
-
-  for (const [gen, list] of generations.entries()) {
-    list.sort((a, b) => {
-      const nodeA = nodes.get(a)
-      const nodeB = nodes.get(b)
-
-      if (gen === -1) {
-        if (nodeA?.person.gender === 'MALE' && nodeB?.person.gender === 'FEMALE') return -1
-        if (nodeA?.person.gender === 'FEMALE' && nodeB?.person.gender === 'MALE') return 1
-      }
-
-      if (gen === 0) {
-        if (nodeA?.isHead && !nodeB?.isHead) return -1
-        if (!nodeA?.isHead && nodeB?.isHead) return 1
-      }
-
-      const nameA = `${nodeA?.person.first_name ?? ''} ${nodeA?.person.last_name ?? ''}`
-      const nameB = `${nodeB?.person.first_name ?? ''} ${nodeB?.person.last_name ?? ''}`
-      return nameA.localeCompare(nameB)
-    })
-  }
-
   return {
-    rootPersonId: rootPerson.id,
-    familyId: familyContext?.familyId,
-    familyName: familyContext?.familyName,
-    totalMemberCount: familyContext?.totalMemberCount || nodes.size,
     nodes,
     edges,
     generations,
+    rootPersonId: rootPerson.id,
     isBounded,
   }
 }

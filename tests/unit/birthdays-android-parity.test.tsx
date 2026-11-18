@@ -143,8 +143,8 @@ function renderWithProviders(
   ui: React.ReactElement,
   {
     lang = 'en',
-    user = null,
-    profile = null,
+    user = { id: USER_ID } as User,
+    profile = { id: 'profile-leader', role: 'ADMIN', display_name: 'Admin Leader' },
   }: {
     lang?: 'en' | 'hi' | 'gu'
     user?: User | null
@@ -516,6 +516,45 @@ describe('ANDROID-9: BirthdayCard Component & Touch Accessibility', () => {
     )
 
     expect(screen.getByText('Wish Sent!')).toBeInTheDocument()
+  })
+
+  it('strictly hides the Send Wish button for normal authenticated members', () => {
+    renderWithProviders(
+      <BirthdayCard
+        item={MOCK_BIRTHDAYS[0]}
+        isAuthenticated={true}
+      />,
+      {
+        user: { id: 'member-user' } as User,
+        profile: { id: 'profile-member', role: 'MEMBER' },
+      }
+    )
+
+    // Member can view profile and birthday details, but CANNOT see Send Wish button
+    expect(screen.getByText('Rahul Khatri')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /send wish/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view rahul khatri's profile/i })).toBeInTheDocument()
+  })
+
+  it('strictly blocks Send Wish button for deceased persons even for Admin/Super Admin', () => {
+    const deceasedBirthday: BirthdayItem = {
+      ...MOCK_BIRTHDAYS[0],
+      is_living: false,
+    }
+
+    renderWithProviders(
+      <BirthdayCard
+        item={deceasedBirthday}
+        isAuthenticated={true}
+      />,
+      {
+        user: { id: 'admin-user' } as User,
+        profile: { id: 'profile-admin', role: 'SUPER_ADMIN' },
+      }
+    )
+
+    // Deceased person must NEVER receive birthday wishes
+    expect(screen.queryByRole('button', { name: /send wish/i })).not.toBeInTheDocument()
   })
 })
 

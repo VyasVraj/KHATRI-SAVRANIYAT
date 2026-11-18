@@ -412,6 +412,22 @@ export async function updateRelationship(
 
   const validated = parseResult.data
 
+  // 1. Attempt server-authoritative RPC update_relationship_notes
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpcRes = await (supabase.rpc as any)('update_relationship_notes', {
+      p_relationship_id: id,
+      p_notes: validated.notes ?? null,
+    })
+
+    if (!rpcRes.error && rpcRes.data) {
+      return { data: rpcRes.data as RelationshipRow, error: null }
+    }
+  } catch {
+    // Fallback to direct table update below
+  }
+
+  // 2. Direct table update with authorized RLS
   const { data, error } = await relationshipsTable()
     .update({
       notes: validated.notes ?? null,

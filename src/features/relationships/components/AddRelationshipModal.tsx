@@ -20,35 +20,14 @@ import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useAddRelationship } from '../hooks/useRelationshipMutations'
 import type { PersonRelativeRole } from '../types'
 import { Button } from '@/components/forms/Button'
+import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
+import { mapRelationshipToFamilyRole } from '@/constants/familyRelationships'
 
 export interface AddRelationshipModalProps {
   targetPersonId: string
   isOpen: boolean
   onClose: () => void
 }
-
-const ROLE_OPTIONS: Array<{ value: PersonRelativeRole; label: string; description: string }> = [
-  {
-    value: 'parent',
-    label: 'Parent',
-    description: 'Selected person is the parent of this person',
-  },
-  {
-    value: 'child',
-    label: 'Child',
-    description: 'Selected person is the child of this person',
-  },
-  {
-    value: 'spouse',
-    label: 'Spouse',
-    description: 'Spouse or marital partner of this person',
-  },
-  {
-    value: 'sibling',
-    label: 'Sibling',
-    description: 'Brother or sister of this person',
-  },
-]
 
 export function AddRelationshipModal({
   targetPersonId,
@@ -59,9 +38,19 @@ export function AddRelationshipModal({
   const addMutation = useAddRelationship()
 
   const [relativeRole, setRelativeRole] = useState<PersonRelativeRole>('spouse')
+  const [specificRelationship, setSpecificRelationship] = useState<string>('Spouse (जीवनसाथी)')
   const [relatedPersonId, setRelatedPersonId] = useState('')
   const [notes, setNotes] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  function handleRelationshipChange(selected: string) {
+    setSpecificRelationship(selected)
+    const role = mapRelationshipToFamilyRole(selected)
+    if (role === 'PARENT') setRelativeRole('parent')
+    else if (role === 'CHILD') setRelativeRole('child')
+    else if (role === 'SPOUSE') setRelativeRole('spouse')
+    else if (role === 'SIBLING') setRelativeRole('sibling')
+  }
 
   // Filter out the target person so self-relationships cannot be selected
   const availablePersons = persons.filter((p) => p.id !== targetPersonId)
@@ -70,6 +59,7 @@ export function AddRelationshipModal({
   useEffect(() => {
     if (isOpen) {
       setRelativeRole('spouse')
+      setSpecificRelationship('Spouse (जीवनसाथी)')
       setRelatedPersonId('')
       setNotes('')
       setErrorMessage(null)
@@ -113,7 +103,7 @@ export function AddRelationshipModal({
         targetPersonId,
         relatedPersonId,
         relativeRole,
-        notes: notes ? notes.trim() : null,
+        notes: notes ? `${specificRelationship} — ${notes.trim()}` : specificRelationship,
       })
       onClose()
     } catch (err) {
@@ -123,8 +113,6 @@ export function AddRelationshipModal({
       )
     }
   }
-
-  const selectedRoleMeta = ROLE_OPTIONS.find((r) => r.value === relativeRole)
 
   return (
     <div
@@ -164,27 +152,14 @@ export function AddRelationshipModal({
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Relationship Role Selector */}
-          <div>
-            <label htmlFor="rel-role-select" className="block text-sm font-medium text-navy-800">
-              Relationship Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="rel-role-select"
-              value={relativeRole}
-              onChange={(e) => setRelativeRole(e.target.value as PersonRelativeRole)}
-              className="mt-1 block w-full rounded-lg border border-navy-300 bg-white px-3 py-2 text-sm text-navy-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            {selectedRoleMeta && (
-              <p className="mt-1 text-xs text-navy-500">{selectedRoleMeta.description}</p>
-            )}
-          </div>
+          {/* Specific Categorized Relationship Selector (13 Categories from PDF) */}
+          <RelationshipSelector
+            id="rel-role-select"
+            label="Relationship (English + Hindi)"
+            value={specificRelationship}
+            onChange={handleRelationshipChange}
+            required
+          />
 
           {/* Related Person Selector */}
           <div>

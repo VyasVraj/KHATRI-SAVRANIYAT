@@ -44,6 +44,7 @@ export * from './components/EventsFeed'
 // Birthdays (Subtask 4 / ANDROID-9)
 export * from './services/birthdays.service'
 export * from './hooks/useBirthdays'
+export * from './hooks/useBirthdayWishPermission'
 export * from './components/BirthdayCard'
 export * from './components/BirthdayFiltersBar'
 export * from './components/BirthdaysFeed'
@@ -63,6 +64,7 @@ export * from './hooks/useMukhiDirectory'
 export * from './components/MukhiCard'
 export * from './components/MukhiFiltersBar'
 export * from './components/MukhiDirectoryView'
+export * from './components/RemoveMukhiModal'
 
 // Committees & Governance (ANDROID-13 — Screens 44–45)
 export * from './services/committees.service'
@@ -91,6 +93,7 @@ export * from './components/CircularsView'
 export * from './constants/mukhis.data'
 export * from './services/community-mukhis.service'
 export * from './hooks/useCommunityMukhis'
+export * from './hooks/usePersonFamilyMukhi'
 export * from './components/CommunityMukhiCard'
 export * from './components/CommunityMukhiDirectoryView'
 

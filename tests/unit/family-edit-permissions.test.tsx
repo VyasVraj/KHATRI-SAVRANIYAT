@@ -179,8 +179,8 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
     vi.clearAllMocks()
   })
 
-  describe('1. MemberList: Edit button redirection', () => {
-    it('redirects directly to /people/:personId/edit with returnUrl state when clicking Edit', () => {
+  describe('1. MemberList: Edit button action', () => {
+    it('opens EditMemberModal to safely manage member attributes without unauthorized profile navigation', () => {
       vi.spyOn(familyMemberHooks, 'useFamilyMembers').mockReturnValue({
         data: MOCK_ACTIVE_MEMBERS,
         isLoading: false,
@@ -188,7 +188,11 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
       } as unknown as ReturnType<typeof familyMemberHooks.useFamilyMembers>)
 
       renderWithProviders(
-        <MemberList familyId="family-vyas-100" canManageMembers={true} />
+        <MemberList familyId="family-vyas-100" canManageMembers={true} />,
+        {
+          user: { id: 'admin-user' } as unknown as NonNullable<AuthContextValue['user']>,
+          profile: { id: 'p-admin', role: 'ADMIN', is_active: true } as any,
+        }
       )
 
       // Find Edit buttons for members
@@ -198,14 +202,62 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
       // Click Edit on the first member (Jayesh Vyas, person-head-1)
       fireEvent.click(editButtons[0])
 
-      expect(mockNavigate).toHaveBeenCalledWith('/people/person-head-1/edit', {
-        state: { returnUrl: '/families/family-vyas-100' },
-      })
+      // Opens EditMemberModal cleanly avoiding 403 Forbidden PersonEditPage error
+      expect(screen.getByRole('heading', { name: /Edit.*Member/i })).toBeInTheDocument()
+    })
+
+    it('allows a normal member to edit their own roster membership via EditMemberModal', () => {
+      vi.spyOn(familyMemberHooks, 'useFamilyMembers').mockReturnValue({
+        data: MOCK_ACTIVE_MEMBERS,
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof familyMemberHooks.useFamilyMembers>)
+
+      renderWithProviders(
+        <MemberList familyId="family-vyas-100" canManageMembers={false} />,
+        {
+          user: { id: 'user-vraj' } as unknown as NonNullable<AuthContextValue['user']>,
+          profile: { id: 'p-vraj', role: 'MEMBER', is_active: true } as any,
+        }
+      )
+
+      // Only 1 edit button appears (for user-vraj's own card, person-vraj-2)
+      const editButtons = screen.getAllByRole('button', { name: /Edit/i })
+      expect(editButtons.length).toBe(1)
+
+      fireEvent.click(editButtons[0])
+
+      // Opens EditMemberModal cleanly
+      expect(screen.getByRole('heading', { name: /Edit.*Member/i })).toBeInTheDocument()
     })
   })
 
   describe('2. FamilyDetailPage: Edit family and management permissions', () => {
-    it('grants edit permissions to an active registered family member (user-vraj)', () => {
+    it('grants family edit and delete permissions to an administrator', () => {
+      vi.spyOn(familyHooks, 'useFamily').mockReturnValue({
+        data: MOCK_FAMILY,
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof familyHooks.useFamily>)
+
+      vi.spyOn(familyMemberHooks, 'useFamilyMembers').mockReturnValue({
+        data: MOCK_ACTIVE_MEMBERS,
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof familyMemberHooks.useFamilyMembers>)
+
+      renderWithProviders(<FamilyDetailPage />, {
+        user: { id: 'admin-user' } as unknown as NonNullable<AuthContextValue['user']>,
+        profile: { id: 'p-admin', role: 'ADMIN', is_active: true } as any,
+      })
+
+      // Edit and Delete buttons should be present for Admin
+      const editButtons = screen.getAllByRole('button', { name: /^Edit$/i })
+      expect(editButtons.length).toBeGreaterThan(0)
+      expect(screen.getByRole('button', { name: /^Delete$/i })).toBeDefined()
+    })
+
+    it('restricts normal family members from editing or deleting the family record', () => {
       vi.spyOn(familyHooks, 'useFamily').mockReturnValue({
         data: MOCK_FAMILY,
         isLoading: false,
@@ -224,10 +276,12 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
         profile: { id: 'p1', role: 'MEMBER', is_active: true } as any,
       })
 
-      // Edit and Delete buttons should be present when user is authorized family member
+      // Family-level delete button must NOT be present for normal family members
+      expect(screen.queryByRole('button', { name: /^Delete$/i })).toBeNull()
+
+      // The user can only see Edit on their own member card in the roster
       const editButtons = screen.getAllByRole('button', { name: /^Edit$/i })
-      expect(editButtons.length).toBeGreaterThan(0)
-      expect(screen.getByRole('button', { name: /^Delete$/i })).toBeDefined()
+      expect(editButtons.length).toBe(1)
     })
 
     it('blocks edit access for unrelated Mukhi (COMMUNITY_MODERATOR) not belonging to the family', () => {
@@ -256,7 +310,29 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
   })
 
   describe('3. FamilyEditPage: Permission enforcement', () => {
-    it('allows active family member to view and edit family form', () => {
+    it('allows administrator to view and edit family form', () => {
+      vi.spyOn(familyHooks, 'useFamily').mockReturnValue({
+        data: MOCK_FAMILY,
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof familyHooks.useFamily>)
+
+      vi.spyOn(familyMemberHooks, 'useFamilyMembers').mockReturnValue({
+        data: MOCK_ACTIVE_MEMBERS,
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof familyMemberHooks.useFamilyMembers>)
+
+      renderWithProviders(<FamilyEditPage />, {
+        user: { id: 'admin-user' } as unknown as NonNullable<AuthContextValue['user']>,
+        profile: { id: 'p-admin', role: 'ADMIN', is_active: true } as any,
+      })
+
+      expect(screen.getByText(/Edit family/i)).toBeDefined()
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('blocks normal family member with unauthorized notice when accessing FamilyEditPage', () => {
       vi.spyOn(familyHooks, 'useFamily').mockReturnValue({
         data: MOCK_FAMILY,
         isLoading: false,
@@ -274,8 +350,8 @@ describe('Family-Based Edit Permissions & Member Profile Redirection', () => {
         profile: { id: 'p1', role: 'MEMBER', is_active: true } as any,
       })
 
-      expect(screen.getByText(/Edit family/i)).toBeDefined()
-      expect(screen.queryByRole('alert')).toBeNull()
+      const alert = screen.getByRole('alert')
+      expect(alert.textContent).toContain('Unauthorized: You do not have permission to edit this family record')
     })
 
     it('displays unauthorized notice when an unrelated user tries to access FamilyEditPage', () => {

@@ -39,6 +39,12 @@ export default defineConfig({
       output: {
         // In Vite 8, manualChunks must be a function
         manualChunks(id) {
+          if (id.includes('world_cities_priority.json')) {
+            return 'world-cities-data'
+          }
+          if (id.includes('world_states.json')) {
+            return 'world-states-data'
+          }
           if (id.includes('node_modules')) {
             if (id.includes('react-dom') || id.includes('react-router')) {
               return 'vendor'

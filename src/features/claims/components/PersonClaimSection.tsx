@@ -42,7 +42,7 @@ export function PersonClaimSection({ person }: PersonClaimSectionProps) {
   const personName = [person.first_name, person.last_name].filter(Boolean).join(' ')
 
   // 1. Ineligible census records (deceased, inactive, soft-deleted)
-  const isDeceased = Boolean(person.date_of_death)
+  const isDeceased = Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death)
   const isInactive = person.status !== 'ACTIVE'
   const isDeleted = Boolean(person.deleted_at)
 

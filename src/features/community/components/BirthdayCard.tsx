@@ -17,6 +17,7 @@ import { Cake, Sparkles, Check, User, ArrowRight, AlertCircle } from 'lucide-rea
 import { useLanguage } from '@/features/i18n'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useBirthdayWishPermission } from '../hooks/useBirthdayWishPermission'
 import type { BirthdayItem } from '../types'
 
 interface BirthdayCardProps {
@@ -37,18 +38,31 @@ export function BirthdayCard({
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
-  const callerRole = profile?.role as string | undefined
-  const isMukhiOrAdmin =
-    callerRole === 'SUPER_ADMIN' ||
-    callerRole === 'ADMIN' ||
-    callerRole === 'MUKHI' ||
-    callerRole === 'COMMUNITY_MUKHI' ||
-    !callerRole
+  // Strict Permission Verification:
+  // ONLY Super Admin, Admin, Authorized Mukhis, and Officially Assigned Committee Members
+  // receive permission to send birthday wishes.
+  // Normal users, family members, and Family Heads WITHOUT one of these 4 authorized roles
+  // must NEVER see or use Send Wish.
+  const { data: canUserSendWishes = false } = useBirthdayWishPermission()
 
-  const isSelf = Boolean(user?.id && (item as unknown as { user_id?: string }).user_id === user.id)
+  const isSelf = Boolean(
+    user?.id &&
+    ((item.user_id && item.user_id === user.id) ||
+      (item as unknown as { user_id?: string }).user_id === user.id ||
+      (profile as unknown as { person_id?: string })?.person_id === item.person_id)
+  )
 
-  // Strict Matrix: Normal Users do not display Send Wish. Mukhis & Admins can send to community heads/mukhis. Never to self.
-  const canSendWish = isAuthenticated && isMukhiOrAdmin && !isSelf
+  // Under NO circumstances can birthday wishes be sent to deceased community members.
+  // If a person has a date of death recorded, status is DECEASED, or is_living is false:
+  const isLiving =
+    item.is_living !== false &&
+    (item as unknown as { status?: string }).status !== 'DECEASED' &&
+    !(item as unknown as { date_of_death?: string | null }).date_of_death
+
+  // Strict Matrix: Normal users do NOT display Send Wish button.
+  // Only authenticated authorized leadership roles (Admin/Mukhi/Committee Member) can send, and only to living members, never to self.
+  const isAuthed = Boolean(isAuthenticated || user?.id)
+  const canSendWish = Boolean(isAuthed && canUserSendWishes && !isSelf && isLiving)
 
   const fullName = [item.first_name, item.middle_name, item.last_name]
     .filter(Boolean)

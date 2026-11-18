@@ -38,7 +38,7 @@ export function PersonVerificationSection({ person }: PersonVerificationSectionP
 
   const personName = [person.first_name, person.last_name].filter(Boolean).join(' ')
   const status = person.verification_status ?? 'UNVERIFIED'
-  const isDeceased = Boolean(person.date_of_death)
+  const isDeceased = Boolean(person.is_deceased || person.date_of_death)
 
   const getStatusDesc = () => {
     switch (status) {

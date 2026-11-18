@@ -21,7 +21,6 @@ import {
   Home,
   ShieldAlert,
   CheckCircle2,
-  Copy,
   RefreshCw,
   AlertCircle,
   Shield,
@@ -29,6 +28,10 @@ import {
   Info,
   Clock,
   History,
+  Download,
+  Briefcase,
+  ClipboardList,
+  Mail,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/app'
 import { Button } from '@/components/forms/Button'
@@ -343,39 +346,6 @@ export function AdminDashboardPage() {
                   </Link>
                 </div>
               </div>
-
-              {/* Card 6: Open Duplicates */}
-              <div
-                className="relative overflow-hidden rounded-xl border border-navy-200 bg-white p-5 shadow-xs transition-shadow hover:shadow-sm"
-                data-testid="metric-duplicates"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-navy-500">
-                    Open Duplicate Flags
-                  </span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-50 text-navy-600">
-                    <Copy className="h-4 w-4" aria-hidden="true" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-navy-900" data-testid="open-duplicates-value">
-                    {metrics.open_duplicates}
-                  </span>
-                  <span className="text-xs text-navy-500">flagged items</span>
-                </div>
-                <p className="mt-2 text-xs text-navy-500">
-                  Potential duplicate census records awaiting resolution.
-                </p>
-                <div className="mt-3 pt-2 border-t border-navy-100 flex justify-between items-center">
-                  <Link
-                    to={ROUTES.ADMIN_DUPLICATES}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-800 focus-visible:outline-none focus-visible:underline"
-                  >
-                    <span>Open Queue</span>
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                  </Link>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -509,31 +479,116 @@ export function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Workflow Card 5: Duplicate Review Queue */}
+              {/* Workflow Card 5: Data Export & Reports */}
               <div className="rounded-xl border border-navy-200 bg-white p-6 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200">
-                      <Copy className="h-5 w-5" aria-hidden="true" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <Download className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-navy-900">Duplicate Review Queue</h3>
+                      <h3 className="text-base font-bold text-navy-900">Data Export & Reports</h3>
                       <p className="text-xs text-navy-500">
-                        {metrics.open_duplicates === 1
-                          ? '1 flagged duplicate record'
-                          : `${metrics.open_duplicates} flagged duplicate records`}
+                        Excel (.xlsx) & PDF Reports
                       </p>
                     </div>
                   </div>
                   <p className="mt-4 text-sm text-navy-600">
-                    Inspect similarity between flagged census records. Confirm duplicates or mark non-duplicates without destructive merges.
+                    Export filtered census data, family units, and community leadership registers with multi-faceted geographic, Mukhi region, Gotra, Nukh, and occupation filters.
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-navy-100 flex items-center justify-between">
                   <span className="text-xs text-navy-400">Admin & Super Admin Authorization</span>
-                  <Link to={ROUTES.ADMIN_DUPLICATES}>
+                  <Link to={ROUTES.ADMIN_EXPORT}>
                     <Button variant="secondary" size="sm" className="gap-1.5 text-xs">
-                      <span>Review Duplicates</span>
+                      <span>Open Export System</span>
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Workflow Card 6: Profession Directory */}
+              <div className="rounded-xl border border-navy-200 bg-white p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
+                      <Briefcase className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-navy-900">Profession Directory</h3>
+                      <p className="text-xs text-navy-500">
+                        30 Official Occupation Categories
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-navy-600">
+                    Search and inspect community professionals and occupational categories across regions, cities, and family lineages with strict regional access control.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-navy-100 flex items-center justify-between">
+                  <span className="text-xs text-navy-400">Mukhi, Admin & Super Admin</span>
+                  <Link to={ROUTES.ADMIN_PROFESSION_DIRECTORY}>
+                    <Button variant="secondary" size="sm" className="gap-1.5 text-xs">
+                      <span>Open Directory</span>
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Workflow Card 7: Occupation Requests */}
+              <div className="rounded-xl border border-navy-200 bg-white p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <ClipboardList className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-navy-900">Occupation Requests</h3>
+                      <p className="text-xs text-navy-500">
+                        Member Occupation Update Moderation
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-navy-600">
+                    Review and verify member requests to change or register occupation. Approve to atomically update census records or reject with feedback.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-navy-100 flex items-center justify-between">
+                  <span className="text-xs text-navy-400">Admin & Super Admin</span>
+                  <Link to={ROUTES.ADMIN_OCCUPATION_REQUESTS}>
+                    <Button variant="secondary" size="sm" className="gap-1.5 text-xs">
+                      <span>Review Requests</span>
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Workflow Card 8: Occupation Contact Requests */}
+              <div className="rounded-xl border border-navy-200 bg-white p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
+                      <Mail className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-navy-900">Occupation Contact Requests</h3>
+                      <p className="text-xs text-navy-500">
+                        Visitor & Member Contact Moderation
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-navy-600">
+                    Review, approve, or resolve mediated contact inquiries submitted through the Public Profession & Occupation Directory via Central Administration.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-navy-100 flex items-center justify-between">
+                  <span className="text-xs text-navy-400">Admin & Super Admin</span>
+                  <Link to={ROUTES.ADMIN_OCCUPATION_CONTACT_REQUESTS}>
+                    <Button variant="secondary" size="sm" className="gap-1.5 text-xs">
+                      <span>Manage Inquiries</span>
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Button>
                   </Link>

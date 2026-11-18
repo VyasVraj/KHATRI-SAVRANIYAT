@@ -386,19 +386,19 @@ BEGIN
         v_member_role_str := UPPER(v_member_rel);
       END IF;
 
-      -- Safe mapping to valid public.family_role enum
+      -- Safe mapping to valid public.family_role enum across all 13 reference categories
       CASE
-        WHEN v_member_role_str IN ('SPOUSE', 'WIFE', 'HUSBAND', 'PARTNER') THEN
+        WHEN v_member_role_str IN ('SPOUSE', 'WIFE', 'HUSBAND', 'PARTNER', 'FORMER SPOUSE', 'FORMER PARTNER', 'WIDOW', 'WIDOWER', 'SURVIVING SPOUSE', 'DECEASED SPOUSE') THEN
           v_member_role := 'SPOUSE'::public.family_role;
-        WHEN v_member_role_str IN ('CHILD', 'SON', 'DAUGHTER', 'KID') THEN
+        WHEN v_member_role_str IN ('CHILD', 'SON', 'DAUGHTER', 'KID', 'STEPSON', 'STEPDAUGHTER', 'STEPCHILD', 'ADOPTED SON', 'ADOPTED DAUGHTER', 'ADOPTED CHILD', 'FOSTER SON / DAUGHTER', 'FOSTER CHILD') THEN
           v_member_role := 'CHILD'::public.family_role;
-        WHEN v_member_role_str IN ('PARENT', 'FATHER', 'MOTHER') THEN
+        WHEN v_member_role_str IN ('PARENT', 'FATHER', 'MOTHER', 'STEPFATHER', 'STEPMOTHER', 'STEPPARENT', 'ADOPTIVE FATHER', 'ADOPTIVE MOTHER', 'ADOPTIVE PARENT', 'FOSTER FATHER', 'FOSTER MOTHER', 'FOSTER PARENT', 'DECEASED FATHER', 'DECEASED MOTHER') THEN
           v_member_role := 'PARENT'::public.family_role;
-        WHEN v_member_role_str IN ('SIBLING', 'BROTHER', 'SISTER') THEN
+        WHEN v_member_role_str IN ('SIBLING', 'BROTHER', 'SISTER', 'ELDER BROTHER', 'YOUNGER BROTHER', 'ELDER SISTER', 'YOUNGER SISTER', 'TWIN BROTHER', 'TWIN SISTER', 'TWIN SIBLING', 'HALF-BROTHER', 'HALF-SISTER', 'HALF-SIBLING', 'STEPBROTHER', 'STEPSISTER', 'STEPSIBLING') THEN
           v_member_role := 'SIBLING'::public.family_role;
-        WHEN v_member_role_str IN ('GRANDPARENT', 'GRANDFATHER', 'GRANDMOTHER') THEN
+        WHEN v_member_role_str LIKE '%GRANDFATHER%' OR v_member_role_str LIKE '%GRANDMOTHER%' OR v_member_role_str LIKE '%GRANDPARENT%' OR v_member_role_str = 'ANCESTOR' THEN
           v_member_role := 'GRANDPARENT'::public.family_role;
-        WHEN v_member_role_str IN ('GRANDCHILD', 'GRANDSON', 'GRANDDAUGHTER') THEN
+        WHEN v_member_role_str LIKE '%GRANDSON%' OR v_member_role_str LIKE '%GRANDDAUGHTER%' OR v_member_role_str LIKE '%GRANDCHILD%' OR v_member_role_str = 'DESCENDANT' THEN
           v_member_role := 'GRANDCHILD'::public.family_role;
         WHEN v_member_role_str = 'HEAD' THEN
           v_member_role := 'HEAD'::public.family_role;

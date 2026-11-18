@@ -18,6 +18,8 @@ import React, { memo } from 'react'
 import { Handle, Position, type NodeProps } from 'reactflow'
 import { Crown, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toProperCaseName } from '@/utils/text-casing'
+import { formatRelationshipDisplay } from '@/constants/familyRelationships'
 import type { PersonNodeData } from '../types'
 import { TREE_NODE_WIDTH, TREE_NODE_HEIGHT } from '../types'
 
@@ -33,13 +35,15 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
 }) {
   const { person, isHead, relationshipLabel, age, isSelected, onSelect } = data
 
-  const fullName = [person.first_name, person.middle_name, person.last_name]
-    .filter(Boolean)
-    .join(' ')
+  const fullName = toProperCaseName(
+    [person.first_name, person.middle_name, person.last_name]
+      .filter(Boolean)
+      .join(' ')
+  )
 
   const initials = getInitials(person.first_name, person.last_name)
   const isFemale = person.gender === 'FEMALE'
-  const isDeceased = person.status === 'DECEASED'
+  const isDeceased = Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death)
 
   const activeSelected = selected || isSelected
 
@@ -65,21 +69,29 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
       aria-label={`${fullName}, ${relationshipLabel || 'Member'}`}
       className={cn(
         'group relative flex items-center gap-3 p-3.5 rounded-2xl bg-white border shadow-sm transition-all duration-150 cursor-pointer select-none text-left',
-        isHead
-          ? 'border-[#1E3A8A] border-2 shadow-md'
-          : isFemale
-            ? 'border-pink-200 hover:border-pink-300'
-            : 'border-[#DCE3EF] hover:border-blue-300',
+        isDeceased
+          ? 'border-dashed border-2 border-slate-400 bg-slate-50/70'
+          : isHead
+            ? 'border-[#1E3A8A] border-2 shadow-md'
+            : isFemale
+              ? 'border-pink-200 hover:border-pink-300'
+              : 'border-[#DCE3EF] hover:border-blue-300',
         activeSelected && 'ring-2 ring-[#2563EB] border-[#2563EB] shadow-md'
       )}
       data-testid={`tree-node-${person.id}`}
     >
-      {/* React Flow Connection Handles */}
+      {/* React Flow Connection Handles (Multi-directional for clean orthogonal routing) */}
       <Handle
         type="target"
         position={Position.Top}
         id="target-top"
         className="w-2.5 h-2.5 !bg-[#2563EB] !border-2 !border-white transition-transform hover:scale-125"
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="source-top"
+        className="w-2.5 h-2.5 !bg-[#2563EB] !border-2 !border-white transition-transform hover:scale-125 opacity-0"
       />
       <Handle
         type="source"
@@ -89,15 +101,33 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
       />
       <Handle
         type="target"
+        position={Position.Bottom}
+        id="target-bottom"
+        className="w-2.5 h-2.5 !bg-[#2563EB] !border-2 !border-white transition-transform hover:scale-125 opacity-0"
+      />
+      <Handle
+        type="target"
         position={Position.Left}
         id="target-left"
         className="w-2.5 h-2.5 !bg-[#9333EA] !border-2 !border-white transition-transform hover:scale-125"
       />
       <Handle
         type="source"
+        position={Position.Left}
+        id="source-left"
+        className="w-2.5 h-2.5 !bg-[#9333EA] !border-2 !border-white transition-transform hover:scale-125 opacity-0"
+      />
+      <Handle
+        type="source"
         position={Position.Right}
         id="source-right"
         className="w-2.5 h-2.5 !bg-[#9333EA] !border-2 !border-white transition-transform hover:scale-125"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="target-right"
+        className="w-2.5 h-2.5 !bg-[#9333EA] !border-2 !border-white transition-transform hover:scale-125 opacity-0"
       />
 
       {/* Left side: Initial-based circular avatar */}
@@ -123,22 +153,23 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
           {fullName || 'Unknown'}
         </h4>
 
-        {/* Relationship or Head Badge */}
+        {/* Relationship and Head Badges */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {isHead ? (
+          {isHead && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold text-[#92400E] border border-amber-200">
               <Crown className="h-3 w-3 text-amber-600 fill-amber-500" />
               <span>Head of Family</span>
             </span>
-          ) : relationshipLabel ? (
+          )}
+          {relationshipLabel && relationshipLabel !== 'Head of Family' ? (
             <span className="inline-flex items-center rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-semibold text-[#92400E] border border-amber-200/60">
-              {relationshipLabel}
+              {formatRelationshipDisplay(relationshipLabel)}
             </span>
-          ) : (
+          ) : !isHead ? (
             <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
               Member
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Age row */}

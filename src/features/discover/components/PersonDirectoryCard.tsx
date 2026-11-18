@@ -17,6 +17,7 @@ import { MapPin, CheckCircle2, Clock, AlertCircle, GitFork, User } from 'lucide-
 import type { PersonDiscoveryResult } from '../types'
 import { ROUTES } from '@/constants/app'
 import { useTranslation } from '@/features/i18n'
+import { toProperCaseName } from '@/utils/text-casing'
 
 interface PersonDirectoryCardProps {
   person: PersonDiscoveryResult
@@ -67,9 +68,11 @@ export function PersonDirectoryCard({
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const fullName = [person.first_name, person.middle_name, person.last_name]
-    .filter(Boolean)
-    .join(' ')
+  const fullName = toProperCaseName(
+    [person.first_name, person.middle_name, person.last_name]
+      .filter(Boolean)
+      .join(' ')
+  )
 
   const initials = getInitials(person.first_name, person.last_name)
   
@@ -92,8 +95,8 @@ export function PersonDirectoryCard({
   )
 
   const lineageBadges = [
-    person.gotra ? `Gotra: ${person.gotra}` : null,
-    person.nukh ? `Nukh: ${person.nukh}` : null,
+    person.gotra ? `Gotra: ${toProperCaseName(person.gotra)}` : null,
+    person.nukh ? `Nukh: ${toProperCaseName(person.nukh)}` : null,
   ].filter(Boolean)
 
   function handleClick() {
@@ -147,7 +150,7 @@ export function PersonDirectoryCard({
 
             {person.maiden_name && (
               <p className="truncate text-xs text-navy-500">
-                née {person.maiden_name}
+                née {toProperCaseName(person.maiden_name)}
               </p>
             )}
 
@@ -164,7 +167,7 @@ export function PersonDirectoryCard({
           <div className="mt-3 flex items-center gap-1.5 text-xs text-navy-600">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-navy-400" aria-hidden="true" />
             <span className="truncate">
-              {[person.city, person.state].filter(Boolean).join(', ') || person.birth_place}
+              {[person.city, person.state].filter(Boolean).map(toProperCaseName).join(', ') || toProperCaseName(person.birth_place || '')}
             </span>
           </div>
         ) : isAuthorized ? (

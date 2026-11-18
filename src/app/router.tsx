@@ -30,12 +30,14 @@ import { ProtectedRoute, GuestOnlyRoute } from '@/components/common/ProtectedRou
 import { ModeratorRoute } from '@/components/common/ModeratorRoute'
 import { AdminRoute } from '@/components/common/AdminRoute'
 import { AdminLayout } from '@/features/admin'
+import { LoadingScreen } from '@/components/common/LoadingScreen'
 
 const router = createBrowserRouter([
   {
     // Main layout — public + protected routes sharing the header/footer
     path: '/',
     element: <RootLayout />,
+    HydrateFallback: LoadingScreen,
     errorElement: <RouteErrorPage />,
     children: [
       {
@@ -49,6 +51,30 @@ const router = createBrowserRouter([
           import('@/features/invitations/pages/InvitationRedemptionPage').then((m) => ({
             Component: m.InvitationRedemptionPage,
           })),
+      },
+      // Public Occupation Directory (accessible to all visitors and authenticated roles)
+      {
+        path: ROUTES.OCCUPATION_DIRECTORY,
+        lazy: () =>
+          import('@/features/people/pages/PublicOccupationDirectoryPage').then((m) => ({
+            Component: m.PublicOccupationDirectoryPage,
+          })),
+      },
+      {
+        path: '/profession-directory',
+        element: <Navigate to={ROUTES.OCCUPATION_DIRECTORY} replace />,
+      },
+      // Public Blood Group Directory (accessible to all community members & visitors)
+      {
+        path: ROUTES.BLOOD_GROUP_DIRECTORY,
+        lazy: () =>
+          import('@/features/community/pages/BloodGroupDirectoryPage').then((m) => ({
+            Component: m.BloodGroupDirectoryPage,
+          })),
+      },
+      {
+        path: '/blood-directory',
+        element: <Navigate to={ROUTES.BLOOD_GROUP_DIRECTORY} replace />,
       },
       // Protected routes — require authentication
       {
@@ -81,6 +107,13 @@ const router = createBrowserRouter([
             lazy: () =>
               import('@/features/community/pages/CommunityPage').then((m) => ({
                 Component: m.CommunityPage,
+              })),
+          },
+          {
+            path: ROUTES.MUKHI_PORTAL,
+            lazy: () =>
+              import('@/features/community/pages/MukhiPortalPage').then((m) => ({
+                Component: m.MukhiPortalPage,
               })),
           },
           {
@@ -120,10 +153,7 @@ const router = createBrowserRouter([
           },
           {
             path: ROUTES.NOTIFICATION_PREFERENCES,
-            lazy: () =>
-              import('@/features/notifications/pages/NotificationPreferencesPage').then((m) => ({
-                Component: m.NotificationPreferencesPage,
-              })),
+            element: <Navigate to={ROUTES.NOTIFICATIONS} replace />,
           },
           // People routes (Phase 3)
           {
@@ -222,9 +252,20 @@ const router = createBrowserRouter([
                     Component: m.VerificationReviewQueuePage,
                   })),
               },
+              {
+                path: ROUTES.ADMIN_PROFESSION_DIRECTORY,
+                lazy: () =>
+                  import('@/features/admin/pages/ProfessionDirectoryPage').then((m) => ({
+                    Component: m.ProfessionDirectoryPage,
+                  })),
+              },
             ],
           },
           // Route Aliases & Redirects for notification action_urls and legacy links
+          {
+            path: '/mukhi/profession-directory',
+            element: <Navigate to={ROUTES.ADMIN_PROFESSION_DIRECTORY} replace />,
+          },
           {
             path: '/claims',
             element: <Navigate to={ROUTES.CLAIM_REVIEW_QUEUE} replace />,
@@ -298,18 +339,33 @@ const router = createBrowserRouter([
                       })),
                   },
                   {
-                    path: ROUTES.ADMIN_DUPLICATES,
+                    path: ROUTES.ADMIN_EXPORT,
                     lazy: () =>
-                      import('@/features/admin/pages/DuplicateManagementPage').then((m) => ({
-                        Component: m.DuplicateManagementPage,
+                      import('@/features/admin/pages/DataExportPage').then((m) => ({
+                        Component: m.DataExportPage,
                       })),
                   },
                   {
-                    path: ROUTES.ADMIN_IMPORT,
+                    path: ROUTES.ADMIN_OCCUPATION_REQUESTS,
                     lazy: () =>
-                      import('@/features/admin/pages/ImportManagementPage').then((m) => ({
-                        Component: m.ImportManagementPage,
+                      import('@/features/admin/pages/OccupationRequestsPage').then((m) => ({
+                        Component: m.OccupationRequestsPage,
                       })),
+                  },
+                  {
+                    path: ROUTES.ADMIN_OCCUPATION_CONTACT_REQUESTS,
+                    lazy: () =>
+                      import('@/features/admin/pages/OccupationContactRequestsPage').then((m) => ({
+                        Component: m.OccupationContactRequestsPage,
+                      })),
+                  },
+                  {
+                    path: ROUTES.ADMIN_DUPLICATES,
+                    element: <Navigate to={ROUTES.ADMIN} replace />,
+                  },
+                  {
+                    path: ROUTES.ADMIN_IMPORT,
+                    element: <Navigate to={ROUTES.ADMIN} replace />,
                   },
                 ],
               },

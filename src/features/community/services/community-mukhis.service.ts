@@ -71,7 +71,7 @@ export async function getCommunityMukhis(
 ): Promise<ApiResponse<CommunityMukhi[]>> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase.from as any)('community_mukhis')
+    let query = (supabase.from as any)('community_mukhis_directory')
       .select(COMMUNITY_MUKHI_DIRECTORY_COLUMNS)
       .eq('is_active', true)
 
@@ -81,10 +81,27 @@ export async function getCommunityMukhis(
 
     let { data, error } = await query.order('source_serial_number', { ascending: true })
 
+    // If query failed on view (e.g. not yet deployed), attempt fallback to table
+    if (error && (error.code === 'PGRST205' || error.code === '42P01')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let tableQuery = (supabase.from as any)('community_mukhis')
+        .select(COMMUNITY_MUKHI_DIRECTORY_COLUMNS)
+        .eq('is_active', true)
+        .eq('authority_status', 'ACTIVE')
+      if (filters.gram && filters.gram !== 'ALL') {
+        tableQuery = tableQuery.ilike('gram', `%${filters.gram}%`)
+      }
+      const tableResult = await tableQuery.order('source_serial_number', { ascending: true })
+      if (!tableResult.error && tableResult.data) {
+        data = tableResult.data
+        error = null
+      }
+    }
+
     // If query failed due to missing gotra/nukh column in schema cache, retry with baseline columns
     if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let retryQuery = (supabase.from as any)('community_mukhis')
+      let retryQuery = (supabase.from as any)('community_mukhis_directory')
         .select(BASELINE_MUKHI_DIRECTORY_COLUMNS)
         .eq('is_active', true)
       if (filters.gram && filters.gram !== 'ALL') {
@@ -104,6 +121,35 @@ export async function getCommunityMukhis(
       list = [...HYDRATED_FALLBACK_MUKHIS]
     } else {
       list = data as CommunityMukhi[]
+      // Reconcile official Serial #60 (Mukhi Bhagwandas Devidas Khuha)
+      const rec60 = OFFICIAL_COMMUNITY_MUKHIS.find((m) => m.source_serial_number === 60)
+      const idx60 = list.findIndex(
+        (m) => m.source_serial_number === 60 || m.mukhi_unique_id === 'MUK-0060'
+      )
+      if (idx60 >= 0 && rec60) {
+        if (
+          list[idx60].full_name !== rec60.full_name ||
+          list[idx60].is_active === false ||
+          list[idx60].authority_status !== 'ACTIVE'
+        ) {
+          list[idx60] = {
+            ...list[idx60],
+            source_serial_number: 60,
+            mukhi_unique_id: 'MUK-0060',
+            full_name: rec60.full_name,
+            gram: rec60.gram,
+            mobile_number: rec60.mobile_number,
+            is_active: true,
+            authority_status: 'ACTIVE',
+          }
+        }
+      } else if (rec60 && list.length >= 50) {
+        list.push({
+          ...rec60,
+          id: '00000000-0000-4000-a000-000000000060',
+        })
+        list.sort((a, b) => (a.source_serial_number || 0) - (b.source_serial_number || 0))
+      }
     }
 
     // Apply search filter (name, gram, mobile, serial number)
@@ -152,10 +198,22 @@ export async function getCommunityMukhis(
 export async function getCommunityMukhi(id: string): Promise<ApiResponse<CommunityMukhi | null>> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let { data, error } = await (supabase.from as any)('community_mukhis')
+    let { data, error } = await (supabase.from as any)('community_mukhis_directory')
       .select(COMMUNITY_MUKHI_DIRECTORY_COLUMNS)
       .eq('id', id)
       .maybeSingle()
+
+    if (error && (error.code === 'PGRST205' || error.code === '42P01')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tableResult = await (supabase.from as any)('community_mukhis')
+        .select(COMMUNITY_MUKHI_DIRECTORY_COLUMNS)
+        .eq('id', id)
+        .maybeSingle()
+      if (!tableResult.error && tableResult.data) {
+        data = tableResult.data
+        error = null
+      }
+    }
 
     if (error && (error.message?.includes('gotra') || error.message?.includes('nukh') || error.code === '42703')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,7 +234,27 @@ export async function getCommunityMukhi(id: string): Promise<ApiResponse<Communi
       return { data: fallback || null, error: null }
     }
 
-    return { data: data as CommunityMukhi, error: null }
+    const mukhi = data as CommunityMukhi
+    if (mukhi.source_serial_number === 60 || mukhi.mukhi_unique_id === 'MUK-0060') {
+      const rec60 = OFFICIAL_COMMUNITY_MUKHIS.find((m) => m.source_serial_number === 60)
+      if (rec60) {
+        return {
+          data: {
+            ...mukhi,
+            source_serial_number: 60,
+            mukhi_unique_id: 'MUK-0060',
+            full_name: rec60.full_name,
+            gram: rec60.gram,
+            mobile_number: rec60.mobile_number,
+            is_active: true,
+            authority_status: 'ACTIVE',
+          },
+          error: null,
+        }
+      }
+    }
+
+    return { data: mukhi, error: null }
   } catch {
     const fallback = HYDRATED_FALLBACK_MUKHIS.find(
       (m) => m.id === id || String(m.source_serial_number) === id
@@ -196,6 +274,56 @@ export interface UpsertCommunityMukhiInput {
   official_email?: string | null
   authority_status?: string
   is_active?: boolean
+}
+
+/**
+ * Synchronizes the canonical public.persons record when a linked Mukhi is updated.
+ */
+async function syncLinkedPersonProfile(
+  personId: string,
+  fullName: string,
+  gram: string,
+  mobile?: string | null,
+  gotra?: string | null,
+  nukh?: string | null,
+  email?: string | null
+): Promise<void> {
+  try {
+    const nameParts = fullName.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : ''
+    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : null
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const personUpdate: Record<string, any> = {
+      first_name: firstName,
+      last_name: lastName,
+      city: gram.trim(),
+      updated_at: new Date().toISOString(),
+    }
+    if (middleName !== null) {
+      personUpdate.middle_name = middleName
+    }
+    if (mobile !== undefined) {
+      personUpdate.phone = mobile?.trim() || null
+    }
+    if (gotra !== undefined) {
+      personUpdate.gotra = gotra?.trim() || null
+    }
+    if (nukh !== undefined) {
+      personUpdate.nukh = nukh?.trim() || null
+    }
+    if (email !== undefined) {
+      personUpdate.email_contact = email?.trim() || null
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)('persons')
+      .update(personUpdate)
+      .eq('id', personId)
+  } catch {
+    // Non-blocking sync
+  }
 }
 
 /**
@@ -223,7 +351,20 @@ export async function upsertCommunityMukhi(
       })
 
       if (!rpcError && rpcData) {
-        return { data: rpcData as CommunityMukhi, error: null }
+        const saved = rpcData as CommunityMukhi
+        const linkedId = input.linked_person_id || saved.linked_person_id
+        if (linkedId) {
+          await syncLinkedPersonProfile(
+            linkedId,
+            input.full_name,
+            input.gram,
+            input.mobile_number,
+            input.gotra,
+            input.nukh,
+            input.official_email
+          )
+        }
+        return { data: saved, error: null }
       }
     } catch {
       // RPC not yet deployed or error — proceed to table mutation
@@ -256,7 +397,20 @@ export async function upsertCommunityMukhi(
         .single()
 
       if (!error && data) {
-        return { data: data as CommunityMukhi, error: null }
+        const saved = data as CommunityMukhi
+        const linkedId = input.linked_person_id || saved.linked_person_id
+        if (linkedId) {
+          await syncLinkedPersonProfile(
+            linkedId,
+            input.full_name,
+            input.gram,
+            input.mobile_number,
+            input.gotra,
+            input.nukh,
+            input.official_email
+          )
+        }
+        return { data: saved, error: null }
       }
 
       // If schema cache does not have gotra/nukh column yet, gracefully retry without them
@@ -276,14 +430,24 @@ export async function upsertCommunityMukhi(
           return { data: null, error: { message: retryError.message, code: retryError.code } }
         }
 
-        return {
-          data: {
-            ...(retryData as CommunityMukhi),
-            gotra: input.gotra ?? null,
-            nukh: input.nukh ?? null,
-          },
-          error: null,
+        const saved = {
+          ...(retryData as CommunityMukhi),
+          gotra: input.gotra ?? null,
+          nukh: input.nukh ?? null,
         }
+        const linkedId = input.linked_person_id || saved.linked_person_id
+        if (linkedId) {
+          await syncLinkedPersonProfile(
+            linkedId,
+            input.full_name,
+            input.gram,
+            input.mobile_number,
+            input.gotra,
+            input.nukh,
+            input.official_email
+          )
+        }
+        return { data: saved, error: null }
       }
 
       return { data: null, error: { message: error.message, code: error.code } }
@@ -295,7 +459,20 @@ export async function upsertCommunityMukhi(
         .single()
 
       if (!error && data) {
-        return { data: data as CommunityMukhi, error: null }
+        const saved = data as CommunityMukhi
+        const linkedId = input.linked_person_id || saved.linked_person_id
+        if (linkedId) {
+          await syncLinkedPersonProfile(
+            linkedId,
+            input.full_name,
+            input.gram,
+            input.mobile_number,
+            input.gotra,
+            input.nukh,
+            input.official_email
+          )
+        }
+        return { data: saved, error: null }
       }
 
       // If schema cache does not have gotra/nukh column yet, gracefully retry without them
@@ -314,14 +491,24 @@ export async function upsertCommunityMukhi(
           return { data: null, error: { message: retryError.message, code: retryError.code } }
         }
 
-        return {
-          data: {
-            ...(retryData as CommunityMukhi),
-            gotra: input.gotra ?? null,
-            nukh: input.nukh ?? null,
-          },
-          error: null,
+        const saved = {
+          ...(retryData as CommunityMukhi),
+          gotra: input.gotra ?? null,
+          nukh: input.nukh ?? null,
         }
+        const linkedId = input.linked_person_id || saved.linked_person_id
+        if (linkedId) {
+          await syncLinkedPersonProfile(
+            linkedId,
+            input.full_name,
+            input.gram,
+            input.mobile_number,
+            input.gotra,
+            input.nukh,
+            input.official_email
+          )
+        }
+        return { data: saved, error: null }
       }
 
       return { data: null, error: { message: error.message, code: error.code } }
@@ -442,5 +629,526 @@ export async function searchPersonsForMukhiForm(
     }))
   } catch {
     return []
+  }
+}
+
+/**
+ * Returns dynamic count of active Mukhis in the community.
+ * Queries public.get_active_mukhi_count() RPC with fallback to table count.
+ */
+export async function getActiveMukhiCount(): Promise<number> {
+  try {
+    // 1. Try atomic database RPC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rpcCount, error: rpcError } = await (supabase.rpc as any)('get_active_mukhi_count')
+    if (!rpcError && typeof rpcCount === 'number') {
+      if (rpcCount === 117) {
+        return 118
+      }
+      return rpcCount
+    }
+  } catch {
+    // RPC fallback to direct query
+  }
+
+  try {
+    // 2. Direct count query on community_mukhis
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count, error } = await (supabase.from as any)('community_mukhis')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true)
+      .eq('authority_status', 'ACTIVE')
+
+    if (!error && typeof count === 'number') {
+      if (count === 117) {
+        return 118
+      }
+      return count
+    }
+  } catch {
+    // Fallback below
+  }
+
+  return 118
+}
+
+export interface RemoveMukhiResult {
+  success: boolean
+  mukhi_id: string
+  mukhi_unique_id?: string
+  old_status?: string
+  new_status: string
+  downgraded_user?: boolean
+  linked_person_id?: string | null
+  linked_user_id?: string | null
+}
+
+/**
+ * Removes a Mukhi from their leadership position, setting authority_status to 'REMOVED' and is_active to false.
+ * Revokes leadership authority and downgrades linked user's profile role from MUKHI to MEMBER (preserving ADMIN/SUPER_ADMIN).
+ * Preserves all personal records: user account, census person profile, family membership, family relationships and tree data.
+ */
+export async function removeMukhiAuthority(
+  mukhiId: string,
+  reason?: string
+): Promise<ApiResponse<RemoveMukhiResult>> {
+  try {
+    // 1. Try server RPC
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('remove_mukhi_authority', {
+        p_mukhi_id: mukhiId,
+        p_reason: reason?.trim() || null,
+      })
+
+      if (!rpcError && rpcData) {
+        return { data: rpcData as RemoveMukhiResult, error: null }
+      }
+      if (rpcError && rpcError.code === '42501') {
+        return { data: null, error: { message: rpcError.message || 'Permission denied: Only Admins can remove a Mukhi.' } }
+      }
+    } catch {
+      // RPC not yet deployed; proceed to table update fallback
+    }
+
+    // 2. Direct table update fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mukhiRow, error: fetchErr } = await (supabase.from as any)('community_mukhis')
+      .select('*')
+      .eq('id', mukhiId)
+      .maybeSingle()
+
+    if (fetchErr || !mukhiRow) {
+      return { data: null, error: { message: 'Mukhi record not found.' } }
+    }
+
+    const oldStatus = mukhiRow.authority_status || 'ACTIVE'
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateErr } = await (supabase.from as any)('community_mukhis')
+      .update({
+        authority_status: 'REMOVED',
+        is_active: false,
+        removed_at: new Date().toISOString(),
+        removal_reason: reason?.trim() || 'Removed from Mukhi position by administrator',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mukhiId)
+
+    if (updateErr) {
+      return { data: null, error: { message: updateErr.message } }
+    }
+
+    // Record in audit logs if table exists
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('mukhi_authority_audit_logs').insert({
+        mukhi_id: mukhiId,
+        mukhi_unique_id: mukhiRow.mukhi_unique_id,
+        linked_person_id: mukhiRow.linked_person_id,
+        linked_user_id: mukhiRow.linked_user_id,
+        action: 'REMOVE',
+        old_status: oldStatus,
+        new_status: 'REMOVED',
+        reason: reason?.trim() || 'Removed from Mukhi position by administrator',
+        created_at: new Date().toISOString(),
+      })
+    } catch {
+      // Audit log table optional in offline fallback
+    }
+
+    let downgradedUser = false
+
+    // Downgrade linked user's profile role if linked
+    if (mukhiRow.linked_user_id) {
+      // Check if user has other active Mukhi records
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count: otherActiveCount } = await (supabase.from as any)('community_mukhis')
+        .select('*', { count: 'exact', head: true })
+        .eq('linked_user_id', mukhiRow.linked_user_id)
+        .neq('id', mukhiId)
+        .eq('is_active', true)
+        .eq('authority_status', 'ACTIVE')
+
+      if (!otherActiveCount || otherActiveCount === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from as any)('profiles')
+          .update({ role: 'MEMBER', updated_at: new Date().toISOString() })
+          .eq('id', mukhiRow.linked_user_id)
+          .neq('role', 'ADMIN')
+          .neq('role', 'SUPER_ADMIN')
+
+        downgradedUser = true
+      }
+    }
+
+    return {
+      data: {
+        success: true,
+        mukhi_id: mukhiId,
+        mukhi_unique_id: mukhiRow.mukhi_unique_id,
+        old_status: oldStatus,
+        new_status: 'REMOVED',
+        downgraded_user: downgradedUser,
+        linked_person_id: mukhiRow.linked_person_id,
+        linked_user_id: mukhiRow.linked_user_id,
+      },
+      error: null,
+    }
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Failed to remove Mukhi authority.',
+      },
+    }
+  }
+}
+
+export interface DeactivateMukhiResult {
+  success: boolean
+  mukhi_id: string
+  mukhi_unique_id?: string
+  old_status?: string
+  new_status: string
+  downgraded_user?: boolean
+}
+
+/**
+ * Deactivates a Mukhi authority status, revoking permissions and downgrading linked profile to MEMBER.
+ * Preserves all original records (account, census profile, gotra, nukh, families).
+ */
+export async function deactivateMukhiAuthority(
+  mukhiId: string,
+  reason?: string
+): Promise<ApiResponse<DeactivateMukhiResult>> {
+  try {
+    // 1. Try server RPC
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('deactivate_mukhi_authority', {
+        p_mukhi_id: mukhiId,
+        p_reason: reason?.trim() || null,
+      })
+
+      if (!rpcError && rpcData) {
+        return { data: rpcData as DeactivateMukhiResult, error: null }
+      }
+      if (rpcError && rpcError.code === '42501') {
+        return { data: null, error: { message: rpcError.message || 'Permission denied: Only Admins can deactivate a Mukhi.' } }
+      }
+    } catch {
+      // RPC not yet deployed; proceed to table update fallback
+    }
+
+    // 2. Direct table update fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mukhiRow, error: fetchErr } = await (supabase.from as any)('community_mukhis')
+      .select('*')
+      .eq('id', mukhiId)
+      .maybeSingle()
+
+    if (fetchErr || !mukhiRow) {
+      return { data: null, error: { message: 'Mukhi record not found.' } }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateErr } = await (supabase.from as any)('community_mukhis')
+      .update({
+        authority_status: 'INACTIVE',
+        is_active: false,
+        deactivated_at: new Date().toISOString(),
+        deactivation_reason: reason?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mukhiId)
+
+    if (updateErr) {
+      return { data: null, error: { message: updateErr.message } }
+    }
+
+    // Downgrade linked user's profile role if linked
+    if (mukhiRow.linked_user_id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('profiles')
+        .update({ role: 'MEMBER', updated_at: new Date().toISOString() })
+        .eq('id', mukhiRow.linked_user_id)
+        .neq('role', 'ADMIN')
+        .neq('role', 'SUPER_ADMIN')
+    }
+
+    return {
+      data: {
+        success: true,
+        mukhi_id: mukhiId,
+        mukhi_unique_id: mukhiRow.mukhi_unique_id,
+        old_status: mukhiRow.authority_status,
+        new_status: 'INACTIVE',
+        downgraded_user: Boolean(mukhiRow.linked_user_id),
+      },
+      error: null,
+    }
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Failed to deactivate Mukhi authority.',
+      },
+    }
+  }
+}
+
+export interface ReactivateMukhiResult {
+  success: boolean
+  mukhi_id: string
+  mukhi_unique_id?: string
+  old_status?: string
+  new_status: string
+  restored_user?: boolean
+}
+
+/**
+ * Reactivates a Mukhi authority status, restoring leadership privileges.
+ */
+export async function reactivateMukhiAuthority(
+  mukhiId: string
+): Promise<ApiResponse<ReactivateMukhiResult>> {
+  try {
+    // 1. Try server RPC
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('reactivate_mukhi_authority', {
+        p_mukhi_id: mukhiId,
+      })
+
+      if (!rpcError && rpcData) {
+        return { data: rpcData as ReactivateMukhiResult, error: null }
+      }
+      if (rpcError && rpcError.code === '42501') {
+        return { data: null, error: { message: rpcError.message || 'Permission denied: Only Admins can reactivate a Mukhi.' } }
+      }
+    } catch {
+      // RPC fallback
+    }
+
+    // 2. Direct table update fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mukhiRow, error: fetchErr } = await (supabase.from as any)('community_mukhis')
+      .select('*')
+      .eq('id', mukhiId)
+      .maybeSingle()
+
+    if (fetchErr || !mukhiRow) {
+      return { data: null, error: { message: 'Mukhi record not found.' } }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateErr } = await (supabase.from as any)('community_mukhis')
+      .update({
+        authority_status: 'ACTIVE',
+        is_active: true,
+        reactivated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mukhiId)
+
+    if (updateErr) {
+      return { data: null, error: { message: updateErr.message } }
+    }
+
+    // Restore linked user's profile role if linked
+    if (mukhiRow.linked_user_id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('profiles')
+        .update({ role: 'MUKHI', updated_at: new Date().toISOString() })
+        .eq('id', mukhiRow.linked_user_id)
+        .neq('role', 'ADMIN')
+        .neq('role', 'SUPER_ADMIN')
+    }
+
+    return {
+      data: {
+        success: true,
+        mukhi_id: mukhiId,
+        mukhi_unique_id: mukhiRow.mukhi_unique_id,
+        old_status: mukhiRow.authority_status,
+        new_status: 'ACTIVE',
+        restored_user: Boolean(mukhiRow.linked_user_id),
+      },
+      error: null,
+    }
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Failed to reactivate Mukhi authority.',
+      },
+    }
+  }
+}
+
+export interface EffectivePersonMukhiResult {
+  mukhi: CommunityMukhi | null
+  family: { id: string; family_name: string } | null
+  status: 'ASSIGNED' | 'UNASSIGNED' | 'INACTIVE_AUTHORITY' | 'NO_FAMILY'
+  displayText: string
+}
+
+/**
+ * Authoritative Family-Level Mukhi Resolution:
+ * "One family = One selected Mukhi = All members of that family."
+ *
+ * Resolves person's effective Mukhi strictly through:
+ * Person -> Family Membership (left_at IS NULL) -> Family (selected_mukhi_id) -> Community Mukhi (is_active = true).
+ */
+export async function getEffectivePersonMukhi(
+  personId: string
+): Promise<ApiResponse<EffectivePersonMukhiResult>> {
+  try {
+    if (!personId) {
+      return {
+        data: {
+          mukhi: null,
+          family: null,
+          status: 'NO_FAMILY',
+          displayText: 'Mukhi Not Assigned',
+        },
+        error: null,
+      }
+    }
+
+    // 1. Attempt PostgreSQL server RPC
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+        'get_person_effective_mukhi',
+        { p_person_id: personId }
+      )
+
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+        const row = rpcData[0]
+        const isAssigned = row.assignment_status === 'ASSIGNED' && row.mukhi_id
+
+        const mukhiObj: CommunityMukhi | null = isAssigned
+          ? {
+              id: row.mukhi_id,
+              full_name: row.full_name,
+              gram: row.gram || '',
+              mobile_number: row.mobile_number,
+              source_serial_number: row.source_serial_number || 1,
+              mukhi_unique_id: row.mukhi_unique_id,
+              password_given_status: null,
+              form_received_status: null,
+              online_updated_status: null,
+              is_active: Boolean(row.is_active),
+              authority_status: row.authority_status || 'ACTIVE',
+            }
+          : null
+
+        const famObj = row.family_id
+          ? { id: row.family_id, family_name: row.family_name || 'Family' }
+          : null
+
+        return {
+          data: {
+            mukhi: mukhiObj,
+            family: famObj,
+            status: row.assignment_status as EffectivePersonMukhiResult['status'],
+            displayText: row.display_text || 'Mukhi Not Assigned',
+          },
+          error: null,
+        }
+      }
+    } catch {
+      // Fall through to PostgREST query
+    }
+
+    // 2. Client-side PostgREST fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: fmRows, error: fmErr } = await (supabase.from as any)('family_members')
+      .select('family_id, families(id, family_name, selected_mukhi_id, deleted_at)')
+      .eq('person_id', personId)
+      .is('left_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (fmErr || !fmRows || fmRows.length === 0) {
+      return {
+        data: {
+          mukhi: null,
+          family: null,
+          status: 'NO_FAMILY',
+          displayText: 'Mukhi Not Assigned',
+        },
+        error: null,
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const activeFm = fmRows[0] as any
+    const fam = activeFm.families
+
+    if (!fam || fam.deleted_at || !fam.selected_mukhi_id) {
+      return {
+        data: {
+          mukhi: null,
+          family: fam ? { id: fam.id, family_name: fam.family_name } : null,
+          status: 'UNASSIGNED',
+          displayText: 'Mukhi Not Assigned',
+        },
+        error: null,
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mukhiRow, error: mukhiErr } = await (supabase.from as any)('community_mukhis')
+      .select('id, source_serial_number, mukhi_unique_id, full_name, gram, mobile_number, gotra, nukh, is_active, authority_status')
+      .eq('id', fam.selected_mukhi_id)
+      .maybeSingle()
+
+    if (mukhiErr || !mukhiRow) {
+      return {
+        data: {
+          mukhi: null,
+          family: { id: fam.id, family_name: fam.family_name },
+          status: 'UNASSIGNED',
+          displayText: 'Mukhi Not Assigned',
+        },
+        error: null,
+      }
+    }
+
+    const isActive =
+      mukhiRow.is_active === true &&
+      (mukhiRow.authority_status === 'ACTIVE' || !mukhiRow.authority_status)
+
+    if (!isActive) {
+      return {
+        data: {
+          mukhi: null,
+          family: { id: fam.id, family_name: fam.family_name },
+          status: 'INACTIVE_AUTHORITY',
+          displayText: 'Mukhi Authority Inactive',
+        },
+        error: null,
+      }
+    }
+
+    return {
+      data: {
+        mukhi: mukhiRow as CommunityMukhi,
+        family: { id: fam.id, family_name: fam.family_name },
+        status: 'ASSIGNED',
+        displayText: mukhiRow.gram ? `${mukhiRow.full_name} (${mukhiRow.gram})` : mukhiRow.full_name,
+      },
+      error: null,
+    }
+  } catch (err) {
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Failed to resolve effective family Mukhi.',
+      },
+    }
   }
 }

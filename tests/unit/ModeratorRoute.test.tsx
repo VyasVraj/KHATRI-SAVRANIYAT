@@ -108,6 +108,32 @@ describe('ModeratorRoute', () => {
     expect(result.type).toBe(Outlet)
   })
 
+  it('renders Outlet when user has MUKHI role', () => {
+    vi.mocked(AuthContextModule.useAuthContext).mockReturnValue({
+      session: null,
+      user: { id: 'mukhi-1' } as User,
+      profile: { id: 'mukhi-1', role: 'MUKHI' } as ProfileRow,
+      isLoading: false,
+      isAuthenticated: true,
+    })
+
+    const result = ModeratorRoute()
+    expect(result.type).toBe(Outlet)
+  })
+
+  it('renders Outlet when user has COMMUNITY_MUKHI role', () => {
+    vi.mocked(AuthContextModule.useAuthContext).mockReturnValue({
+      session: null,
+      user: { id: 'mukhi-2' } as User,
+      profile: { id: 'mukhi-2', role: 'COMMUNITY_MUKHI' } as ProfileRow,
+      isLoading: false,
+      isAuthenticated: true,
+    })
+
+    const result = ModeratorRoute()
+    expect(result.type).toBe(Outlet)
+  })
+
   it('renders Outlet when user has SUPER_ADMIN role', () => {
     vi.mocked(AuthContextModule.useAuthContext).mockReturnValue({
       session: null,

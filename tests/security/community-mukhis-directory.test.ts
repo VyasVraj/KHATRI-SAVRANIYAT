@@ -47,7 +47,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 describe('Official Community Mukhi Register (118 Records) Data Integrity', () => {
-  it('contains exactly 118 official Mukhi records from the PDF', () => {
+  it('contains all 118 official Mukhi records', () => {
     expect(OFFICIAL_COMMUNITY_MUKHIS).toHaveLength(118)
   })
 

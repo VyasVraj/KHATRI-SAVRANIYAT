@@ -27,6 +27,7 @@ import { useLanguage } from '@/features/i18n'
 import { usePendingClaimsReview, useReviewClaimMutations } from '../hooks/usePersonClaim'
 import { ClaimReviewDetailModal } from '../components/ClaimReviewDetailModal'
 import { ClaimReviewRejectModal } from '../components/ClaimReviewRejectModal'
+import { FamilyClaimsReviewSection } from '../components/FamilyClaimsReviewSection'
 import type { ClaimForReview } from '../types'
 
 export function ClaimReviewQueuePage() {
@@ -34,6 +35,7 @@ export function ClaimReviewQueuePage() {
   const { data: claims = [], isLoading, error, refetch, isFetching } = usePendingClaimsReview()
   const { approve } = useReviewClaimMutations()
 
+  const [activeTab, setActiveTab] = useState<'persons' | 'families'>('persons')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClaim, setSelectedClaim] = useState<ClaimForReview | null>(null)
   const [rejectingClaim, setRejectingClaim] = useState<ClaimForReview | null>(null)
@@ -132,7 +134,41 @@ export function ClaimReviewQueuePage() {
         </div>
       )}
 
-      {/* Filter / Search Bar */}
+      {/* Tabs: Person Claims vs Complete Family Claims */}
+      <div className="flex items-center gap-2 border-b border-navy-100 pb-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab('persons')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+            activeTab === 'persons'
+              ? 'bg-navy-900 text-white shadow-xs'
+              : 'text-navy-600 hover:bg-navy-50'
+          }`}
+        >
+          <span>Census Person Claims</span>
+          <span className="rounded-full bg-navy-800/80 px-2 py-0.5 text-[10px] text-brand-300">
+            {claims.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('families')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+            activeTab === 'families'
+              ? 'bg-brand-600 text-white shadow-xs'
+              : 'text-navy-600 hover:bg-navy-50'
+          }`}
+        >
+          <span>Complete Family Claims</span>
+        </button>
+      </div>
+
+      {activeTab === 'families' ? (
+        <FamilyClaimsReviewSection />
+      ) : (
+        <>
+          {/* Filter / Search Bar */}
       <div className="mb-6">
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-navy-400" />
@@ -330,6 +366,8 @@ export function ClaimReviewQueuePage() {
             })
           }}
         />
+      )}
+        </>
       )}
     </div>
   )

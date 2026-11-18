@@ -150,7 +150,15 @@ describe('ANDROID-2: Role Authorization Matrix', () => {
     const denied = ALL_ROLES.filter((role) => !canManagePrivacy(role))
 
     expect(allowed).toEqual(['SUPER_ADMIN', 'ADMIN', 'COMMUNITY_MODERATOR'])
-    expect(denied).toEqual(['COMMITTEE_MEMBER', 'FAMILY_HEAD', 'MEMBER', 'GUEST'])
+    expect(denied).toEqual([
+      'MUKHI',
+      'COMMUNITY_MUKHI',
+      'ASSISTANT_MUKHI',
+      'COMMITTEE_MEMBER',
+      'FAMILY_HEAD',
+      'MEMBER',
+      'GUEST',
+    ])
   })
 })
 

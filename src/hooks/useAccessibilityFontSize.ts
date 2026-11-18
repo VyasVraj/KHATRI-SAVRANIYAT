@@ -46,12 +46,12 @@ const SCALE_MAP: Record<string, string> = {
 }
 
 export const FONT_SIZE_LABELS: Record<string, string> = {
-  SMALL: 'Small',
-  STANDARD: 'Standard',
-  DEFAULT: 'Standard',
-  LARGE: 'Large',
-  EXTRA_LARGE: 'Extra Large',
-  VERY_LARGE: 'Very Large',
+  SMALL: 'Small (88%)',
+  STANDARD: 'Standard (100%)',
+  DEFAULT: 'Standard (100%)',
+  LARGE: 'Large (113%)',
+  EXTRA_LARGE: 'Extra Large (131%)',
+  VERY_LARGE: 'Very Large (150%)',
 }
 
 function normalizePreference(val?: string | null): FontSizePreference {

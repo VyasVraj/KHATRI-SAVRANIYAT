@@ -49,6 +49,7 @@ export type TranslationKey =
   | 'action.view'
   | 'action.clear'
   // Home Page
+  | 'home.organization_title'
   | 'home.hero_title'
   | 'home.hero_description'
   | 'home.register_button'

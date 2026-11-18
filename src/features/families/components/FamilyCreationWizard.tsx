@@ -38,6 +38,10 @@ import { Input } from '@/components/forms/Input'
 import { Button } from '@/components/forms/Button'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { CitySelector } from '@/components/forms/CitySelector'
+import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
+import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
+import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
+import { formatRelationshipDisplay } from '@/constants/familyRelationships'
 import { BrandLogo } from '@/components/common/BrandLogo'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { useQueryClient } from '@tanstack/react-query'
@@ -67,12 +71,15 @@ export interface PersonFormValues {
   country: string
   gotra: string
   nukh: string
+  occupation: string
+  occupation_category?: string
   phone: string
   email: string
   // Optional fields
   maiden_name: string
   birth_place: string
-  date_of_death: string
+  date_of_death?: string
+  is_deceased: boolean
   phone_secondary: string
   blood_group: string
   blood_group_consent: boolean
@@ -87,22 +94,6 @@ export interface StagedMember {
   form_values: PersonFormValues
 }
 
-const RELATIONSHIP_OPTIONS = [
-  'Wife',
-  'Husband',
-  'Son',
-  'Daughter',
-  'Mother',
-  'Father',
-  'Brother',
-  'Sister',
-  'Grandfather',
-  'Grandmother',
-  'Grandson',
-  'Granddaughter',
-  'Other',
-] as const
-
 const INITIAL_PERSON_VALUES: PersonFormValues = {
   first_name: '',
   middle_name: '',
@@ -114,11 +105,14 @@ const INITIAL_PERSON_VALUES: PersonFormValues = {
   country: 'India',
   gotra: '',
   nukh: '',
+  occupation: '',
+  occupation_category: '',
   phone: '',
   email: '',
   maiden_name: '',
   birth_place: '',
   date_of_death: '',
+  is_deceased: false,
   phone_secondary: '',
   blood_group: '',
   blood_group_consent: false,
@@ -155,34 +149,20 @@ function validatePersonFields(vals: PersonFormValues): Record<string, string> {
     errs.blood_group = 'Blood Group is required'
   }
 
-  if (vals.date_of_death && vals.date_of_birth) {
-    const dod = new Date(vals.date_of_death)
-    const dob = new Date(vals.date_of_birth)
-    if (dod < dob) {
-      errs.date_of_death = 'Date of Death cannot be earlier than Date of Birth'
-    }
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    if (dod > today) {
-      errs.date_of_death = 'Date of Death cannot be in the future'
-    }
-  }
-
   if (!vals.city.trim()) errs.city = 'City / Town / Gaon is required'
   if (!vals.state.trim()) errs.state = 'State / Province is required'
   if (!vals.country.trim()) errs.country = 'Country is required'
   if (!vals.gotra.trim()) errs.gotra = 'Gotra is required'
   if (!vals.nukh.trim()) errs.nukh = 'Nukh is required'
-
-  if (!vals.phone.trim()) {
-    errs.phone = 'Primary Phone Number is required'
-  } else if (!/^[0-9+\s\-()]{7,20}$/.test(vals.phone.trim())) {
+  if (vals.phone?.trim() && !/^[0-9+\s\-()]{7,25}$/.test(vals.phone.trim())) {
     errs.phone = 'Please enter a valid phone number (digits, +, -)'
   }
 
-  if (!vals.email.trim()) {
-    errs.email = 'Email Address is required'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email.trim())) {
+  if (vals.phone_secondary?.trim() && !/^[0-9+\s\-()]{7,25}$/.test(vals.phone_secondary.trim())) {
+    errs.phone_secondary = 'Please enter a valid secondary phone number'
+  }
+
+  if (vals.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email.trim())) {
     errs.email = 'Please enter a valid email address'
   }
 
@@ -295,7 +275,7 @@ export function FamilyCreationWizard() {
   function validateStep1(): boolean {
     const errs: Record<string, string> = {}
     if (!familyName.trim()) errs.family_name = 'Family Name / Household Title is required'
-    if (!selectedMukhiId) errs.selected_mukhi_id = 'Mukhi must be selected from the approved 118 Mukhi records'
+    if (!selectedMukhiId) errs.selected_mukhi_id = `Mukhi must be selected from the approved ${communityMukhis.length || 119} Mukhi records`
     if (!familyCity.trim()) errs.city = 'City / Gaon is required'
     if (!familyState.trim()) errs.state = 'State / Province is required'
     if (!familyCountry.trim()) errs.country = 'Country is required'
@@ -353,6 +333,7 @@ export function FamilyCreationWizard() {
     setEditingMemberId(null)
     setMemberMode('new')
     setMemberRelationship('Wife')
+    const headEmail = selectedExistingHead?.email_contact || headForm.email || ''
     setMemberForm({
       ...INITIAL_PERSON_VALUES,
       last_name: familyName.split(' ')[0] || '',
@@ -361,6 +342,7 @@ export function FamilyCreationWizard() {
       country: familyCountry,
       gotra: familyGotra,
       nukh: familyNukh,
+      email: headEmail,
     })
     setMemberErrors({})
     setSelectedExistingMember(null)
@@ -496,11 +478,13 @@ export function FamilyCreationWizard() {
               country: headForm.country.trim(),
               gotra: headForm.gotra.trim(),
               nukh: headForm.nukh.trim(),
+              occupation: headForm.occupation.trim(),
               phone: headForm.phone.trim(),
               email: headForm.email.trim(),
               maiden_name: headForm.maiden_name.trim() || null,
               birth_place: headForm.birth_place.trim() || headForm.city.trim(),
               date_of_death: headForm.date_of_death || null,
+              is_deceased: Boolean(headForm.is_deceased),
               phone_secondary: headForm.phone_secondary.trim() || null,
               blood_group: headForm.blood_group.trim(),
               blood_group_consent: Boolean(headForm.blood_group_consent),
@@ -532,11 +516,13 @@ export function FamilyCreationWizard() {
           country: m.form_values.country.trim(),
           gotra: m.form_values.gotra.trim(),
           nukh: m.form_values.nukh.trim(),
+          occupation: m.form_values.occupation.trim(),
           phone: m.form_values.phone.trim(),
           email: m.form_values.email.trim(),
           maiden_name: m.form_values.maiden_name.trim() || null,
           birth_place: m.form_values.birth_place.trim() || m.form_values.city.trim(),
           date_of_death: m.form_values.date_of_death || null,
+          is_deceased: Boolean(m.form_values.is_deceased),
           phone_secondary: m.form_values.phone_secondary.trim() || null,
           blood_group: m.form_values.blood_group.trim(),
           blood_group_consent: Boolean(m.form_values.blood_group_consent),
@@ -682,7 +668,6 @@ export function FamilyCreationWizard() {
               onChange={(e) => onChange('blood_group', e.target.value)}
               className="mt-1 block w-full rounded-md border border-navy-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
-              <option value="">Select Blood Group</option>
               {BLOOD_GROUP_OPTIONS.map((bg) => (
                 <option key={bg.value} value={bg.value}>
                   {bg.label}
@@ -692,18 +677,23 @@ export function FamilyCreationWizard() {
             {errors.blood_group && <p className="mt-1 text-xs text-red-600">{errors.blood_group}</p>}
           </div>
 
-          <div>
-            <label htmlFor={`${idPrefix}-birth-place`} className="block text-sm font-medium text-navy-700">
-              7. Birthplace <span className="text-red-500">*</span>
-            </label>
-            <Input
-              id={`${idPrefix}-birth-place`}
-              value={values.birth_place}
-              onChange={(e) => onChange('birth_place', e.target.value)}
-              placeholder="e.g. Anand, Gujarat"
-              error={errors.birth_place}
-            />
-          </div>
+          <CitySelector
+            id={`${idPrefix}-birth-place`}
+            label="7. Birthplace"
+            required
+            placeholder="Search birthplace worldwide..."
+            value={values.birth_place}
+            showCascadingToggle={true}
+            error={errors.birth_place}
+            onSelectCity={(loc) => {
+              const formatted = loc.city
+                ? loc.state
+                  ? `${loc.city}, ${loc.state}${loc.country ? `, ${loc.country}` : ''}`
+                  : loc.city
+                : ''
+              onChange('birth_place', formatted)
+            }}
+          />
         </div>
 
         {/* Location: 6. City, 7. State, 8. Country */}
@@ -772,25 +762,38 @@ export function FamilyCreationWizard() {
           />
         </div>
 
-        {/* Contact: 11. Phone & 12. Email */}
+        {/* Occupation: Two-Level Categories & Specific Occupations */}
+        <div className="pt-1">
+          <TwoLevelOccupationSelect
+            id={`${idPrefix}-occupation`}
+            label="Occupation / Profession"
+            categoryValue={values.occupation_category}
+            occupationValue={values.occupation}
+            onChange={(occ, cat) => {
+              onChange('occupation', occ)
+              onChange('occupation_category', cat)
+            }}
+            error={errors.occupation}
+            required={false}
+          />
+        </div>
+
+        {/* Contact: Phone & Email */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor={`${idPrefix}-phone`} className="block text-sm font-medium text-navy-700">
-              11. Primary Phone Number <span className="text-red-500">*</span>
-            </label>
-            <Input
+            <PhoneInputWithCountryCode
               id={`${idPrefix}-phone`}
-              type="tel"
+              label="Primary Phone Number"
               value={values.phone}
-              onChange={(e) => onChange('phone', e.target.value)}
-              placeholder="e.g. 9876543210"
+              onChange={(val) => onChange('phone', val)}
+              placeholder="Enter mobile number"
               error={errors.phone}
             />
             <p className="mt-1 text-xs text-navy-500">Multiple family members may share phone numbers.</p>
           </div>
           <div>
             <label htmlFor={`${idPrefix}-email`} className="block text-sm font-medium text-navy-700">
-              12. Email Address <span className="text-red-500">*</span>
+              Email Address (Optional)
             </label>
             <Input
               id={`${idPrefix}-email`}
@@ -800,7 +803,7 @@ export function FamilyCreationWizard() {
               placeholder="name@example.com"
               error={errors.email}
             />
-            <p className="mt-1 text-xs text-navy-500">Multiple family members may share email addresses.</p>
+            <p className="mt-1 text-xs text-navy-500">Default email copied from the Family Head. You can change it if this member has a different email address.</p>
           </div>
         </div>
 
@@ -819,27 +822,29 @@ export function FamilyCreationWizard() {
                 placeholder="Optional maiden name"
               />
             </div>
-            <div>
-              <label htmlFor={`${idPrefix}-dod`} className="block text-sm font-medium text-navy-700">
-                Date of Death (Deceased)
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4 transition-colors hover:bg-slate-50">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  id={`${idPrefix}-is-deceased`}
+                  checked={Boolean(values.is_deceased)}
+                  onChange={(e) => onChange('is_deceased', e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-navy-900">This person is deceased</span>
+                  <p className="text-xs text-navy-500 mt-0.5">
+                    Check if the person is deceased. Leave unchecked for a living person.
+                  </p>
+                </div>
               </label>
-              <Input
-                id={`${idPrefix}-dod`}
-                type="date"
-                value={values.date_of_death}
-                onChange={(e) => onChange('date_of_death', e.target.value)}
-                error={errors.date_of_death}
-              />
             </div>
             <div>
-              <label htmlFor={`${idPrefix}-phone-sec`} className="block text-sm font-medium text-navy-700">
-                Secondary Phone Number
-              </label>
-              <Input
+              <PhoneInputWithCountryCode
                 id={`${idPrefix}-phone-sec`}
-                type="tel"
+                label="Secondary Phone Number"
                 value={values.phone_secondary}
-                onChange={(e) => onChange('phone_secondary', e.target.value)}
+                onChange={(val) => onChange('phone_secondary', val)}
                 placeholder="Alternate phone"
               />
             </div>
@@ -980,7 +985,7 @@ export function FamilyCreationWizard() {
                   2. Community Mukhi Representative <span className="text-red-500">*</span>
                 </label>
                 <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                  118 Approved Mukhis
+                  {communityMukhis.length > 0 ? `${communityMukhis.length} Approved Mukhis` : 'Approved Mukhis'}
                 </span>
               </div>
               <p className="text-xs text-navy-600">
@@ -1328,7 +1333,7 @@ export function FamilyCreationWizard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold px-2 py-0.5 bg-brand-100 text-brand-800 rounded">
-                        {m.relationship_to_head}
+                        {formatRelationshipDisplay(m.relationship_to_head)}
                       </span>
                       <h4 className="text-sm font-bold text-navy-900">
                         {m.form_values.first_name} {m.form_values.middle_name} {m.form_values.last_name}
@@ -1511,7 +1516,7 @@ export function FamilyCreationWizard() {
                 {stagedMembers.map((m) => (
                   <div key={m.id} className="py-2 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-bold text-brand-700 mr-2">[{m.relationship_to_head}]</span>
+                      <span className="font-bold text-brand-700 mr-2">[{formatRelationshipDisplay(m.relationship_to_head)}]</span>
                       <strong className="text-navy-900">
                         {m.form_values.first_name} {m.form_values.middle_name} {m.form_values.last_name}
                       </strong>
@@ -1565,21 +1570,12 @@ export function FamilyCreationWizard() {
 
             {/* Relationship to Head Selector */}
             <div>
-              <label htmlFor="member-relationship" className="block text-sm font-bold text-navy-800">
-                Relationship to Family Head <span className="text-red-500">*</span>
-              </label>
-              <select
+              <RelationshipSelector
                 id="member-relationship"
                 value={memberRelationship}
-                onChange={(e) => setMemberRelationship(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-navy-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              >
-                {RELATIONSHIP_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setMemberRelationship(val)}
+                required
+              />
             </div>
 
             {/* Option A vs Option B Toggle */}

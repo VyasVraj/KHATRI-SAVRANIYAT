@@ -9,9 +9,10 @@
  * - Mobile-first search across family name, family head, gotra, nukh, and location.
  */
 
+import { getMyFamilyClaims, type FamilyClaim } from '@/features/claims/services/family-claims.service'
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Search, PlusCircle, Compass, X, CheckCircle2, Heart } from 'lucide-react'
+import { Users, Search, PlusCircle, Compass, X, CheckCircle2, Heart, Clock, AlertCircle } from 'lucide-react'
 import { useFamilyList } from '../hooks/useFamilyList'
 import { useMyFamilyIds } from '../hooks/useMyFamilyIds'
 import { FamilyCard } from '../components/FamilyCard'
@@ -63,15 +64,25 @@ export function FamilyListPage() {
 
   const { data: myFamilyIds = [] } = useMyFamilyIds()
   const myFamilyIdSet = useMemo(() => new Set(myFamilyIds), [myFamilyIds])
+  const [myClaims, setMyClaims] = useState<FamilyClaim[]>([])
 
-  // Split into "My Families" (created by, managed by, or member of) vs all
+  useEffect(() => {
+    if (user?.id) {
+      getMyFamilyClaims().then((res) => {
+        if (res.data) setMyClaims(res.data)
+      })
+    }
+  }, [user?.id])
+
+  // Split into "My Families" (created by, managed by, claimed by, or member of) vs all
   const myFamilies = useMemo(() => {
     if (!user?.id) return []
     return families.filter((f) => {
       const isCreator = f.created_by === user.id
       const isManager = f.manager_user_id === user.id
+      const isClaimed = (f as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === user.id
       const isMember = myFamilyIdSet.has(f.id)
-      return isCreator || isManager || isMember
+      return isCreator || isManager || isMember || isClaimed
     })
   }, [families, user?.id, myFamilyIdSet])
 
@@ -256,6 +267,31 @@ export function FamilyListPage() {
               <X className="h-3.5 w-3.5" />
             </button>
           )}
+        </div>
+      )}
+
+      {/* Claims Status Banners in My Families View */}
+      {activeTab === 'my' && myClaims.some((c) => c.status === 'PENDING') && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 space-y-1">
+          <div className="flex items-center gap-2 font-bold">
+            <Clock className="h-4 w-4 text-amber-700 shrink-0" />
+            <span>Family Claim Pending Approval</span>
+          </div>
+          <p className="text-[11px] leading-relaxed">
+            You have {myClaims.filter((c) => c.status === 'PENDING').length} family management claim request(s) awaiting review by the regional Mukhi or administrator.
+          </p>
+        </div>
+      )}
+
+      {activeTab === 'my' && myClaims.some((c) => c.status === 'REJECTED') && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 text-xs text-rose-900 space-y-1">
+          <div className="flex items-center gap-2 font-bold">
+            <AlertCircle className="h-4 w-4 text-rose-700 shrink-0" />
+            <span>Family Claim Rejected</span>
+          </div>
+          <p className="text-[11px] leading-relaxed">
+            One or more of your family management claims was reviewed and rejected. Check review notes or submit a revised request with verified references.
+          </p>
         </div>
       )}
 

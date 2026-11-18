@@ -6,7 +6,6 @@
  * and explicit DATA QUALITY != VERIFICATION boundary notice.
  */
 
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -17,7 +16,6 @@ import {
   MapPin,
   Compass,
   Phone,
-  Camera,
   ArrowRight,
   PlusCircle,
   Search,
@@ -26,7 +24,6 @@ import type { PersonRow } from '@/types'
 import { calculatePersonDataQuality } from '@/features/verification/services/dataQuality.service'
 import type { DataQualityTier } from '@/features/verification/types/quality.types'
 import { Button } from '@/components/forms/Button'
-import { AvatarUploadDialog } from '@/features/media'
 import { ROUTES } from '@/constants/app'
 import { useLanguage } from '@/features/i18n'
 
@@ -82,11 +79,10 @@ export function ProfileCompletenessSection({
   userId: _userId,
   linkedPerson,
   isLoadingPerson,
-  onProfileUpdated,
+  onProfileUpdated: _onProfileUpdated,
 }: ProfileCompletenessSectionProps) {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
 
   if (isLoadingPerson) {
     return (
@@ -154,7 +150,7 @@ export function ProfileCompletenessSection({
     title: string
     desc: string
     icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>
-    actionType: 'navigate' | 'photo'
+    actionType: 'navigate'
   }> = []
 
   if (quality.missingFields.includes('date_of_birth')) {
@@ -194,16 +190,6 @@ export function ProfileCompletenessSection({
       desc: 'Allows family members and community leaders to reach out while respecting your privacy settings.',
       icon: Phone,
       actionType: 'navigate',
-    })
-  }
-
-  if (!linkedPerson.avatar_url) {
-    missingFieldActions.push({
-      field: 'avatar',
-      title: 'Profile Photo / Portrait',
-      desc: 'Helps community elders and relatives recognize you in the directory and family trees.',
-      icon: Camera,
-      actionType: 'photo',
     })
   }
 
@@ -324,27 +310,15 @@ export function ProfileCompletenessSection({
                   </div>
 
                   <div className="w-full sm:w-auto shrink-0 sm:self-center">
-                    {action.actionType === 'photo' ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setAvatarDialogOpen(true)}
-                        className="w-full sm:w-auto justify-center min-h-[44px] text-xs font-semibold"
-                      >
-                        <Camera className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-                        Upload Photo
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(ROUTES.PERSON_EDIT(linkedPerson.id))}
-                        className="w-full sm:w-auto justify-center min-h-[44px] text-xs font-semibold"
-                      >
-                        {t('profile.action_edit_record', 'Complete in Record')}
-                        <ArrowRight className="h-3.5 w-3.5 ml-1.5" aria-hidden="true" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate(ROUTES.PERSON_EDIT(linkedPerson.id))}
+                      className="w-full sm:w-auto justify-center min-h-[44px] text-xs font-semibold"
+                    >
+                      {t('profile.action_edit_record', 'Complete in Record')}
+                      <ArrowRight className="h-3.5 w-3.5 ml-1.5" aria-hidden="true" />
+                    </Button>
                   </div>
                 </div>
               )
@@ -367,17 +341,6 @@ export function ProfileCompletenessSection({
           </div>
         )}
       </div>
-
-      <AvatarUploadDialog
-        isOpen={avatarDialogOpen}
-        onClose={() => setAvatarDialogOpen(false)}
-        target={{ type: 'person', id: linkedPerson.id }}
-        currentAvatarUrl={linkedPerson.avatar_url ?? null}
-        onSuccess={() => {
-          setAvatarDialogOpen(false)
-          onProfileUpdated?.()
-        }}
-      />
     </div>
   )
 }

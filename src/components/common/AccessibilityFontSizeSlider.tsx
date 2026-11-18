@@ -31,6 +31,7 @@ export const AccessibilityFontSizeSlider: React.FC<AccessibilityFontSizeSliderPr
   className = '',
 }) => {
   const { step, levelLabel, setStep, resetFontSize } = useAccessibilityFontSize()
+  const [isFocused, setIsFocused] = React.useState(false)
 
   const isDark = variant === 'dark'
 
@@ -128,17 +129,21 @@ export const AccessibilityFontSizeSlider: React.FC<AccessibilityFontSizeSliderPr
             step={1}
             value={step}
             onChange={handleSliderChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             aria-label="Adjust website text size"
             aria-valuemin={1}
             aria-valuemax={5}
             aria-valuenow={step}
             aria-valuetext={levelLabel}
-            className="relative z-10 w-full h-4 opacity-0 cursor-pointer"
+            className="relative z-10 w-full h-4 opacity-0 cursor-pointer focus:outline-none"
           />
 
           {/* Visual Custom Circular Thumb */}
           <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-white border-2 border-purple-600 shadow-sm pointer-events-none transition-all ring-2 ring-purple-400/20"
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-white border-2 border-purple-600 shadow-sm pointer-events-none transition-all ${
+              isFocused ? 'ring-4 ring-purple-500/50 scale-110' : 'ring-2 ring-purple-400/20'
+            }`}
             style={{ left: `${progressPercent}%` }}
           />
         </div>

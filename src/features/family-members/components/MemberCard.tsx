@@ -9,11 +9,13 @@
  */
 
 import { Link } from 'react-router-dom'
-import { Crown, Calendar, Pencil, UserMinus, ArrowRightLeft } from 'lucide-react'
+import { Crown, Calendar, Pencil, UserMinus, ArrowRightLeft, Shield, Briefcase } from 'lucide-react'
 import type { FamilyMemberWithPerson } from '../services/family-members.service'
 import { FAMILY_ROLE_LABELS } from '@/constants/app'
 import { ROUTES } from '@/constants/app'
 import { Button } from '@/components/forms/Button'
+import { toProperCaseName } from '@/utils/text-casing'
+import { formatRelationshipDisplay } from '@/constants/familyRelationships'
 
 /** Formats an ISO timestamp to locale date string. */
 function formatDate(iso: string | null): string {
@@ -26,6 +28,8 @@ function formatDate(iso: string | null): string {
 export interface MemberCardProps {
   member: FamilyMemberWithPerson
   canManageMembers?: boolean
+  currentUserId?: string | null
+  familyMukhi?: { id: string; full_name: string; gram?: string | null } | null
   onEdit?: (member: FamilyMemberWithPerson) => void
   onTransferHead?: (member: FamilyMemberWithPerson) => void
   onRemove?: (member: FamilyMemberWithPerson) => void
@@ -34,6 +38,8 @@ export interface MemberCardProps {
 export function MemberCard({
   member,
   canManageMembers = false,
+  currentUserId = null,
+  familyMukhi = null,
   onEdit,
   onTransferHead,
   onRemove,
@@ -41,16 +47,27 @@ export function MemberCard({
   const isFormer = Boolean(member.left_at)
   const isHead = member.is_head && !isFormer
   const personName = member.person
-    ? `${member.person.first_name} ${member.person.last_name}`
+    ? toProperCaseName(`${member.person.first_name} ${member.person.last_name}`)
     : 'Unknown Person'
   const roleLabel = FAMILY_ROLE_LABELS[member.role] ?? member.role
 
+  // Strict Matrix: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid()).
+  // Family head status does NOT grant permission to edit other members' personal profiles.
+  // Super Admin and Admin retain system administrative management.
+  const isSelf = Boolean(currentUserId && member.person?.user_id === currentUserId)
+  const canEditThisMember = isSelf || canManageMembers
+  const canAdministerMember = Boolean(canManageMembers && !isFormer)
+
   // Only the active designated head displays 'Head of Family'.
   // If a member is not active head, avoid showing 'Head of Family' even if DB role has legacy 'HEAD'.
+  const formattedRelationship = member.relationship_to_head
+    ? formatRelationshipDisplay(member.relationship_to_head)
+    : null
+
   const displayRoleLabel =
     !isHead && member.role === 'HEAD'
       ? 'Family Member'
-      : roleLabel
+      : formattedRelationship || roleLabel
   // Prevent duplicate 'Head of Family' badge if member already has the crown head badge
   const showRoleBadge = !isHead || (isHead && member.role !== 'HEAD')
 
@@ -104,6 +121,29 @@ export function MemberCard({
               </span>
             )}
 
+            {/* Occupation Badge */}
+            {member.person?.occupation &&
+              member.person.occupation !== 'Occupation Pending' &&
+              member.person.occupation !== 'Occupation Not Provided' && (
+                <span
+                  data-testid="member-occupation-badge"
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-800"
+                >
+                  <Briefcase className="h-3 w-3 text-blue-600" />
+                  {member.person.occupation}
+                </span>
+              )}
+
+            {/* Deceased Badge */}
+            {(member.person?.is_deceased || member.person?.status === 'DECEASED' || Boolean(member.person?.date_of_death)) && (
+              <span
+                data-testid="deceased-badge"
+                className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 border border-slate-300"
+              >
+                Deceased
+              </span>
+            )}
+
             {/* Former Member Badge */}
             {isFormer && (
               <span
@@ -111,6 +151,18 @@ export function MemberCard({
                 className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
               >
                 Departed / Former
+              </span>
+            )}
+
+            {/* Assigned Family Mukhi Badge */}
+            {familyMukhi && (
+              <span
+                data-testid="member-mukhi-badge"
+                className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-medium text-blue-800"
+                title={`Assigned Mukhi: ${familyMukhi.full_name}${familyMukhi.gram ? ` (${familyMukhi.gram})` : ''}`}
+              >
+                <Shield className="h-3 w-3 text-blue-600" />
+                Mukhi: {familyMukhi.full_name}
               </span>
             )}
           </div>
@@ -133,10 +185,10 @@ export function MemberCard({
           </div>
         </div>
 
-        {/* Action buttons (only for active members when caller can manage) */}
-        {canManageMembers && !isFormer && (
+        {/* Action buttons (only for active members when authorized) */}
+        {!isFormer && (canAdministerMember || canEditThisMember) && (
           <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
-            {!isHead && onTransferHead && (
+            {canAdministerMember && !isHead && onTransferHead && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -149,7 +201,7 @@ export function MemberCard({
               </Button>
             )}
 
-            {onEdit && (
+            {canEditThisMember && onEdit && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -161,7 +213,7 @@ export function MemberCard({
               </Button>
             )}
 
-            {onRemove && (
+            {canAdministerMember && onRemove && (
               <Button
                 variant="secondary"
                 size="sm"

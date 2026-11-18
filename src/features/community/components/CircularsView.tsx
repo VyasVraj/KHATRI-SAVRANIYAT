@@ -1,19 +1,30 @@
 /**
- * Circulars & Official Notices View (Screens 47-49 — ANDROID-13 Parity)
+ * Circulars & Official Notices View
+ *
+ * Implements directory and publication of official community circulars:
+ * - Filter by category, issuing authority, and search
+ * - Read and download official branded PDFs
+ * - Admin and Super Admin publishing (Method A: PDF Upload, Method B: Online Editor)
+ * - Admin management (Edit, Pin/Unpin, Archive/Delete)
  */
 
 import React, { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, AlertCircle, RefreshCw, Info } from 'lucide-react'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { useLanguage } from '@/features/i18n'
 import { useCirculars } from '../hooks/useCirculars'
 import { useGroups } from '../hooks/useGroups'
-import { useCreateAnnouncement } from '../hooks/useAnnouncements'
 import { CircularCard } from './CircularCard'
 import { CircularFiltersBar } from './CircularFiltersBar'
 import { CircularDetailModal } from './CircularDetailModal'
-import { CreateAnnouncementModal } from './CreateAnnouncementModal'
-import type { CircularItem, CircularFilters, CreateAnnouncementInput } from '../types'
+import { IssueOfficialNoticeModal } from './IssueOfficialNoticeModal'
+import { EditOfficialNoticeModal } from './EditOfficialNoticeModal'
+import {
+  togglePinOfficialCircular,
+  deleteOfficialCircular,
+} from '../services/circulars.service'
+import type { CircularItem, CircularFilters } from '../types'
 
 export const CircularsView: React.FC = () => {
   const { user, profile, isAuthenticated } = useAuthContext()
@@ -26,9 +37,8 @@ export const CircularsView: React.FC = () => {
     status: 'PUBLISHED',
   })
 
-  const [selectedCircular, setSelectedCircular] = useState<CircularItem | null>(
-    null
-  )
+  const [selectedCircular, setSelectedCircular] = useState<CircularItem | null>(null)
+  const [editingCircular, setEditingCircular] = useState<CircularItem | null>(null)
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: 'success' | 'error'
@@ -55,28 +65,23 @@ export const CircularsView: React.FC = () => {
     .map((g) => ({ id: g.id, name: g.name }))
 
   // Check if current user is authorized to issue/publish circulars
-  // Authorized roles: SUPER_ADMIN, ADMIN, COMMUNITY_MODERATOR, or COMMITTEE_MEMBER
-  const userRole =
+  // Authorized: SUPER_ADMIN, ADMIN, COMMUNITY_MODERATOR, or group admins
+  // Regular members and unassigned Mukhis are strictly read-only.
+  const rawRole = (
     profile?.role ??
     (user as unknown as { role?: string })?.role ??
     (user?.user_metadata?.role as string | undefined) ??
-    (user?.app_metadata?.role as string | undefined)
-
-  const isGlobalModerator =
-    userRole === 'SUPER_ADMIN' ||
-    userRole === 'ADMIN' ||
-    userRole === 'COMMUNITY_MODERATOR' ||
-    userRole === 'COMMUNITY_MUKHI' ||
-    userRole === 'MUKHI' ||
-    userRole === 'COMMITTEE_MEMBER' ||
-    userRole === 'admin' ||
-    userRole === 'moderator'
+    (user?.app_metadata?.role as string | undefined) ??
+    ''
+  ).toUpperCase()
 
   const isAuthorizedPublisher =
-    isGlobalModerator ||
+    rawRole === 'SUPER_ADMIN' ||
+    rawRole === 'ADMIN' ||
+    rawRole === 'COMMUNITY_MODERATOR' ||
     userManagedGroups.length > 0
 
-  const createMutation = useCreateAnnouncement()
+  const queryClient = useQueryClient()
 
   const handleResetFilters = () => {
     setFilters({
@@ -87,20 +92,35 @@ export const CircularsView: React.FC = () => {
     })
   }
 
-  const handleCreateNotice = async (input: CreateAnnouncementInput) => {
-    try {
-      await createMutation.mutateAsync(input)
-      setIsPublishModalOpen(false)
-      setFeedbackMessage({
-        type: 'success',
-        text: t('circular.published_success', 'Notice published successfully to Community Notice Board.'),
-      })
-      setTimeout(() => setFeedbackMessage(null), 5000)
-    } catch (err: unknown) {
-      setFeedbackMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to publish notice.',
-      })
+  const handleActionSuccess = (msg: string) => {
+    queryClient.invalidateQueries({ queryKey: ['community', 'circulars'] })
+    setFeedbackMessage({ type: 'success', text: msg })
+    setTimeout(() => setFeedbackMessage(null), 5000)
+  }
+
+  const handleTogglePin = async (circular: CircularItem) => {
+    const newPinned = !circular.is_pinned
+    const res = await togglePinOfficialCircular(circular.id, newPinned)
+    if (res.error) {
+      setFeedbackMessage({ type: 'error', text: res.error.message })
+    } else {
+      handleActionSuccess(
+        newPinned
+          ? `Pinned "${circular.title}" to top of directives.`
+          : `Unpinned "${circular.title}".`
+      )
+    }
+  }
+
+  const handleDeleteCircular = async (circular: CircularItem) => {
+    if (!window.confirm(`Are you sure you want to archive "${circular.title}"?`)) {
+      return
+    }
+    const res = await deleteOfficialCircular(circular.id)
+    if (res.error) {
+      setFeedbackMessage({ type: 'error', text: res.error.message })
+    } else {
+      handleActionSuccess(`Archived circular "${circular.circular_number}".`)
     }
   }
 
@@ -127,7 +147,7 @@ export const CircularsView: React.FC = () => {
               </p>
             </div>
 
-            {/* Screen 49: Role-gated Publish Action */}
+            {/* Role-gated Publish Action (ADMIN & SUPER_ADMIN only) */}
             {isAuthorizedPublisher && (
               <button
                 type="button"
@@ -146,10 +166,7 @@ export const CircularsView: React.FC = () => {
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs text-slate-300 border border-white/10">
               <Info className="h-4 w-4 shrink-0 text-blue-400" />
               <span>
-                {t(
-                  'circular.read_only_notice',
-                  'Official circulars are published by authorized Panchayat Secretariat and Committee Moderators.'
-                )}
+                Official circulars are published by authorized Panchayat Secretariat and Committee Moderators under the authority of Akhil Bharat Sindhi Brahmkhatri Panchayat (Sarvaniyat).
               </span>
             </div>
           )}
@@ -247,28 +264,40 @@ export const CircularsView: React.FC = () => {
                 key={circular.id}
                 circular={circular}
                 onView={setSelectedCircular}
+                isAdmin={isAuthorizedPublisher}
+                onEdit={(c) => setEditingCircular(c)}
+                onTogglePin={handleTogglePin}
+                onDelete={handleDeleteCircular}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Detail Modal (Screen 48) */}
+      {/* Detail Modal / Document Reader */}
       <CircularDetailModal
         circular={selectedCircular}
         isOpen={Boolean(selectedCircular)}
         onClose={() => setSelectedCircular(null)}
       />
 
-      {/* Screen 49: Publish Modal for authorized roles */}
+      {/* Method A & B Publishing Modal (ADMIN & SUPER_ADMIN only) */}
       {isAuthorizedPublisher && (
-        <CreateAnnouncementModal
+        <IssueOfficialNoticeModal
           isOpen={isPublishModalOpen}
           onClose={() => setIsPublishModalOpen(false)}
-          onSubmit={handleCreateNotice}
-          isLoading={createMutation.isPending}
+          onSuccess={handleActionSuccess}
           userManagedGroups={userManagedGroups}
-          isGlobalModerator={isGlobalModerator}
+        />
+      )}
+
+      {/* Editing Modal (ADMIN & SUPER_ADMIN only) */}
+      {isAuthorizedPublisher && editingCircular && (
+        <EditOfficialNoticeModal
+          circular={editingCircular}
+          isOpen={Boolean(editingCircular)}
+          onClose={() => setEditingCircular(null)}
+          onSuccess={handleActionSuccess}
         />
       )}
     </div>

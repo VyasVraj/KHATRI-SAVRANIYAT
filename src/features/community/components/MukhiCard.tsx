@@ -19,6 +19,9 @@ import {
   ArrowRight,
   AlertCircle,
   Edit2,
+  ShieldAlert,
+  ShieldCheck,
+  UserMinus,
 } from 'lucide-react'
 import { useLanguage } from '@/features/i18n'
 import type { MukhiLeaderItem } from '../types'
@@ -28,6 +31,9 @@ interface MukhiCardProps {
   onClick?: () => void
   onViewDetails?: (leader: MukhiLeaderItem) => void
   onEdit?: (leader: MukhiLeaderItem) => void
+  onRemove?: (leader: MukhiLeaderItem) => void
+  onDeactivate?: (leader: MukhiLeaderItem) => void
+  onReactivate?: (leader: MukhiLeaderItem) => void
   className?: string
 }
 
@@ -37,7 +43,16 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = '' }: MukhiCardProps) {
+export function MukhiCard({
+  leader,
+  onClick,
+  onViewDetails,
+  onEdit,
+  onRemove,
+  onDeactivate,
+  onReactivate,
+  className = '',
+}: MukhiCardProps) {
   const { t } = useLanguage()
 
   const initials = getInitials(leader.name)
@@ -96,7 +111,15 @@ export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = 
                 <Shield className="h-3 w-3" />
                 {leader.designation || t('mukhi.badge_mukhi', 'Community Mukhi')}
               </span>
-              {leader.authority_status === 'ACTIVE' && (
+              {leader.authority_status === 'REMOVED' ? (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 border border-slate-200">
+                  Removed
+                </span>
+              ) : leader.authority_status === 'INACTIVE' ? (
+                <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200">
+                  Inactive
+                </span>
+              ) : (
                 <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
                   Active
                 </span>
@@ -175,7 +198,7 @@ export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = 
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleOpenDetails}
@@ -186,6 +209,7 @@ export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = 
             <span>{t('mukhi.view_profile', 'View Profile')}</span>
             <ArrowRight className="h-3 w-3 ml-0.5" />
           </button>
+
           {onEdit && (
             <button
               type="button"
@@ -198,6 +222,51 @@ export function MukhiCard({ leader, onClick, onViewDetails, onEdit, className = 
             >
               <Edit2 className="h-3.5 w-3.5" />
               <span>Edit</span>
+            </button>
+          )}
+
+          {onRemove && leader.authority_status !== 'INACTIVE' && leader.authority_status !== 'REMOVED' && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemove(leader)
+              }}
+              className="flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+              aria-label={`Remove as Mukhi: ${leader.name}`}
+            >
+              <UserMinus className="h-3.5 w-3.5 text-rose-600" />
+              <span>Remove as Mukhi</span>
+            </button>
+          )}
+
+          {!onRemove && onDeactivate && leader.authority_status !== 'INACTIVE' && leader.authority_status !== 'REMOVED' && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeactivate(leader)
+              }}
+              className="flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+              aria-label={`Deactivate ${leader.name}`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
+              <span>Deactivate</span>
+            </button>
+          )}
+
+          {onReactivate && (leader.authority_status === 'INACTIVE' || leader.authority_status === 'REMOVED') && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onReactivate(leader)
+              }}
+              className="flex min-h-[44px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              aria-label={`Reactivate ${leader.name}`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Reactivate</span>
             </button>
           )}
         </div>

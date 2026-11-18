@@ -40,7 +40,7 @@ describe('AccessibilityFontSizeSlider & 5-Level Accessibility (Part 21)', () => 
     render(<AccessibilityFontSizeSlider variant="light" />)
 
     expect(screen.getByText(/Text Size \/ Accessibility/i)).toBeInTheDocument()
-    expect(screen.getByText('Standard')).toBeInTheDocument()
+    expect(screen.getByText(/Standard/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Reset text size to standard/i })).toBeInTheDocument()
 
     const slider = screen.getByRole('slider')
@@ -56,7 +56,7 @@ describe('AccessibilityFontSizeSlider & 5-Level Accessibility (Part 21)', () => 
     const slider = screen.getByRole('slider')
     fireEvent.change(slider, { target: { value: '3' } })
 
-    expect(screen.getByText('Large')).toBeInTheDocument()
+    expect(screen.getByText(/Large/i)).toBeInTheDocument()
     expect(document.documentElement.style.fontSize).toBe('18px')
     expect(document.documentElement.classList.contains('font-size-large')).toBe(true)
   })
@@ -67,7 +67,7 @@ describe('AccessibilityFontSizeSlider & 5-Level Accessibility (Part 21)', () => 
     const slider = screen.getByRole('slider')
     fireEvent.change(slider, { target: { value: '5' } })
 
-    expect(screen.getByText('Very Large')).toBeInTheDocument()
+    expect(screen.getByText(/Very Large/i)).toBeInTheDocument()
     expect(document.documentElement.style.fontSize).toBe('24px')
     expect(document.documentElement.classList.contains('font-size-very-large')).toBe(true)
   })
@@ -77,12 +77,12 @@ describe('AccessibilityFontSizeSlider & 5-Level Accessibility (Part 21)', () => 
 
     const slider = screen.getByRole('slider')
     fireEvent.change(slider, { target: { value: '4' } })
-    expect(screen.getByText('Extra Large')).toBeInTheDocument()
+    expect(screen.getByText(/Extra Large/i)).toBeInTheDocument()
 
     const resetButton = screen.getByRole('button', { name: /Reset text size to standard/i })
     fireEvent.click(resetButton)
 
-    expect(screen.getByText('Standard')).toBeInTheDocument()
+    expect(screen.getByText(/Standard/i)).toBeInTheDocument()
     expect(document.documentElement.style.fontSize).toBe('16px')
   })
 

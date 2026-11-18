@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect, useId } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   X,
   Search,
@@ -44,6 +45,13 @@ export const MukhiFormModal: React.FC<MukhiFormModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  let queryClient: ReturnType<typeof useQueryClient> | null = null
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    queryClient = useQueryClient()
+  } catch {
+    // Graceful fallback when rendered outside QueryClientProvider in isolated tests
+  }
   // Form Fields
   const [fullName, setFullName] = useState(mukhi?.name || '')
   const [gram, setGram] = useState(mukhi?.gram || mukhi?.city || '')
@@ -209,6 +217,14 @@ export const MukhiFormModal: React.FC<MukhiFormModalProps> = ({
         setFormError(result.error.message || 'Failed to save Mukhi record.')
         setIsSubmitting(false)
         return
+      }
+
+      if (queryClient) {
+        void queryClient.invalidateQueries({ queryKey: ['community-mukhis'] })
+        void queryClient.invalidateQueries({ queryKey: ['persons'] })
+        void queryClient.invalidateQueries({ queryKey: ['family'] })
+        void queryClient.invalidateQueries({ queryKey: ['families'] })
+        void queryClient.invalidateQueries({ queryKey: ['executive-committee'] })
       }
 
       onSuccess()

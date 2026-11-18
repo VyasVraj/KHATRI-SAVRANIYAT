@@ -14,6 +14,7 @@ import { X, Crown, AlertTriangle, AlertCircle } from 'lucide-react'
 import type { FamilyMemberWithPerson } from '../services/family-members.service'
 import { useTransferFamilyHead } from '../hooks/useFamilyMemberMutations'
 import { Button } from '@/components/forms/Button'
+import { toProperCaseName } from '@/utils/text-casing'
 
 export interface TransferHeadModalProps {
   familyId: string
@@ -53,11 +54,11 @@ export function TransferHeadModal({
   if (!isOpen || !newHeadMember) return null
 
   const newHeadName = newHeadMember.person
-    ? `${newHeadMember.person.first_name} ${newHeadMember.person.last_name}`
+    ? toProperCaseName(`${newHeadMember.person.first_name} ${newHeadMember.person.last_name}`)
     : 'Selected Member'
 
   const currentHeadName = currentHeadMember?.person
-    ? `${currentHeadMember.person.first_name} ${currentHeadMember.person.last_name}`
+    ? toProperCaseName(`${currentHeadMember.person.first_name} ${currentHeadMember.person.last_name}`)
     : 'None (no current active head)'
 
   async function handleConfirm() {

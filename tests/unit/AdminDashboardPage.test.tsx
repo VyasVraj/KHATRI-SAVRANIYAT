@@ -121,14 +121,14 @@ describe('AdminDashboardPage Component', () => {
     expect(markup).toContain('7')
     expect(markup).toContain('href="/admin/verifications"')
 
-    expect(markup).toContain('data-testid="metric-duplicates"')
-    expect(markup).toContain('2')
-    expect(markup).toContain('href="/admin/duplicates"')
+    // Duplicates feature is removed from Admin Dashboard per Area 5
+    expect(markup).not.toContain('data-testid="metric-duplicates"')
+    expect(markup).not.toContain('href="/admin/duplicates"')
 
     // Workflows section
     expect(markup).toContain('Claim Review Queue')
     expect(markup).toContain('Verification Review Queue')
-    expect(markup).toContain('Duplicate Review Queue')
+    expect(markup).not.toContain('Duplicate Review Queue')
   })
 
   it('handles zero values cleanly across all metric cards', () => {
@@ -159,6 +159,5 @@ describe('AdminDashboardPage Component', () => {
     expect(markup).toContain('data-testid="total-families-value">0</span>')
     expect(markup).toContain('data-testid="pending-claims-value">0</span>')
     expect(markup).toContain('data-testid="pending-verifications-value">0</span>')
-    expect(markup).toContain('data-testid="open-duplicates-value">0</span>')
   })
 })

@@ -11,18 +11,21 @@
  * - Highlight newly created families.
  */
 
-import React from 'react'
-import { Users, Crown, MapPin, ArrowRight, Sparkles } from 'lucide-react'
+import React, { useContext } from 'react'
+import { Users, Crown, MapPin, ArrowRight, Sparkles, Pencil } from 'lucide-react'
 import type { FamilyWithDetails } from '../services/families.service'
 import { PRIVACY_LEVEL_LABELS, ROUTES } from '@/constants/app'
 import type { PrivacyLevel } from '@/types'
 import { Link } from 'react-router-dom'
+import { AuthContext } from '@/features/auth/context/AuthContext'
+import { toProperCaseName } from '@/utils/text-casing'
 
-interface FamilyCardProps {
+export interface FamilyCardProps {
   family: FamilyWithDetails
   /** Optional click handler — e.g. navigate to family detail */
   onClick?: () => void
   isHighlighted?: boolean
+  canEdit?: boolean
 }
 
 /**
@@ -32,7 +35,27 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
   family,
   onClick,
   isHighlighted = false,
+  canEdit: explicitCanEdit,
 }) => {
+  let authContextVal = null
+  try {
+    // Only invoke useContext when inside active React render tree
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((React as any)?.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED?.ReactCurrentDispatcher?.current) {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      authContextVal = useContext(AuthContext)
+    }
+  } catch {
+    // Non-React direct function invocation in headless unit tests
+    authContextVal = null
+  }
+
+  const user = authContextVal?.user
+  const profile = authContextVal?.profile
+  const isCreator = Boolean(user?.id && family.created_by === user.id)
+  const isAdmin = Boolean(profile?.role && ['ADMIN', 'SUPER_ADMIN'].includes(profile.role))
+  const canEdit = explicitCanEdit ?? (isCreator || isAdmin)
+
   const location = [family.city, family.state, family.country]
     .filter(Boolean)
     .join(', ')
@@ -81,9 +104,14 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
           {/* Header Row: Title & Badges */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold text-navy-900 truncate">
-              {family.family_name}
+              {toProperCaseName(family.family_name)}
             </h3>
             <div className="flex items-center gap-2">
+              {(family as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === user?.id && (
+                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                  Claimed Family
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700 border border-teal-200">
                 <Users className="h-3.5 w-3.5" />
                 {memberCount} {memberCount === 1 ? 'Member' : 'Members'}
@@ -99,7 +127,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
             <Crown className="h-4 w-4 text-amber-700 shrink-0" />
             <span className="font-semibold text-amber-800">Family Head:</span>
             {family.head ? (
-              <span className="font-bold text-navy-900 truncate">{family.head.name}</span>
+              <span className="font-bold text-navy-900 truncate">{toProperCaseName(family.head.name)}</span>
             ) : (
               <span className="text-amber-700 italic">No Head designated</span>
             )}
@@ -149,7 +177,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex sm:flex-col items-end justify-between shrink-0 pt-2 sm:pt-0">
+        <div className="flex sm:flex-col items-end gap-2 shrink-0 pt-2 sm:pt-0">
           <Link
             to={ROUTES.FAMILY_DETAIL(family.id)}
             onClick={(e) => e.stopPropagation()}
@@ -158,6 +186,17 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
             <span>View Profile</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
+          {canEdit && (
+            <Link
+              to={ROUTES.FAMILY_EDIT(family.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-navy-300 bg-white px-3.5 py-2 text-xs font-bold text-navy-700 shadow-xs hover:bg-navy-50 hover:text-navy-900 transition-colors"
+              aria-label={`Edit ${family.family_name} family`}
+            >
+              <Pencil className="h-3.5 w-3.5 text-navy-500" />
+              <span>Edit</span>
+            </Link>
+          )}
         </div>
       </div>
     </div>

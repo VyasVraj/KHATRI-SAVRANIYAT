@@ -76,6 +76,7 @@ describe('Schema Integration: Enum value coverage', () => {
       expect(values).toContain('SUPER_ADMIN')
       expect(values).toContain('ADMIN')
       expect(values).toContain('COMMUNITY_MODERATOR')
+      expect(values).toContain('MUKHI')
       expect(values).toContain('COMMUNITY_MUKHI')
       expect(values).toContain('ASSISTANT_MUKHI')
       expect(values).toContain('COMMITTEE_MEMBER')
@@ -85,7 +86,7 @@ describe('Schema Integration: Enum value coverage', () => {
       expect(values).toContain('COMMUNITY_MEMBER')
       expect(values).toContain('MEMBER')
       expect(values).toContain('GUEST')
-      expect(values).toHaveLength(12)
+      expect(values).toHaveLength(13)
     })
 
     it('type Enums<"user_role"> is compatible with UserRole manual alias', () => {

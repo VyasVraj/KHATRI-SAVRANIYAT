@@ -11,8 +11,8 @@
  * - Tokens are NEVER logged.
  */
 
-import { useState, useEffect } from 'react'
-import { X, Mail, Check, Copy, AlertCircle, Link as LinkIcon } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { X, Mail, Check, Copy, AlertCircle, Link as LinkIcon, Search, User } from 'lucide-react'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useInvitationMutations } from '../hooks/useInvitations'
 import { FAMILY_ROLE_LABELS, FAMILY_ROLES } from '@/constants/app'
@@ -33,10 +33,13 @@ export function CreateInvitationModal({
   isOpen,
   onClose,
 }: CreateInvitationModalProps) {
-  const { data: persons = [], isLoading: isLoadingPersons } = usePersonList({ limit: 50 })
+  const { data: persons = [], isLoading: isLoadingPersons } = usePersonList({ limit: 100 })
   const { createInvitation } = useInvitationMutations()
 
   const [personId, setPersonId] = useState('')
+  const [personSearchQuery, setPersonSearchQuery] = useState('')
+  const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [invitedEmail, setInvitedEmail] = useState('')
   const [role, setRole] = useState<FamilyRole>(FAMILY_ROLES.EXTENDED)
   const [expirationDays, setExpirationDays] = useState('7')
@@ -48,6 +51,8 @@ export function CreateInvitationModal({
   useEffect(() => {
     if (isOpen) {
       setPersonId('')
+      setPersonSearchQuery('')
+      setIsPersonDropdownOpen(false)
       setInvitedEmail('')
       setRole(FAMILY_ROLES.EXTENDED)
       setExpirationDays('7')
@@ -56,6 +61,27 @@ export function CreateInvitationModal({
       setCopied(false)
     }
   }, [isOpen])
+
+  const selectedPerson = useMemo(() => {
+    return persons.find((p) => p.id === personId) || null
+  }, [persons, personId])
+
+  const filteredPersons = useMemo(() => {
+    if (!personSearchQuery.trim()) return persons
+    const query = personSearchQuery.toLowerCase().trim()
+    return persons.filter((p) => {
+      const full = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ').toLowerCase()
+      const year = p.date_of_birth ? p.date_of_birth.split('-')[0] : ''
+      const city = p.city ? p.city.toLowerCase() : ''
+      return (
+        full.includes(query) ||
+        p.first_name?.toLowerCase().includes(query) ||
+        p.last_name?.toLowerCase().includes(query) ||
+        year.includes(query) ||
+        city.includes(query)
+      )
+    })
+  }, [persons, personSearchQuery])
 
   // Handle Escape key
   useEffect(() => {
@@ -206,35 +232,136 @@ export function CreateInvitationModal({
               </div>
             )}
 
-            {/* Person selection */}
-            <div>
+            {/* Person selection - Searchable Combobox */}
+            <div className="relative">
               <label
-                htmlFor="invitation-person-select"
+                htmlFor="invitation-person-search"
                 className="block text-sm font-medium text-navy-700 mb-1"
               >
                 Census Person Record <span className="text-red-500">*</span>
               </label>
+
               {isLoadingPersons ? (
                 <div className="h-10 w-full animate-pulse rounded-md bg-navy-100" />
+              ) : selectedPerson ? (
+                <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50/70 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-navy-900">
+                        {[selectedPerson.first_name, selectedPerson.middle_name, selectedPerson.last_name]
+                          .filter(Boolean)
+                          .join(' ')}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-navy-600 mt-0.5">
+                        {selectedPerson.date_of_birth && (
+                          <span>b. {selectedPerson.date_of_birth.split('-')[0]}</span>
+                        )}
+                        {selectedPerson.gender && (
+                          <span className="capitalize">• {selectedPerson.gender.toLowerCase()}</span>
+                        )}
+                        {selectedPerson.city && (
+                          <span>• {selectedPerson.city}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPersonId('')
+                      setPersonSearchQuery('')
+                      setTimeout(() => searchInputRef.current?.focus(), 50)
+                    }}
+                    className="rounded-md border border-navy-200 bg-white px-2.5 py-1 text-xs font-semibold text-navy-700 shadow-2xs hover:bg-navy-50"
+                  >
+                    Change
+                  </button>
+                </div>
               ) : (
-                <select
-                  id="invitation-person-select"
-                  value={personId}
-                  onChange={(e) => setPersonId(e.target.value)}
-                  required
-                  className="w-full rounded-md border border-navy-200 bg-white px-3 py-2 text-sm text-navy-900 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                >
-                  <option value="">Select a person…</option>
-                  {persons.map((p) => {
-                    const name = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ')
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {name} {p.date_of_birth ? `(b. ${p.date_of_birth.split('-')[0]})` : ''}
-                      </option>
-                    )
-                  })}
-                </select>
+                <div className="relative">
+                  <div className="relative flex items-center">
+                    <Search className="pointer-events-none absolute left-3 h-4 w-4 text-navy-400" />
+                    <input
+                      ref={searchInputRef}
+                      id="invitation-person-search"
+                      type="text"
+                      value={personSearchQuery}
+                      onChange={(e) => {
+                        setPersonSearchQuery(e.target.value)
+                        setIsPersonDropdownOpen(true)
+                      }}
+                      onFocus={() => setIsPersonDropdownOpen(true)}
+                      placeholder="Search census person by name, birth year, city..."
+                      className="w-full rounded-md border border-navy-200 bg-white pl-9 pr-8 py-2 text-sm text-navy-900 placeholder:text-navy-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    />
+                    {personSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setPersonSearchQuery('')}
+                        aria-label="Clear search"
+                        className="absolute right-2.5 p-1 text-navy-400 hover:text-navy-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Results */}
+                  {isPersonDropdownOpen && (
+                    <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-navy-200 bg-white py-1 shadow-lg">
+                      {filteredPersons.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-navy-500">
+                          No matching census person found.
+                        </div>
+                      ) : (
+                        filteredPersons.map((p) => {
+                          const name = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ')
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setPersonId(p.id)
+                                setIsPersonDropdownOpen(false)
+                                setPersonSearchQuery('')
+                              }}
+                              className="w-full px-3 py-2 text-left text-xs transition-colors hover:bg-teal-50 flex items-center justify-between group"
+                            >
+                              <div>
+                                <span className="font-semibold text-navy-900 group-hover:text-teal-900 text-sm">
+                                  {name}
+                                </span>
+                                <span className="ml-2 text-navy-500">
+                                  {p.date_of_birth ? `(b. ${p.date_of_birth.split('-')[0]})` : ''}
+                                  {p.city ? ` • ${p.city}` : ''}
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-medium text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Select
+                              </span>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
+
+              {/* Hidden input to ensure HTML form validation passes only when person is chosen */}
+              <input
+                type="text"
+                value={personId}
+                onChange={() => {}}
+                required
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+
               <p className="mt-1 text-xs text-navy-500">
                 The invitation will seat this specific census individual in the family roster.
               </p>

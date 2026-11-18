@@ -6,11 +6,13 @@
  * - Multi-criteria filters: State, City, Nukh, Gotra, Active status.
  * - Deterministic pagination controls.
  * - Automatic integration with active user profile and moderator permissions.
+ * - Backed by TanStack Query for instant cross-component synchronization.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
-import { getMukhiDirectory } from '../services/mukhi.service'
+import { getMukhiDirectory, CANONICAL_MUKHI_REGISTRY } from '../services/mukhi.service'
 import type {
   MukhiLeaderItem,
   MukhiDirectoryFilters,
@@ -49,9 +51,6 @@ export function useMukhiDirectory(initialPageSize = 12): UseMukhiDirectoryReturn
   const { user, profile } = useAuthContext()
   const [filters, setFilters] = useState<MukhiDirectoryFilters>(DEFAULT_FILTERS)
   const [page, setPage] = useState<number>(1)
-  const [data, setData] = useState<MukhiDirectoryResponse | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
 
   const isModerator = useMemo(() => {
     return (
@@ -61,31 +60,47 @@ export function useMukhiDirectory(initialPageSize = 12): UseMukhiDirectoryReturn
     )
   }, [profile?.role])
 
-  const fetchDirectory = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    const res = await getMukhiDirectory({
-      filters,
-      page,
-      pageSize: initialPageSize,
-      currentUserId: user?.id ?? null,
-      isModerator,
-    })
-
-    if (res.error) {
-      setError(res.error.message)
-      setData(null)
-    } else {
-      setData(res.data)
-      setError(null)
+  const initialData = useMemo<MukhiDirectoryResponse | undefined>(() => {
+    if (
+      page === 1 &&
+      (!filters.status || filters.status === 'ACTIVE') &&
+      filters.city === 'ALL' &&
+      filters.state === 'ALL' &&
+      !filters.search
+    ) {
+      return {
+        items: CANONICAL_MUKHI_REGISTRY.slice(0, initialPageSize),
+        totalCount: CANONICAL_MUKHI_REGISTRY.length,
+        page: 1,
+        pageSize: initialPageSize,
+        hasNextPage: CANONICAL_MUKHI_REGISTRY.length > initialPageSize,
+        availableStates: [],
+        availableCities: [],
+        availableNukhs: [],
+      }
     }
-    setIsLoading(false)
-  }, [filters, page, initialPageSize, user?.id, isModerator])
+    return undefined
+  }, [filters, page, initialPageSize])
 
-  useEffect(() => {
-    fetchDirectory()
-  }, [fetchDirectory])
+  const query = useQuery({
+    queryKey: ['mukhi-directory', filters, page, initialPageSize, user?.id, isModerator],
+    queryFn: async () => {
+      const res = await getMukhiDirectory({
+        filters,
+        page,
+        pageSize: initialPageSize,
+        currentUserId: user?.id ?? null,
+        isModerator,
+      })
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+      return res.data
+    },
+    initialData,
+    initialDataUpdatedAt: 0,
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  })
 
   const setFilter = useCallback((key: keyof MukhiDirectoryFilters, value: string) => {
     setFilters((prev) => ({
@@ -100,11 +115,13 @@ export function useMukhiDirectory(initialPageSize = 12): UseMukhiDirectoryReturn
     setPage(1)
   }, [])
 
+  const data = query.data ?? null
+
   return {
     data,
     leaders: data?.items ?? [],
-    isLoading,
-    error,
+    isLoading: query.isLoading,
+    error: query.error instanceof Error ? query.error.message : null,
     filters,
     setFilter,
     resetFilters,
@@ -116,6 +133,8 @@ export function useMukhiDirectory(initialPageSize = 12): UseMukhiDirectoryReturn
     availableStates: data?.availableStates ?? [],
     availableCities: data?.availableCities ?? [],
     availableNukhs: data?.availableNukhs ?? [],
-    refresh: fetchDirectory,
+    refresh: () => {
+      query.refetch()
+    },
   }
 }

@@ -12,7 +12,6 @@ import React, { memo } from 'react'
 import {
   BaseEdge,
   getSmoothStepPath,
-  getBezierPath,
   EdgeLabelRenderer,
   type EdgeProps,
 } from 'reactflow'
@@ -35,26 +34,17 @@ export const RelationshipEdge: React.FC<EdgeProps<RelationshipEdgeData>> = memo(
     const label = data?.label
     const customColor = data?.color
 
-    // For horizontal couple connections, use smooth step path
-    // For vertical parent-child and sibling connections, use smooth step / bezier
-    const [edgePath, labelX, labelY] = isCouple
-      ? getSmoothStepPath({
-          sourceX,
-          sourceY,
-          sourcePosition,
-          targetX,
-          targetY,
-          targetPosition,
-          borderRadius: 8,
-        })
-      : getBezierPath({
-          sourceX,
-          sourceY,
-          sourcePosition,
-          targetX,
-          targetY,
-          targetPosition,
-        })
+    // Use smooth step orthogonal path with rounded corners for both couple and parent/child
+    // to prevent diagonal crossing lines from slicing through cards
+    const [edgePath, labelX, labelY] = getSmoothStepPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+      borderRadius: isCouple ? 8 : 16,
+    })
 
     const strokeColor = customColor || (isCouple ? '#9333EA' : '#2563EB')
     const strokeDasharray = isDashed ? '5 5' : undefined
@@ -88,15 +78,15 @@ export const RelationshipEdge: React.FC<EdgeProps<RelationshipEdgeData>> = memo(
                 aria-label="Couple connection"
                 className="flex h-6 w-6 items-center justify-center rounded-full bg-white border-2 border-[#9333EA] shadow-sm text-[#9333EA] text-xs font-bold transition-transform hover:scale-110"
               >
-                <span className="leading-none text-[13px]">⚭</span>
+                <span className="leading-none text-[13px] font-bold">∞</span>
               </div>
             ) : label ? (
-              // Pill label along connection line
+              // Pill label along connection line with white halo border to avoid overlapping clashes
               <span
                 style={{
                   backgroundColor: strokeColor,
                 }}
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-sm tracking-wide"
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white shadow-md border-2 border-white ring-1 ring-black/10 tracking-wide"
               >
                 {label}
               </span>

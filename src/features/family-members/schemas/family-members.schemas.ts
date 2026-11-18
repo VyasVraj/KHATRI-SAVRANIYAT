@@ -59,7 +59,10 @@ export const addFamilyMemberSchema = z.object({
   family_id: z.string({ required_error: 'Family ID is required' }).uuid('Invalid family ID format'),
   person_id: z.string({ required_error: 'Person ID is required' }).uuid('Invalid person ID format'),
   role: familyRoleEnum.default('EXTENDED'),
+  relationship_to_head: z.string().optional(),
   is_head: z.boolean().default(false),
+  reference_person_id: z.string().uuid().nullable().optional(),
+  connected_person_id: z.string().uuid().nullable().optional(),
   joined_at: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}/, 'joined_at must be a valid date format (YYYY-MM-DD)')
@@ -90,7 +93,10 @@ export type AddFamilyMemberParsed = z.infer<typeof addFamilyMemberSchema>
 export const updateFamilyMemberSchema = z
   .object({
     role: familyRoleEnum.optional(),
+    relationship_to_head: z.string().nullable().optional(),
     is_head: z.boolean().optional(),
+    reference_person_id: z.string().uuid().nullable().optional(),
+    connected_person_id: z.string().uuid().nullable().optional(),
     left_at: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}/, 'left_at must be a valid date format (YYYY-MM-DD)')

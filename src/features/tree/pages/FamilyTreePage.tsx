@@ -21,6 +21,7 @@ import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembe
 import { FamilyTreeCanvas } from '../components/FamilyTreeCanvas'
 import { FamilyTreeHeader } from '../components/FamilyTreeHeader'
 import { FamilyMemberListView } from '../components/FamilyMemberListView'
+import { KeyRelationshipsPanel } from '../components/KeyRelationshipsPanel'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
 import type { TreeGraph, TreeNode } from '../types'
@@ -296,6 +297,16 @@ export function FamilyTreePage() {
     ? Array.from(currentTreeGraph.nodes.values())
     : []
 
+  const headMember = familyMembers.find((m) => m.is_head && !m.left_at)
+  const headNode = treeNodesList.find((n) => n.isHead)
+  const headPersonName = headNode?.person
+    ? `${headNode.person.first_name} ${headNode.person.last_name}`
+    : headMember?.person
+      ? `${headMember.person.first_name} ${headMember.person.last_name}`
+      : person
+        ? `${person.first_name} ${person.last_name}`
+        : 'Family Head'
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-4">
       {/* Family Tree Header matching reference image */}
@@ -318,16 +329,24 @@ export function FamilyTreePage() {
             onSelectPersonInTree={handleSelectPersonInTree}
           />
         ) : (
-          <FamilyTreeCanvas
-            rootPersonId={person.id}
-            familyId={family?.id || (isValidFamilyId ? rawFamilyId : undefined)}
-            selectedPersonId={selectedPersonId}
-            onSelectPerson={setSelectedPersonId}
-            fitTrigger={fitTrigger}
-            isCollapsed={isCollapsed}
-            onTreeLoaded={handleTreeLoaded}
-            className="h-[calc(100vh-230px)] min-h-[550px] w-full"
-          />
+          <div className="space-y-4">
+            <FamilyTreeCanvas
+              rootPersonId={person.id}
+              familyId={family?.id || (isValidFamilyId ? rawFamilyId : undefined)}
+              selectedPersonId={selectedPersonId}
+              onSelectPerson={setSelectedPersonId}
+              fitTrigger={fitTrigger}
+              isCollapsed={isCollapsed}
+              onTreeLoaded={handleTreeLoaded}
+              className="h-[calc(100vh-250px)] min-h-[550px] w-full"
+            />
+            {treeNodesList.length > 0 && (
+              <KeyRelationshipsPanel
+                headPersonName={headPersonName}
+                nodes={treeNodesList}
+              />
+            )}
+          </div>
         )}
       </main>
     </div>

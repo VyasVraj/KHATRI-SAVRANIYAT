@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Upload, Trash2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import { X, Trash2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
 import type { AvatarTarget } from '../types'
 import { validateAvatarFile, cropAndResizeAvatar } from '../utils/image.utils'
 import { uploadAvatar, deleteAvatar } from '../services/avatar.service'
@@ -182,6 +182,14 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-4">
+          <div
+            role="alert"
+            className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200"
+          >
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>Profile photo uploads and changes have been disabled across the platform.</span>
+          </div>
+
           {errorMessage && (
             <div
               role="alert"
@@ -284,19 +292,9 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
               variant="primary"
               size="sm"
               onClick={handleSave}
-              disabled={!selectedFile || isUploading || isDeleting}
+              disabled={true}
             >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                  Uploading…
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-1.5" />
-                  Save Photo
-                </>
-              )}
+              Upload Disabled
             </Button>
           </div>
         </div>

@@ -224,8 +224,8 @@ describe('Phase 4 Lifecycle & Integration Flow', () => {
 
     expect(result.error).toBeNull()
     expect(result.data?.is_head).toBe(true)
-    expect(mockUpdateDemote).toHaveBeenCalledWith({ is_head: false, role: 'EXTENDED' })
-    expect(mockUpdatePromote).toHaveBeenCalledWith({ is_head: true, role: 'HEAD' })
+    expect(mockUpdateDemote).toHaveBeenCalledWith({ is_head: false })
+    expect(mockUpdatePromote).toHaveBeenCalledWith({ is_head: true })
   })
 
   it('Step 6: Performs reverse lookup (listPersonFamilies) for person detail integration', async () => {

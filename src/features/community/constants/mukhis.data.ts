@@ -1,6 +1,6 @@
 /**
- * Official Community Mukhi Register (118 records)
- * Source of truth: "Mukhi list Name city phone details (1).pdf"
+ * Official Community Mukhi Register
+ * Source of truth: "Mukhi list Name city phone details (1).pdf" and official master directory.
  *
  * Each record represents an official Community Mukhi.
  * Note: Administrative tracking fields (password_given, form_received, online_updated)
@@ -10,6 +10,7 @@
 export interface CommunityMukhi {
   id: string
   source_serial_number: number
+  mukhi_unique_id?: string | null
   full_name: string
   gram: string
   mobile_number: string | null
@@ -20,6 +21,8 @@ export interface CommunityMukhi {
   online_updated_status: string | null
   linked_user_id?: string | null
   linked_person_id?: string | null
+  official_email?: string | null
+  authority_status?: string | null
   is_active: boolean
   created_at?: string
   updated_at?: string

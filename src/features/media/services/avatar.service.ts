@@ -13,10 +13,6 @@
 import { supabase } from '@/lib/supabase'
 import type { ApiResponse } from '@/types'
 import type { AvatarTarget, AvatarUploadResult, AvatarValidationOptions } from '../types'
-import {
-  validateAvatarFile,
-  generateAvatarStoragePath,
-} from '../utils/image.utils'
 
 /**
  * Maps raw Supabase / PostgreSQL errors in avatar service to safe user messages.
@@ -230,106 +226,19 @@ export async function resolveAvatarUrls(
 
 /**
  * Upload an avatar to Supabase Storage and link it to the target entity via RPC.
+ * PERMANENTLY DISABLED: All photo uploads and updates through the website are restricted.
  */
 export async function uploadAvatar(
-  file: File | Blob,
-  target: AvatarTarget,
-  options?: AvatarValidationOptions
+  _file: File | Blob,
+  _target: AvatarTarget,
+  _options?: AvatarValidationOptions
 ): Promise<ApiResponse<AvatarUploadResult>> {
-  // 1. Client-side validation
-  const validation = validateAvatarFile(file, options)
-  if (!validation.valid) {
-    return {
-      data: null,
-      error: {
-        message: validation.error ?? 'Invalid avatar file.',
-        code: 'VALIDATION_ERROR',
-      },
-    }
-  }
-
-  // 2. Resolve content type and extension
-  const contentType = file.type || 'image/webp'
-  const ext = contentType.includes('png')
-    ? 'png'
-    : contentType.includes('gif')
-      ? 'gif'
-      : contentType.includes('jpeg') || contentType.includes('jpg')
-        ? 'jpg'
-        : 'webp'
-
-  const storagePath = generateAvatarStoragePath(target, ext)
-
-  // 3. Upload to Supabase Storage
-  const { error: storageError } = await supabase.storage
-    .from(AVATARS_BUCKET)
-    .upload(storagePath, file, {
-      contentType,
-      upsert: true,
-      cacheControl: '3600',
-    })
-
-  if (storageError) {
-    return {
-      data: null,
-      error: {
-        message: mapAvatarError(storageError.message, (storageError as { statusCode?: string }).statusCode, 'Failed to upload image to storage.'),
-        code: (storageError as { statusCode?: string }).statusCode ?? 'STORAGE_ERROR',
-        cause: storageError,
-      },
-    }
-  }
-
-  // 4. Canonical internal storage path reference
-  const canonicalPath = `${AVATARS_BUCKET}/${storagePath}`
-
-  // 5. Persist canonical reference via authoritative RPC based on target type
-  let rpcError: { message: string; code?: string } | null = null
-
-  if (target.type === 'profile') {
-    const { error } = await supabase.rpc('set_profile_avatar', {
-      p_avatar_url: canonicalPath,
-    })
-    if (error) rpcError = error
-  } else if (target.type === 'person') {
-    const { error } = await supabase.rpc('set_person_avatar', {
-      p_person_id: target.id,
-      p_avatar_url: canonicalPath,
-    })
-    if (error) rpcError = error
-  } else if (target.type === 'family') {
-    const { error } = await supabase.rpc('set_family_avatar', {
-      p_family_id: target.id,
-      p_avatar_url: canonicalPath,
-    })
-    if (error) rpcError = error
-  }
-
-  // 6. Handle RPC error and prevent orphaned storage objects
-  if (rpcError) {
-    // Attempt rollback of uploaded storage object
-    await supabase.storage.from(AVATARS_BUCKET).remove([storagePath]).catch(() => {
-      // Best-effort cleanup
-    })
-
-    return {
-      data: null,
-      error: {
-        message: mapAvatarError(rpcError.message, rpcError.code, 'Failed to link avatar to record.'),
-        code: rpcError.code ?? 'RPC_ERROR',
-      },
-    }
-  }
-
-  // Invalidate any existing cached signed URL for this path
-  avatarUrlCache.delete(storagePath)
-
   return {
-    data: {
-      url: canonicalPath,
-      path: storagePath,
+    data: null,
+    error: {
+      message: 'Profile photo uploads and changes have been permanently disabled.',
+      code: 'PHOTO_UPLOADS_DISABLED',
     },
-    error: null,
   }
 }
 

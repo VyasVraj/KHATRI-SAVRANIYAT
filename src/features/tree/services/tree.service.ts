@@ -138,7 +138,7 @@ export async function getPersonTreeGraph(
 
       const { data: memberRows } = await supabase
         .from('family_members')
-        .select('id, family_id, person_id, role, is_head')
+        .select('id, family_id, person_id, role, is_head, relationship_to_head')
         .eq('family_id', resolvedFamilyId)
         .is('left_at', null)
 
@@ -149,6 +149,7 @@ export async function getPersonTreeGraph(
         person_id: m.person_id,
         role: m.role,
         is_head: m.is_head,
+        relationship_to_head: m.relationship_to_head,
       }))
 
       for (const m of memberRows ?? []) {
@@ -274,6 +275,138 @@ export async function getPersonTreeGraph(
     data: treeGraph,
     error: null,
   }
+}
+
+export interface TreeLayoutPosition {
+  person_id: string
+  x: number
+  y: number
+}
+
+/**
+ * Loads saved visual positions for a family tree from Supabase and localStorage.
+ */
+export async function getFamilyTreeLayout(
+  familyId?: string
+): Promise<Record<string, { x: number; y: number }>> {
+  if (!familyId) return {}
+  const localKey = `khatri_tree_layout_${familyId}`
+  let localData: Record<string, { x: number; y: number }> = {}
+  try {
+    const raw = localStorage.getItem(localKey)
+    if (raw) localData = JSON.parse(raw)
+  } catch {
+    // ignore
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('family_tree_layouts')
+      .select('person_id, pos_x, pos_y')
+      .eq('family_id', familyId)
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      const dbMap: Record<string, { x: number; y: number }> = {}
+      for (const row of data) {
+        dbMap[row.person_id] = { x: Number(row.pos_x), y: Number(row.pos_y) }
+      }
+      try {
+        localStorage.setItem(localKey, JSON.stringify(dbMap))
+      } catch {
+        // ignore
+      }
+      return dbMap
+    }
+  } catch {
+    // Fall back to localData
+  }
+
+  return localData
+}
+
+/**
+ * Persists manual drag-and-drop coordinates for family tree nodes.
+ */
+export async function saveFamilyTreeLayout(
+  familyId: string,
+  positions: TreeLayoutPosition[] | Record<string, { x: number; y: number }>
+): Promise<ApiResponse<{ success: boolean }>> {
+  const posArray: TreeLayoutPosition[] = Array.isArray(positions)
+    ? positions
+    : Object.entries(positions).map(([person_id, pos]) => ({
+        person_id,
+        x: pos.x,
+        y: pos.y,
+      }))
+
+  if (!familyId || posArray.length === 0) {
+    return { data: { success: true }, error: null }
+  }
+
+  // 1. Immediately persist to localStorage
+  const localKey = `khatri_tree_layout_${familyId}`
+  try {
+    const map: Record<string, { x: number; y: number }> = {}
+    posArray.forEach((p) => {
+      map[p.person_id] = { x: p.x, y: p.y }
+    })
+    localStorage.setItem(localKey, JSON.stringify(map))
+  } catch {
+    // ignore
+  }
+
+  // 2. Persist to Supabase
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('save_family_tree_layout', {
+      p_family_id: familyId,
+      p_positions: posArray,
+    })
+    if (error) {
+      // Fallback direct upsert
+      const rows = posArray.map((p) => ({
+        family_id: familyId,
+        person_id: p.person_id,
+        pos_x: p.x,
+        pos_y: p.y,
+      }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('family_tree_layouts').upsert(rows, {
+        onConflict: 'family_id,person_id',
+      })
+    }
+  } catch {
+    // local storage guarantees persistence
+  }
+
+  return { data: { success: true }, error: null }
+}
+
+/**
+ * Resets family tree layout back to default automatic arrangement.
+ */
+export async function resetFamilyTreeLayout(
+  familyId: string
+): Promise<ApiResponse<{ success: boolean }>> {
+  if (!familyId) return { data: { success: true }, error: null }
+
+  const localKey = `khatri_tree_layout_${familyId}`
+  try {
+    localStorage.removeItem(localKey)
+  } catch {
+    // ignore
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)('family_tree_layouts')
+      .delete()
+      .eq('family_id', familyId)
+  } catch {
+    // ignore
+  }
+
+  return { data: { success: true }, error: null }
 }
 
 /**

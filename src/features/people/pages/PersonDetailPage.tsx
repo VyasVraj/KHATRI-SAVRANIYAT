@@ -19,7 +19,7 @@ import { PersonRelationshipsList } from '@/features/relationships'
 import { PersonFamiliesList } from '@/features/family-members'
 import { PersonConnectionSection } from '@/features/connections'
 import { PersonClaimSection } from '@/features/claims'
-import { PersonVerificationSection, PersonDuplicateWarningBanner } from '@/features/verification'
+import { PersonVerificationSection } from '@/features/verification'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
@@ -27,17 +27,19 @@ import { ROUTES } from '@/constants/app'
 export function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>()
   const navigate = useNavigate()
-  const { user } = useAuthContext()
+  const { user, profile } = useAuthContext()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: person, isLoading, error } = usePerson(personId)
   const softDelete = useSoftDeletePerson()
 
-  // Authorized editing: Admin, Self, Family Head, or Family Manager (enforced by RLS & DB view)
-  const canEdit =
-    (person as unknown as { can_edit?: boolean })?.can_edit !== false ||
-    (Boolean(user?.id) && person?.user_id === user?.id)
+  // Strict Scope: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid()).
+  // Family head status does NOT grant permission to edit other members' profiles.
+  // Super Admin and Admin retain system administrative management.
+  const isOwner = Boolean(user?.id && person?.user_id === user.id)
+  const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
+  const canEdit = isOwner || isAdmin
 
   async function handleSoftDelete() {
     if (!personId) return
@@ -158,11 +160,6 @@ export function PersonDetailPage() {
       {/* Detail panel */}
       <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
         <PersonDetail person={person} canEdit={canEdit} />
-      </div>
-
-      {/* Moderator Duplicate Warning Banner */}
-      <div className="mt-6">
-        <PersonDuplicateWarningBanner person={person} />
       </div>
 
       {/* Community verification section */}

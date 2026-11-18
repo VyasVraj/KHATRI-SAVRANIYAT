@@ -41,6 +41,13 @@ export function ChangeRoleModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
 
+  const availableRoles = React.useMemo(() => {
+    if (user && !ALL_USER_ROLES.includes(user.role)) {
+      return [user.role, ...ALL_USER_ROLES]
+    }
+    return ALL_USER_ROLES
+  }, [user])
+
   const { updateRole } = useAdminUserMutations()
 
   useEffect(() => {
@@ -193,7 +200,7 @@ export function ChangeRoleModal({
               disabled={!canModifyTarget || updateRole.isPending}
               className="mt-1.5 block w-full rounded-lg border border-navy-300 bg-white px-3.5 py-2.5 text-sm text-navy-900 shadow-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-navy-50 disabled:text-navy-400"
             >
-              {ALL_USER_ROLES.map((role) => {
+              {availableRoles.map((role) => {
                 const isSuperAdminOption = role === 'SUPER_ADMIN'
                 const disabledOption = isSuperAdminOption && !isCallerSuperAdmin
                 return (

@@ -9,10 +9,13 @@
 export {
   addFamilyMember,
   listFamilyMembers,
+  getFamilyHeadEmail,
   listPersonFamilies,
   getFamilyMember,
   updateFamilyMember,
   removeFamilyMember,
+  getRecentlyRemovedMembers,
+  restoreFamilyMember,
   transferFamilyHead,
   type FamilyMemberRow,
   type FamilyMemberWithPerson,

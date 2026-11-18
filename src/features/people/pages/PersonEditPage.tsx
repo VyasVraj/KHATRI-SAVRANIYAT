@@ -12,6 +12,7 @@ import { usePerson } from '../hooks/usePerson'
 import { useUpdatePerson } from '../hooks/usePersonMutations'
 import { PersonForm } from '../components/PersonForm'
 import { Button } from '@/components/forms/Button'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { ROUTES } from '@/constants/app'
 import type { CreatePersonInput } from '../schemas/people.schemas'
 import type { PrivacyLevel } from '@/types'
@@ -21,6 +22,7 @@ export function PersonEditPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const returnUrl = (location.state as { returnUrl?: string } | undefined)?.returnUrl
+  const { user, profile } = useAuthContext()
 
   const { data: person, isLoading, error } = usePerson(personId)
   const updatePerson = useUpdatePerson()
@@ -43,14 +45,19 @@ export function PersonEditPage() {
     )
   }
 
-  const hasEditPermission = Boolean(
-    (person as unknown as { can_edit?: boolean })?.can_edit ?? true
-  )
+  // Strict Matrix: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid()).
+  // Family head status does NOT grant permission to edit other members' profiles.
+  // Super Admin and Admin retain system administrative management.
+  const isOwner = Boolean(user?.id && person?.user_id === user.id)
+  const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
+  const hasEditPermission = isOwner || isAdmin || isAuthorizedByPolicy
 
   if (error || !person || !hasEditPermission) {
     const message =
       !hasEditPermission
-        ? "Unauthorized: You do not have permission to edit this person's record. Only authorized family members, Family Manager, or an Administrator can edit members of this family."
+        ? "Unauthorized: You do not have permission to edit this person's record. Community members are only permitted to edit their own personal profile."
         : (error as { message?: string } | null)?.message ??
           'Person not found or you do not have permission to edit this record.'
     return (
@@ -114,6 +121,7 @@ export function PersonEditPage() {
           blood_group: (person as unknown as { blood_group?: CreatePersonInput['blood_group'] })?.blood_group ?? undefined,
           date_of_birth: person.date_of_birth ?? undefined,
           date_of_death: person.date_of_death ?? undefined,
+          is_deceased: Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death),
           birth_place: person.birth_place ?? undefined,
           gotra: person.gotra ?? undefined,
           kul: person.kul ?? undefined,

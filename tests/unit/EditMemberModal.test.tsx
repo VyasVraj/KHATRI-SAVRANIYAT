@@ -120,7 +120,7 @@ describe('EditMemberModal Component', () => {
         onClose={vi.fn()}
       />
     )
-    expect(html).toContain('Edit Member')
+    expect(html).toContain('Edit Family Member')
     expect(html).toContain('Priya Sharma')
     expect(html).toContain('Family Role')
   })
@@ -136,6 +136,6 @@ describe('EditMemberModal Component', () => {
     )
     expect(html).toContain('Head of Family')
     expect(html).toContain('Cancel')
-    expect(html).toContain('Save Changes')
+    expect(html).toContain('Save Member Details')
   })
 })

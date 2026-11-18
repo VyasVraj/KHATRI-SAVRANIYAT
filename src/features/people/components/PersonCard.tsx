@@ -14,6 +14,7 @@
  */
 
 import type { Tables } from '@/types/database.types'
+import { toProperCaseName } from '@/utils/text-casing'
 
 type PersonRow = Tables<'persons'>
 
@@ -49,14 +50,17 @@ interface PersonCardProps {
  * Compact person summary card suitable for use in lists and grids.
  */
 export function PersonCard({ person, onClick }: PersonCardProps) {
-  const fullName = [person.first_name, person.middle_name, person.last_name]
-    .filter(Boolean)
-    .join(' ')
+  const fullName = toProperCaseName(
+    [person.first_name, person.middle_name, person.last_name]
+      .filter(Boolean)
+      .join(' ')
+  )
 
   const initials = getInitials(person.first_name, person.last_name)
 
   const communityIdentity = [person.gotra, person.nukh]
     .filter(Boolean)
+    .map(toProperCaseName)
     .join(' · ')
 
   const genderBadge = person.gender ? GENDER_BADGE_CLASSES[person.gender] : null
@@ -99,7 +103,7 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
 
         {/* Optional maiden name */}
         {person.maiden_name && (
-          <p className="text-xs text-navy-500">née {person.maiden_name}</p>
+          <p className="text-xs text-navy-500">née {toProperCaseName(person.maiden_name)}</p>
         )}
 
         {/* Community identity */}

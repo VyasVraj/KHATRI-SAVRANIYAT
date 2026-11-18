@@ -78,15 +78,21 @@ export const TreeLegend: React.FC = () => {
           {/* Couple */}
           <div className="flex items-center gap-2.5">
             <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[#9333EA] border border-[#9333EA] text-[11px] font-bold">
-              <span>⚭</span>
+              <span>∞</span>
             </div>
-            <span className="font-medium text-slate-700">Couple</span>
+            <span className="font-medium text-slate-700">Couple (∞)</span>
           </div>
 
           {/* Selected Person */}
           <div className="flex items-center gap-2.5">
             <div className="h-4 w-5 rounded border-2 border-[#2563EB] bg-blue-50/50 shrink-0" />
             <span className="font-medium text-slate-700">Selected Person</span>
+          </div>
+
+          {/* Deceased Member */}
+          <div className="flex items-center gap-2.5">
+            <div className="h-4 w-5 rounded border-2 border-dashed border-slate-400 bg-slate-100/70 shrink-0" />
+            <span className="font-medium text-slate-700">Deceased</span>
           </div>
         </div>
       </div>

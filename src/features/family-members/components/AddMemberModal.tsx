@@ -30,7 +30,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useFamilyMembers } from '../hooks/useFamilyMembers'
 import { useFamily } from '@/features/families/hooks/useFamily'
-import { addFamilyMember } from '../services/family-members.service'
+import { addFamilyMember, getFamilyHeadEmail } from '../services/family-members.service'
 import { createPerson } from '@/features/people/services/people.service'
 import type { CreatePersonInput } from '@/features/people/schemas/people.schemas'
 import { createRelationship, canonicalizeRelationshipEndpoints } from '@/features/relationships/services/relationships.service'
@@ -40,36 +40,21 @@ import { Button } from '@/components/forms/Button'
 import { Input } from '@/components/forms/Input'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { CitySelector } from '@/components/forms/CitySelector'
+import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
+import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
+import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
+import {
+  mapRelationshipToFamilyRole,
+  getRelationshipDefinition,
+} from '@/constants/familyRelationships'
 import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
 import type { FamilyRole } from '@/types'
 import type { Tables } from '@/types/database.types'
+import { toProperCaseName } from '@/utils/text-casing'
 
 type PersonRow = Tables<'persons'>
 
-export type MemberRelationship =
-  | 'Spouse'
-  | 'Son'
-  | 'Daughter'
-  | 'Father'
-  | 'Mother'
-  | 'Grandfather'
-  | 'Grandmother'
-  | 'Brother'
-  | 'Sister'
-  | 'Other Relative'
-
-const RELATIONSHIP_OPTIONS: MemberRelationship[] = [
-  'Spouse',
-  'Son',
-  'Daughter',
-  'Father',
-  'Mother',
-  'Grandfather',
-  'Grandmother',
-  'Brother',
-  'Sister',
-  'Other Relative',
-]
+export type MemberRelationship = string
 
 export interface AddMemberModalProps {
   familyId: string
@@ -98,23 +83,60 @@ function normalizeDateInput(val: string | null | undefined): string | null {
   return trimmed
 }
 
-function getAutoGender(rel: MemberRelationship, headGender?: string | null): 'MALE' | 'FEMALE' | 'OTHER' {
-  switch (rel) {
-    case 'Son':
-    case 'Father':
-    case 'Grandfather':
-    case 'Brother':
-      return 'MALE'
-    case 'Daughter':
-    case 'Mother':
-    case 'Grandmother':
-    case 'Sister':
-      return 'FEMALE'
-    case 'Spouse':
+function getAutoGender(rel: string, headGender?: string | null): 'MALE' | 'FEMALE' | 'OTHER' {
+  const def = getRelationshipDefinition(rel)
+  if (def) {
+    if (def.gender === 'MALE') return 'MALE'
+    if (def.gender === 'FEMALE') return 'FEMALE'
+    if (def.canonicalKey === 'spouse' || def.canonicalKey === 'partner') {
       return headGender === 'MALE' ? 'FEMALE' : 'MALE'
-    default:
-      return 'MALE'
+    }
   }
+  const norm = (rel || '').trim().toLowerCase()
+  if (
+    norm.includes('father') ||
+    norm.includes('son') ||
+    norm.includes('brother') ||
+    norm.includes('husband') ||
+    norm.includes('uncle') ||
+    norm.includes('nephew') ||
+    norm.includes('widower') ||
+    norm.includes('godson') ||
+    norm.includes('godfather') ||
+    norm === 'male first cousin' ||
+    norm === 'paternal grandfather' ||
+    norm === 'maternal grandfather' ||
+    norm === 'grandfather' ||
+    norm === 'great-grandfather' ||
+    norm === 'grandson' ||
+    norm === 'great-grandson'
+  ) {
+    return 'MALE'
+  }
+  if (
+    norm.includes('mother') ||
+    norm.includes('daughter') ||
+    norm.includes('sister') ||
+    norm.includes('wife') ||
+    norm.includes('aunt') ||
+    norm.includes('niece') ||
+    norm.includes('widow') ||
+    norm.includes('goddaughter') ||
+    norm.includes('godmother') ||
+    norm === 'female first cousin' ||
+    norm === 'paternal grandmother' ||
+    norm === 'maternal grandmother' ||
+    norm === 'grandmother' ||
+    norm === 'great-grandmother' ||
+    norm === 'granddaughter' ||
+    norm === 'great-granddaughter'
+  ) {
+    return 'FEMALE'
+  }
+  if (norm === 'spouse' || norm === 'partner') {
+    return headGender === 'MALE' ? 'FEMALE' : 'MALE'
+  }
+  return 'MALE'
 }
 
 export function AddMemberModal({
@@ -145,6 +167,8 @@ export function AddMemberModal({
 
   // Relationship selection
   const [relationship, setRelationship] = useState<MemberRelationship>('Son')
+  const [referencePersonId, setReferencePersonId] = useState<string>('')
+  const [connectedPersonId, setConnectedPersonId] = useState<string>('')
 
   // New Person Form Fields
   const [firstName, setFirstName] = useState('')
@@ -155,12 +179,16 @@ export function AddMemberModal({
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [birthPlace, setBirthPlace] = useState('')
   const [bloodGroup, setBloodGroup] = useState('')
+  const [showBloodGroupInDirectory, setShowBloodGroupInDirectory] = useState(false)
   const [gotra, setGotra] = useState('')
   const [nukh, setNukh] = useState('')
+  const [occupation, setOccupation] = useState('')
+  const [occupationCategory, setOccupationCategory] = useState('')
   const [email, setEmail] = useState('')
+  const [headEmail, setHeadEmail] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
   const [phoneSecondary, setPhoneSecondary] = useState('')
-  const [dateOfDeath, setDateOfDeath] = useState('')
+  const [isDeceased, setIsDeceased] = useState(false)
 
   // Existing Person Selection
   const [selectedPersonId, setSelectedPersonId] = useState('')
@@ -171,6 +199,36 @@ export function AddMemberModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successBanner, setSuccessBanner] = useState<string | null>(null)
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
+
+  // Fetch Family Head email whenever modal is opened
+  useEffect(() => {
+    if (isOpen && familyId) {
+      getFamilyHeadEmail(familyId).then((em) => {
+        if (em) {
+          setHeadEmail(em)
+          setEmail((prev) => (prev ? prev : em))
+        }
+      })
+    }
+  }, [isOpen, familyId])
+
+  useEffect(() => {
+    if (activeHead?.person && isOpen) {
+      const contactEmail = activeHead.person.email_contact
+      if (contactEmail) {
+        setHeadEmail(contactEmail)
+        setEmail((prev) => (prev ? prev : contactEmail))
+      }
+      const headPhone = activeHead.person?.phone
+      if (headPhone) {
+        setPhone((prev) => (prev ? prev : headPhone))
+      }
+      const headSecPhone = activeHead.person?.phone_secondary
+      if (headSecPhone) {
+        setPhoneSecondary((prev) => (prev ? prev : headSecPhone))
+      }
+    }
+  }, [activeHead?.person, isOpen])
 
   // Reset form
   const resetForm = useCallback(() => {
@@ -184,22 +242,50 @@ export function AddMemberModal({
     const defaultLocation = [family?.city, family?.state].filter(Boolean).join(', ') || activeHead?.person?.birth_place || ''
     setBirthPlace(defaultLocation)
     setBloodGroup('')
+    setShowBloodGroupInDirectory(false)
     setGotra(activeHead?.person?.gotra || family?.gotra || '')
     setNukh(activeHead?.person?.nukh || family?.nukh || '')
-    setEmail('')
+    setOccupation('')
+    setOccupationCategory('')
+    const defaultHeadEmail = activeHead?.person?.email_contact || headEmail || ''
+    setEmail(defaultHeadEmail)
     setPhone(activeHead?.person?.phone || '')
-    setPhoneSecondary('')
-    setDateOfDeath('')
+    setPhoneSecondary(activeHead?.person?.phone_secondary || '')
+    setIsDeceased(false)
     setSelectedPersonId('')
     setPersonSearch('')
+    setReferencePersonId(activeHead?.person_id ?? propHeadPersonId ?? '')
+    setConnectedPersonId('')
     setErrorMessage(null)
     setDuplicateWarning(null)
-  }, [relationship, activeHead, family])
+  }, [relationship, activeHead, family, propHeadPersonId, headEmail])
 
-  // Auto-update gender when relationship changes
+  // Auto-update gender when relationship changes and auto-detect connecting spouse
   const handleRelationshipChange = (newRel: MemberRelationship) => {
     setRelationship(newRel)
     setGender(getAutoGender(newRel, activeHead?.person?.gender))
+
+    // Intelligent candidate connecting relative detection
+    const isSisterInLawRel = /sister-in-law|भाभी|जेठानी|देवरानी/i.test(newRel)
+    const isNephewsWifeRel = /nephew's wife|भतीजे की पत्नी|भांजे की पत्नी/i.test(newRel)
+    const isNiecesHusbandRel = /niece's husband|भतीजी का पति|भांजी का पति/i.test(newRel)
+    const isDaughterInLawRel = /daughter-in-law|बहू|पुत्रवधू/i.test(newRel)
+
+    if (isNephewsWifeRel) {
+      const nephew = members.find((m) => !m.left_at && /nephew|भतीजा|भांजा/i.test(m.relationship_to_head || ''))
+      if (nephew) setConnectedPersonId(nephew.person_id)
+    } else if (isSisterInLawRel) {
+      const brother = members.find((m) => !m.left_at && (m.role === 'SIBLING' || /brother|भाई/i.test(m.relationship_to_head || '')))
+      if (brother) setConnectedPersonId(brother.person_id)
+    } else if (isNiecesHusbandRel) {
+      const niece = members.find((m) => !m.left_at && /niece|भतीजी|भांजी/i.test(m.relationship_to_head || ''))
+      if (niece) setConnectedPersonId(niece.person_id)
+    } else if (isDaughterInLawRel) {
+      const son = members.find((m) => !m.left_at && (m.role === 'CHILD' || /son|बेटा/i.test(m.relationship_to_head || '')))
+      if (son) setConnectedPersonId(son.person_id)
+    } else {
+      setConnectedPersonId('')
+    }
   }
 
   // Reset on open & handle Escape key
@@ -345,37 +431,19 @@ export function AddMemberModal({
         return
       }
 
-      if (!phone.trim()) {
-        setErrorMessage('Primary Phone Number is required.')
-        return
-      }
-      if (!/^[0-9+\s\-()]{7,25}$/.test(phone.trim())) {
+      if (phone.trim() && !/^[0-9+\s\-()]{7,25}$/.test(phone.trim())) {
         setErrorMessage('Please enter a valid primary phone number (digits, +, -).')
         return
       }
 
-      if (!email.trim()) {
-        setErrorMessage('Valid Email Address is required.')
-        return
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        setErrorMessage('Please enter a valid email address.')
+      if (phoneSecondary.trim() && !/^[0-9+\s\-()]{7,25}$/.test(phoneSecondary.trim())) {
+        setErrorMessage('Please enter a valid secondary phone number (digits, +, -).')
         return
       }
 
-      if (dateOfDeath) {
-        const dodNormalized = normalizeDateInput(dateOfDeath)
-        if (dodNormalized) {
-          const dodDate = new Date(dodNormalized)
-          if (dodDate > today) {
-            setErrorMessage('Date of death cannot be in the future.')
-            return
-          }
-          if (dodDate < dobDate) {
-            setErrorMessage('Date of death cannot be earlier than Date of Birth.')
-            return
-          }
-        }
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setErrorMessage('Please enter a valid email address.')
+        return
       }
     } else {
       if (!selectedPersonId) {
@@ -419,19 +487,23 @@ export function AddMemberModal({
 
         const createRes = await createPerson(
           {
-            first_name: firstName.trim(),
-            middle_name: sanitizeOptional(middleName),
-            last_name: lastName.trim(),
-            maiden_name: sanitizeOptional(maidenName),
+            first_name: toProperCaseName(firstName.trim()),
+            middle_name: middleName.trim() ? toProperCaseName(middleName.trim()) : null,
+            last_name: toProperCaseName(lastName.trim()),
+            maiden_name: maidenName.trim() ? toProperCaseName(maidenName.trim()) : null,
             gender,
             date_of_birth: normalizeDateInput(dateOfBirth)!,
-            birth_place: finalBirthPlace!,
+            birth_place: finalBirthPlace ? toProperCaseName(finalBirthPlace) : finalBirthPlace!,
             blood_group: bloodGroup as CreatePersonInput['blood_group'],
-            date_of_death: normalizeDateInput(dateOfDeath),
-            gotra: finalGotra!,
-            nukh: finalNukh!,
-            email_contact: email.trim(),
-            phone: phone.trim(),
+            show_blood_group_in_directory: showBloodGroupInDirectory,
+            blood_group_consent: showBloodGroupInDirectory,
+            is_deceased: isDeceased,
+            gotra: finalGotra ? toProperCaseName(finalGotra) : finalGotra!,
+            nukh: finalNukh ? toProperCaseName(finalNukh) : finalNukh!,
+            occupation: sanitizeOptional(occupation),
+            occupation_category: sanitizeOptional(occupationCategory),
+            email_contact: sanitizeOptional(email),
+            phone: sanitizeOptional(phone),
             phone_secondary: sanitizeOptional(phoneSecondary),
             profile_privacy: 'PRIVATE',
             contact_privacy: 'PRIVATE',
@@ -449,34 +521,11 @@ export function AddMemberModal({
       } else {
         memberPersonId = selectedPersonId
         const found = persons.find((p) => p.id === selectedPersonId)
-        memberName = found ? `${found.first_name} ${found.last_name}` : 'Member'
+        memberName = found ? toProperCaseName(`${found.first_name} ${found.last_name}`) : 'Member'
       }
 
       // 2. Map relationship to family_members role
-      let role: FamilyRole = 'EXTENDED'
-      switch (relationship) {
-        case 'Spouse':
-          role = 'SPOUSE'
-          break
-        case 'Son':
-        case 'Daughter':
-          role = 'CHILD'
-          break
-        case 'Father':
-        case 'Mother':
-          role = 'PARENT'
-          break
-        case 'Brother':
-        case 'Sister':
-          role = 'SIBLING'
-          break
-        case 'Grandfather':
-        case 'Grandmother':
-          role = 'GRANDPARENT'
-          break
-        default:
-          role = 'EXTENDED'
-      }
+      const role: FamilyRole = mapRelationshipToFamilyRole(relationship)
 
       // 3. Add to family_members
       const addRes = await addFamilyMember(
@@ -484,7 +533,10 @@ export function AddMemberModal({
           family_id: familyId,
           person_id: memberPersonId,
           role,
+          relationship_to_head: relationship,
           is_head: false,
+          reference_person_id: referencePersonId || headId || null,
+          connected_person_id: connectedPersonId || null,
         },
         user.id
       )
@@ -493,10 +545,23 @@ export function AddMemberModal({
         throw new Error(addRes.error.message || 'Failed to add member to family.')
       }
 
-      // 4. Create canonical relationships row if Head is known
+      // 4. Create canonical relationships row if connecting spouse/relative chosen
+      if (connectedPersonId && connectedPersonId !== memberPersonId) {
+        try {
+          const endpoints = canonicalizeRelationshipEndpoints(connectedPersonId, memberPersonId, 'SPOUSE')
+          await createRelationship(
+            { ...endpoints, relationship_type: 'SPOUSE' },
+            user.id
+          )
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      // 5. Create canonical relationships row if Head is known
       if (headId && headId !== memberPersonId) {
         try {
-          if (relationship === 'Spouse') {
+          if (role === 'SPOUSE') {
             const endpoints = canonicalizeRelationshipEndpoints(headId, memberPersonId, 'SPOUSE')
             const relRes = await createRelationship(
               { ...endpoints, relationship_type: 'SPOUSE' },
@@ -506,7 +571,7 @@ export function AddMemberModal({
               // Surface non-duplicate relationship issues
               setErrorMessage(`Member was added to family, but relationship linking reported: ${relRes.error.message}`)
             }
-          } else if (relationship === 'Son' || relationship === 'Daughter') {
+          } else if (role === 'CHILD') {
             // Head is PARENT of Child
             const relRes = await createRelationship(
               { person_a_id: headId, person_b_id: memberPersonId, relationship_type: 'PARENT' },
@@ -515,7 +580,7 @@ export function AddMemberModal({
             if (relRes.error && relRes.error.code !== 'DUPLICATE_RELATIONSHIP') {
               setErrorMessage(`Member was added to family, but relationship linking reported: ${relRes.error.message}`)
             }
-          } else if (relationship === 'Father' || relationship === 'Mother') {
+          } else if (role === 'PARENT') {
             // Member is PARENT of Head
             const relRes = await createRelationship(
               { person_a_id: memberPersonId, person_b_id: headId, relationship_type: 'PARENT' },
@@ -524,7 +589,7 @@ export function AddMemberModal({
             if (relRes.error && relRes.error.code !== 'DUPLICATE_RELATIONSHIP') {
               setErrorMessage(`Member was added to family, but relationship linking reported: ${relRes.error.message}`)
             }
-          } else if (relationship === 'Brother' || relationship === 'Sister') {
+          } else if (role === 'SIBLING') {
             // SIBLING between Head and Member (canonical UUID order enforced)
             const endpoints = canonicalizeRelationshipEndpoints(headId, memberPersonId, 'SIBLING')
             const relRes = await createRelationship(
@@ -614,22 +679,47 @@ export function AddMemberModal({
         )}
 
         {/* 1. Relationship Dropdown */}
-        <div className="space-y-1">
-          <label htmlFor="member-relationship" className="block text-xs font-semibold uppercase tracking-wider text-navy-700">
-            Relationship to Family Head
-          </label>
-          <select
+        <div className="space-y-3">
+          <RelationshipSelector
             id="member-relationship"
+            label="Relationship to Family Head"
             value={relationship}
-            onChange={(e) => handleRelationshipChange(e.target.value as MemberRelationship)}
-            className="w-full rounded border border-navy-300 bg-white px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-1 focus:ring-brand-400 font-medium"
-          >
-            {RELATIONSHIP_OPTIONS.map((rel) => (
-              <option key={rel} value={rel}>
-                {rel}
-              </option>
-            ))}
-          </select>
+            onChange={(newRel) => handleRelationshipChange(newRel)}
+            required
+          />
+
+          {/* Connecting Relative in Family (for in-laws, nephew's spouse, etc.) */}
+          {/sister-in-law|brother-in-law|nephew's wife|niece's husband|daughter-in-law|son-in-law|भाभी|साली|जेठानी|देवरानी|जीजा|बहनोई|साला|भतीजे की पत्नी|भांजे की पत्नी|भतीजी का पति|बहू|दामाद/i.test(
+            relationship
+          ) && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50/60 p-3 space-y-1.5 animate-in fade-in duration-150">
+              <label
+                htmlFor="connecting-relative"
+                className="block text-xs font-semibold text-purple-900"
+              >
+                Connecting Relative / Spouse in Family
+              </label>
+              <select
+                id="connecting-relative"
+                value={connectedPersonId}
+                onChange={(e) => setConnectedPersonId(e.target.value)}
+                className="w-full rounded-md border border-purple-200 bg-white px-3 py-1.5 text-xs text-navy-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Select connecting spouse in family...</option>
+                {members
+                  .filter((m) => !m.left_at && m.person?.status !== 'DECEASED')
+                  .map((m) => (
+                    <option key={m.person_id} value={m.person_id}>
+                      {toProperCaseName(`${m.person?.first_name} ${m.person?.last_name}`)} (
+                      {m.relationship_to_head || m.role})
+                    </option>
+                  ))}
+              </select>
+              <p className="text-[11px] text-purple-700">
+                Links this member as a spouse to an existing family relative (e.g. Harsh for Nephew&apos;s Wife).
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 2. Mode Toggle: Create New vs Select Existing */}
@@ -735,34 +825,67 @@ export function AddMemberModal({
                   onChange={(e) => setBloodGroup(e.target.value)}
                   className="w-full rounded border border-navy-300 px-3 py-2 text-sm text-navy-900 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
-                  <option value="">Select Blood Group</option>
                   {BLOOD_GROUP_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
+
+                {/* Blood Group Directory Consent Checkbox */}
+                <div className="mt-2.5 flex items-start gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2.5">
+                  <input
+                    type="checkbox"
+                    id="member-blood-group-consent"
+                    checked={showBloodGroupInDirectory}
+                    onChange={(e) => setShowBloodGroupInDirectory(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <div className="space-y-0.5">
+                    <label
+                      htmlFor="member-blood-group-consent"
+                      className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block"
+                    >
+                      Show my blood group details in the Blood Group Directory.
+                    </label>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      If enabled, your name, selected blood group, family name, and permitted location details may appear in the community Blood Group Directory. Your personal phone number and email address will remain private.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <CitySelector
                 label="Birthplace"
                 required
-                placeholder="Search city / village..."
+                placeholder="Search birthplace worldwide..."
                 value={birthPlace}
                 onSelectCity={(selected) => {
-                  setBirthPlace(selected.city ? `${selected.city}, ${selected.state}` : '')
+                  const formatted = selected.city
+                    ? selected.state
+                      ? `${selected.city}, ${selected.state}${selected.country ? `, ${selected.country}` : ''}`
+                      : selected.city
+                    : ''
+                  setBirthPlace(formatted)
                 }}
               />
 
-              <div className="sm:col-span-2">
-                <Input
-                  label="Date of Death (Deceased)"
-                  type="date"
-                  max={new Date().toISOString().split('T')[0]}
-                  value={dateOfDeath}
-                  onChange={(e) => setDateOfDeath(e.target.value)}
-                  hint="Leave blank for living family members"
-                />
+              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4 transition-colors hover:bg-slate-50">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    id="member-is-deceased"
+                    checked={isDeceased}
+                    onChange={(e) => setIsDeceased(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-navy-900">This person is deceased</span>
+                    <p className="text-xs text-navy-500 mt-0.5">
+                      Check if the person is deceased. Leave unchecked for a living person.
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
 
@@ -780,35 +903,49 @@ export function AddMemberModal({
               />
             </div>
 
+            {/* Occupation: Two-Level Categories & Specific Occupations */}
+            <div className="pt-1">
+              <TwoLevelOccupationSelect
+                categoryValue={occupationCategory}
+                occupationValue={occupation}
+                onChange={(occ, cat) => {
+                  setOccupation(occ)
+                  setOccupationCategory(cat)
+                }}
+                required={false}
+              />
+            </div>
+
             {/* Contact Details */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1 border-t border-navy-100">
-              <Input
+              <PhoneInputWithCountryCode
+                id="member-primary-phone"
                 label="Primary Phone Number"
-                required
-                type="tel"
-                placeholder="e.g. 9876543210"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                hint="Family members may share primary phone"
+                onChange={setPhone}
+                placeholder="Enter mobile number"
               />
 
-              <Input
-                label="Email Address"
-                required
-                type="email"
-                placeholder="e.g. member@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                hint="Family members may share email address"
+              <PhoneInputWithCountryCode
+                id="member-secondary-phone"
+                label="Secondary Phone"
+                value={phoneSecondary}
+                onChange={setPhoneSecondary}
+                placeholder="Enter secondary mobile number"
               />
 
               <div className="sm:col-span-2">
                 <Input
-                  label="Secondary Phone Number"
-                  type="tel"
-                  placeholder="Optional alternate phone"
-                  value={phoneSecondary}
-                  onChange={(e) => setPhoneSecondary(e.target.value)}
+                  label="Email Address (Optional)"
+                  type="email"
+                  placeholder="e.g. member@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  hint={
+                    (activeHead?.person?.email_contact || headEmail)
+                      ? 'Default email copied from the Family Head. You can change it if this member has a different email address.'
+                      : 'Family members may share email address'
+                  }
                 />
               </div>
             </div>

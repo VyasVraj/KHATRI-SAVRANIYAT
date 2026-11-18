@@ -77,6 +77,8 @@ export function useUpdatePerson() {
     onSuccess: (_, { personId }) => {
       void queryClient.invalidateQueries({ queryKey: ['persons', personId] })
       void queryClient.invalidateQueries({ queryKey: ['persons', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['public-occupation-directory'] })
+      void queryClient.invalidateQueries({ queryKey: ['public-occupations'] })
     },
   })
 }

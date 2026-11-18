@@ -23,12 +23,15 @@ import { FamilyClaimRequestsSection } from '@/features/claims'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
+import { ClaimFamilyModal } from '@/features/claims/components/ClaimFamilyModal'
+import { ShieldCheck } from 'lucide-react'
 
 export function FamilyDetailPage() {
   const { familyId } = useParams<{ familyId: string }>()
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [claimModalOpen, setClaimModalOpen] = useState(false)
 
   const { data: family, isLoading, error } = useFamily(familyId)
   useFamilyRealtime(familyId)
@@ -37,23 +40,17 @@ export function FamilyDetailPage() {
 
   const { data: members = [] } = useFamilyMembers(familyId, { includeFormer: false })
 
-  // Management capabilities based on designated Manager, Creator, Family Member, or Admin roles
-  const isManager = Boolean(
-    user &&
-    family &&
-    (family.manager_user_id === user.id || family.created_by === user.id)
-  )
+  const isCreator = Boolean(user?.id && family?.created_by === user.id)
+  const isManager = Boolean(user?.id && family?.manager_user_id === user.id)
+  const isClaimedManager = Boolean(user?.id && (family as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === user.id)
   const isHead = Boolean(
     user && members.some((m) => m.is_head && m.person?.user_id === user.id)
-  )
-  const isFamilyMember = Boolean(
-    user && members.some((m) => !m.left_at && m.person?.user_id === user.id)
   )
   const isAdmin = Boolean(
     profile?.is_active &&
     (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')
   )
-  const canManageMembers = isManager || isHead || isFamilyMember || isAdmin
+  const canManageMembers = isCreator || isManager || isHead || isAdmin || isClaimedManager
 
   async function handleSoftDelete() {
     if (!familyId) return
@@ -115,6 +112,16 @@ export function FamilyDetailPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-navy-900">Family Record</h1>
         <div className="flex gap-2">
+          {!canManageMembers && user && family && (
+            <Button
+              variant="secondary"
+              onClick={() => setClaimModalOpen(true)}
+              className="border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold"
+            >
+              <ShieldCheck className="h-4 w-4 text-indigo-600 mr-1.5" />
+              Claim This Family
+            </Button>
+          )}
           {canManageMembers && (
             <Button
               variant="secondary"
@@ -124,7 +131,7 @@ export function FamilyDetailPage() {
               Edit
             </Button>
           )}
-          {canManageMembers && (!confirmDelete ? (
+          {isAdmin && (!confirmDelete ? (
             <Button
               variant="secondary"
               onClick={() => setConfirmDelete(true)}
@@ -166,12 +173,12 @@ export function FamilyDetailPage() {
         <FamilyDetail family={family} canManageMembers={canManageMembers} />
       </div>
 
-      {/* Head of Family: Profile Claim Requests Review Section */}
-      {canManageMembers && familyId && (
+      {/* Head of Family or Admin: Profile Claim Requests Review Section */}
+      {(isHead || isAdmin) && familyId && (
         <FamilyClaimRequestsSection
           familyId={familyId}
           familyName={family.family_name}
-          isHeadOrManager={canManageMembers}
+          isHeadOrManager={true}
         />
       )}
 
@@ -179,6 +186,19 @@ export function FamilyDetailPage() {
       <div className="mt-6">
         <FamilyVerificationSection family={family} />
       </div>
+
+      {/* Claim Family Modal */}
+      {claimModalOpen && family && (
+        <ClaimFamilyModal
+          isOpen={claimModalOpen}
+          onClose={() => setClaimModalOpen(false)}
+          family={{
+            id: family.id,
+            family_name: family.family_name,
+            city: family.city,
+          }}
+        />
+      )}
     </div>
   )
 }

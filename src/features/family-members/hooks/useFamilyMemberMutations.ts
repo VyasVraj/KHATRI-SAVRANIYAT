@@ -112,6 +112,12 @@ export function useUpdateFamilyMember(familyId: string) {
       void queryClient.invalidateQueries({
         queryKey: ['families'],
       })
+      void queryClient.invalidateQueries({
+        queryKey: ['tree'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families'],
+      })
     },
   })
 }
@@ -150,6 +156,12 @@ export function useRemoveFamilyMember(familyId: string) {
       })
       void queryClient.invalidateQueries({
         queryKey: ['families', familyId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['tree'],
       })
     },
   })
@@ -190,6 +202,12 @@ export function useTransferFamilyHead(familyId: string) {
       })
       void queryClient.invalidateQueries({
         queryKey: ['families', familyId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['families'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['tree'],
       })
       void queryClient.invalidateQueries({
         queryKey: ['families'],

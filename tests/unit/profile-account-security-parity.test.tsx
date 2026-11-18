@@ -335,7 +335,7 @@ describe('ANDROID-12: Profile, Completeness, Account, Security & Settings Parity
 
       expect(screen.getByText(/Date of Birth/i)).toBeInTheDocument()
       expect(screen.getByText(/Place of Birth \/ Native City/i)).toBeInTheDocument()
-      expect(screen.getByText(/Profile Photo \/ Portrait/i)).toBeInTheDocument()
+      expect(screen.queryByText(/Profile Photo \/ Portrait/i)).not.toBeInTheDocument()
 
       const editButtons = screen.getAllByRole('button', { name: /Complete in Record/i })
       expect(editButtons.length).toBeGreaterThan(0)
@@ -522,15 +522,13 @@ describe('ANDROID-12: Profile, Completeness, Account, Security & Settings Parity
   // 8. Screen 39: App Settings
   // =========================================================================
   describe('8. Screen 39: App Settings', () => {
-    it('renders language selector, tour replay button, and notification preferences link', () => {
+    it('renders language selector, tour replay button, and privacy link (with notification preferences removed per Area 9)', () => {
       renderWithProviders(<AppSettingsSection onTabChange={vi.fn()} />)
 
       expect(screen.getByText(/App Settings/i)).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: /App tour/i })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: /Manage Notifications/i })).toHaveAttribute(
-        'href',
-        '/settings/notifications'
-      )
+      expect(screen.getByRole('heading', { name: /Privacy & Governance/i })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /Manage Notifications/i })).toBeNull()
     })
   })
 

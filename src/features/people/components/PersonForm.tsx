@@ -30,6 +30,8 @@ import { CitySelector } from '@/components/forms/CitySelector'
 import { Button } from '@/components/forms/Button'
 import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
+import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
+import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import { canManagePrivacy } from '@/constants/app'
 import { BLOOD_GROUP_OPTIONS, BLOOD_GROUPS } from '@/constants/bloodGroup'
@@ -78,6 +80,7 @@ const personFormSchema = z
         (val) => BLOOD_GROUPS.includes(val as (typeof BLOOD_GROUPS)[number]) && val !== 'UNKNOWN',
         'Please select Blood Group'
       ),
+    show_blood_group_in_directory: z.boolean().default(false),
     birth_place: z
       .string({ required_error: 'Birthplace is required' })
       .trim()
@@ -99,6 +102,7 @@ const personFormSchema = z
         (val) => !val || val <= getTodayIso(),
         'Date of death cannot be in the future'
       ),
+    is_deceased: z.boolean().default(false),
     gotra: z
       .string({ required_error: 'Please select Gotra' })
       .trim()
@@ -107,20 +111,20 @@ const personFormSchema = z
       .string({ required_error: 'Please select Nukh' })
       .trim()
       .min(1, 'Please select Nukh'),
+    occupation: z.string().optional().nullable(),
+    occupation_category: z.string().optional().nullable(),
     email_contact: z
-      .string({ required_error: 'Valid Email Address is required' })
-      .trim()
-      .min(1, 'Valid Email Address is required')
-      .email('Valid Email Address is required')
-      .max(254, 'Email must not exceed 254 characters'),
+      .string()
+      .optional()
+      .nullable()
+      .refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), 'Please enter a valid email address'),
     phone: z
-      .string({ required_error: 'Valid Primary Phone Number is required' })
-      .trim()
-      .min(1, 'Valid Primary Phone Number is required')
-      .max(30, 'Phone number must not exceed 30 characters')
+      .string()
+      .optional()
+      .nullable()
       .refine(
-        (val) => /^[0-9+\s\-()]{7,25}$/.test(val),
-        'Valid Primary Phone Number is required'
+        (val) => !val || /^[0-9+\s\-()]{7,25}$/.test(val),
+        'Please enter a valid primary phone number'
       ),
     phone_secondary: z
       .string()
@@ -178,13 +182,18 @@ function sanitizeFormValues(values: PersonFormValues, mode: 'create' | 'edit'): 
     maiden_name: sanitizeOptional(values.maiden_name, isEdit),
     gender: values.gender as CreatePersonInput['gender'],
     blood_group: values.blood_group as CreatePersonInput['blood_group'],
+    show_blood_group_in_directory: Boolean(values.show_blood_group_in_directory),
+    blood_group_consent: Boolean(values.show_blood_group_in_directory),
     date_of_birth: values.date_of_birth.trim(),
     date_of_death: sanitizeOptional(values.date_of_death, isEdit),
+    is_deceased: Boolean(values.is_deceased),
     birth_place: values.birth_place.trim(),
     gotra: values.gotra.trim(),
     nukh: values.nukh.trim(),
-    email_contact: values.email_contact.trim().toLowerCase(),
-    phone: values.phone.trim(),
+    occupation: values.occupation?.trim() || null,
+    occupation_category: values.occupation_category?.trim() || null,
+    email_contact: values.email_contact?.trim() ? values.email_contact.trim().toLowerCase() : null,
+    phone: values.phone?.trim() ? values.phone.trim() : null,
     phone_secondary: sanitizeOptional(values.phone_secondary, isEdit),
     profile_privacy: values.profile_privacy,
     contact_privacy: values.contact_privacy,
@@ -274,11 +283,14 @@ export function PersonForm({
       maiden_name: toFieldValue(defaultValues?.maiden_name),
       gender: defaultValues?.gender ?? '',
       blood_group: toFieldValue((defaultValues as unknown as { blood_group?: string | null })?.blood_group),
+      show_blood_group_in_directory: Boolean((defaultValues as unknown as { show_blood_group_in_directory?: boolean; blood_group_consent?: boolean })?.show_blood_group_in_directory ?? (defaultValues as unknown as { blood_group_consent?: boolean })?.blood_group_consent ?? false),
       date_of_birth: toFieldValue(defaultValues?.date_of_birth),
       date_of_death: toFieldValue(defaultValues?.date_of_death),
+      is_deceased: (defaultValues as { is_deceased?: boolean; status?: string; date_of_death?: string | null })?.is_deceased ?? Boolean(defaultValues?.date_of_death || (defaultValues as { status?: string })?.status === 'DECEASED'),
       birth_place: toFieldValue(defaultValues?.birth_place),
       gotra: toFieldValue(defaultValues?.gotra),
       nukh: toFieldValue(defaultValues?.nukh),
+      occupation: toFieldValue((defaultValues as unknown as { occupation?: string | null })?.occupation),
       email_contact: toFieldValue(defaultValues?.email_contact),
       phone: toFieldValue(defaultValues?.phone),
       phone_secondary: toFieldValue(defaultValues?.phone_secondary),
@@ -290,7 +302,6 @@ export function PersonForm({
 
   const selectedGotra = watch('gotra')
   const selectedNukh = watch('nukh')
-  const watchedDateOfDeath = watch('date_of_death')
 
   async function onFormSubmit(values: PersonFormValues) {
     const sanitized = sanitizeFormValues(values, mode)
@@ -426,6 +437,27 @@ export function PersonForm({
                 {errors.blood_group.message}
               </p>
             )}
+
+            {/* Blood Group Directory Consent Checkbox */}
+            <div className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3">
+              <input
+                type="checkbox"
+                id="show_blood_group_in_directory"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                {...register('show_blood_group_in_directory')}
+              />
+              <div className="space-y-0.5">
+                <label
+                  htmlFor="show_blood_group_in_directory"
+                  className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block"
+                >
+                  Show my blood group details in the Blood Group Directory.
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  If enabled, your name, selected blood group, family name, and permitted location details may appear in the community Blood Group Directory. Your personal phone number and email address will remain private.
+                </p>
+              </div>
+            </div>
           </div>
 
           <CitySelector
@@ -452,17 +484,22 @@ export function PersonForm({
             error={errors.date_of_birth?.message}
             {...register('date_of_birth')}
           />
-          <Input
-            label="Date of death"
-            type="date"
-            hint={
-              watchedDateOfDeath
-                ? 'Person will be recorded as Deceased'
-                : 'Leave blank for living persons'
-            }
-            error={errors.date_of_death?.message}
-            {...register('date_of_death')}
-          />
+          <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4 transition-colors hover:bg-slate-50">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                id="is_deceased"
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                {...register('is_deceased')}
+              />
+              <div>
+                <span className="text-sm font-medium text-navy-900">This person is deceased</span>
+                <p className="text-xs text-navy-500 mt-0.5">
+                  Check if the person is deceased. Leave unchecked for a living person.
+                </p>
+              </div>
+            </label>
+          </div>
         </div>
       </fieldset>
 
@@ -483,6 +520,19 @@ export function PersonForm({
           gotraError={errors.gotra?.message}
           nukhError={errors.nukh?.message}
         />
+
+        <div className="mt-4">
+          <TwoLevelOccupationSelect
+            categoryValue={watch('occupation_category')}
+            occupationValue={watch('occupation')}
+            onChange={(occ, cat) => {
+              setValue('occupation', occ, { shouldValidate: true })
+              setValue('occupation_category', cat, { shouldValidate: true })
+            }}
+            error={errors.occupation?.message}
+            required={false}
+          />
+        </div>
       </fieldset>
 
       {/* ---- Contact ---- */}
@@ -493,27 +543,30 @@ export function PersonForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Email"
-            required
             type="email"
             autoComplete="email"
             hint="Community contact email — may differ from login email"
             error={errors.email_contact?.message}
             {...register('email_contact')}
           />
-          <Input
+          <PhoneInputWithCountryCode
+            id="primary-phone"
             label="Primary Phone"
-            required
-            type="tel"
-            autoComplete="tel"
+            value={watch('phone')}
+            onChange={(val) => setValue('phone', val, { shouldValidate: true })}
+            placeholder="Enter mobile number"
             error={errors.phone?.message}
-            {...register('phone')}
           />
-          <Input
-            label="Secondary phone"
-            type="tel"
-            error={errors.phone_secondary?.message}
-            {...register('phone_secondary')}
-          />
+          <div className="sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+            <PhoneInputWithCountryCode
+              id="secondary-phone"
+              label="Secondary Phone"
+              value={watch('phone_secondary')}
+              onChange={(val) => setValue('phone_secondary', val, { shouldValidate: true })}
+              placeholder="Enter secondary mobile number"
+              error={errors.phone_secondary?.message}
+            />
+          </div>
         </div>
       </fieldset>
 

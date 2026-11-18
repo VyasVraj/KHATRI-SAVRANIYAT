@@ -55,8 +55,6 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
         expect(errorPaths).toContain('date_of_birth')
         expect(errorPaths).toContain('gotra')
         expect(errorPaths).toContain('nukh')
-        expect(errorPaths).toContain('email_contact')
-        expect(errorPaths).toContain('phone')
       }
     })
 
@@ -297,7 +295,7 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
 
       const phoneLabel = screen.getByText('Primary Phone')
       expect(phoneLabel).toBeInTheDocument()
-      expect(phoneLabel.parentElement?.textContent).toContain('*')
+      expect(phoneLabel.parentElement?.textContent).not.toContain('*')
 
       // Optional fields must be present WITHOUT required asterisks
       const middleNameLabel = screen.getByText('Middle name')
@@ -308,11 +306,11 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
       expect(maidenNameLabel).toBeInTheDocument()
       expect(maidenNameLabel.textContent).not.toContain('*')
 
-      const dodLabel = screen.getByText('Date of death')
+      const dodLabel = screen.getByText(/This person is deceased/i)
       expect(dodLabel).toBeInTheDocument()
       expect(dodLabel.textContent).not.toContain('*')
 
-      const secondaryPhoneLabel = screen.getByText('Secondary phone')
+      const secondaryPhoneLabel = screen.getByText(/Secondary phone/i)
       expect(secondaryPhoneLabel).toBeInTheDocument()
       expect(secondaryPhoneLabel.textContent).not.toContain('*')
     })

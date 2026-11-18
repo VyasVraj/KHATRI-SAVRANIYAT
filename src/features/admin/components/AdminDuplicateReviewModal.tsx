@@ -134,7 +134,7 @@ export function AdminDuplicateReviewModal({
           <div>
             <span className="block text-[11px] font-medium text-navy-500">Census Status</span>
             <span className="font-medium text-navy-800">
-              {p.status || 'ACTIVE'} {p.date_of_death ? `(Deceased)` : ''}
+              {p.status === 'DECEASED' || p.date_of_death ? 'DECEASED (Deceased)' : p.status || 'ACTIVE'}
             </span>
           </div>
         </div>

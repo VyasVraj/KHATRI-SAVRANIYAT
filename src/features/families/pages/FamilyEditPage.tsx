@@ -24,31 +24,19 @@ export function FamilyEditPage() {
   const { user, profile } = useAuthContext()
 
   const { data: family, isLoading: isFamilyLoading, error } = useFamily(familyId)
-  const { data: members = [], isLoading: isMembersLoading } = useFamilyMembers(familyId, {
+  const { isLoading: isMembersLoading } = useFamilyMembers(familyId, {
     includeFormer: false,
   })
   const updateFamily = useUpdateFamily()
 
   const isLoading = isFamilyLoading || isMembersLoading
 
-  // Management authorization check: Manager, Creator (when manager unset), Head, Family Member, or Admin
-  const isManager = Boolean(
-    user &&
-    family &&
-    (family.manager_user_id === user.id ||
-      (!family.manager_user_id && family.created_by === user.id))
-  )
-  const isHead = Boolean(
-    user && members.some((m) => m.is_head && m.person?.user_id === user.id)
-  )
-  const isFamilyMember = Boolean(
-    user && members.some((m) => !m.left_at && m.person?.user_id === user.id)
-  )
+  const isCreator = Boolean(user?.id && family?.created_by === user.id)
   const isAdmin = Boolean(
     profile?.is_active &&
     (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')
   )
-  const canManage = isManager || isHead || isFamilyMember || isAdmin
+  const canManage = isCreator || isAdmin
 
   async function handleSubmit(data: CreateFamilyInput) {
     if (!familyId) return

@@ -35,6 +35,7 @@ import { ZodError } from 'zod'
 export type PersonRow = Tables<'persons'> & {
   blood_group?: string | null
   age?: number | null
+  occupation?: string | null
   is_same_family?: boolean
 }
 
@@ -85,9 +86,12 @@ export async function createPerson(
     // user_id intentionally omitted — remains NULL per PERSON != USER boundary
   }
 
-  // Case B: When Date of Death is entered, automatically set status to DECEASED
-  if (validated.date_of_death) {
+  // Synchronize deceased status and person lifecycle status
+  if (validated.is_deceased || validated.date_of_death) {
+    insertPayload.is_deceased = true
     insertPayload.status = 'DECEASED'
+  } else {
+    insertPayload.is_deceased = false
   }
 
   const { data, error } = await supabase
@@ -193,11 +197,16 @@ export async function updatePerson(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updatePayload: any = { ...validated }
 
-  // Case B & C: When Date of Death is entered, automatically set status to DECEASED
-  if (validated.date_of_death) {
+  // Synchronize deceased status and person lifecycle status
+  if (validated.is_deceased !== undefined) {
+    updatePayload.is_deceased = validated.is_deceased
+    updatePayload.status = validated.is_deceased ? 'DECEASED' : 'ACTIVE'
+  } else if (validated.date_of_death) {
+    updatePayload.is_deceased = true
     updatePayload.status = 'DECEASED'
   } else if (input.date_of_death === null || validated.date_of_death === null) {
-    // Case E: If Date of Death is explicitly cleared/removed, restore to ACTIVE
+    // If Date of Death is explicitly cleared/removed, restore to ACTIVE and is_deceased = false
+    updatePayload.is_deceased = false
     updatePayload.date_of_death = null
     updatePayload.status = 'ACTIVE'
   }

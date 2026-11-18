@@ -90,7 +90,7 @@ describe('Mukhi 118 Directory Verification', () => {
   })
 
   describe('1. Authoritative 118 Records Dataset Integrity', () => {
-    it('contains exactly 118 records extracted from the 3-page PDF', () => {
+    it('contains exactly 118 records in the community Mukhi register', () => {
       expect(OFFICIAL_COMMUNITY_MUKHIS).toHaveLength(118)
       expect(CANONICAL_MUKHI_REGISTRY).toHaveLength(118)
     })
@@ -205,7 +205,7 @@ describe('Mukhi 118 Directory Verification', () => {
   })
 
   describe('5. Community Page Metric Card Dynamic Count', () => {
-    it('displays dynamic count of 118 Mukhis on the Community Hub card', async () => {
+    it('displays dynamic count of Mukhis on the Community Hub card', async () => {
       renderTestView(<CommunityPage />)
 
       await waitFor(() => {

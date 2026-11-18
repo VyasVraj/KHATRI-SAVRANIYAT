@@ -382,6 +382,7 @@ export type Database = {
           dob_year?: number | null
           age?: number | null
           date_of_death: string | null
+          is_deceased?: boolean
           deleted_at: string | null
           dob_privacy: Database["public"]["Enums"]["privacy_level"]
           email_contact: string | null
@@ -394,6 +395,7 @@ export type Database = {
           maiden_name: string | null
           middle_name: string | null
           nukh: string | null
+          occupation?: string | null
           phone: string | null
           phone_secondary: string | null
           profile_privacy: Database["public"]["Enums"]["privacy_level"]
@@ -415,6 +417,7 @@ export type Database = {
           created_by?: string | null
           date_of_birth?: string | null
           date_of_death?: string | null
+          is_deceased?: boolean
           deleted_at?: string | null
           dob_privacy?: Database["public"]["Enums"]["privacy_level"]
           email_contact?: string | null
@@ -427,6 +430,7 @@ export type Database = {
           maiden_name?: string | null
           middle_name?: string | null
           nukh?: string | null
+          occupation?: string | null
           phone?: string | null
           phone_secondary?: string | null
           profile_privacy?: Database["public"]["Enums"]["privacy_level"]
@@ -448,6 +452,7 @@ export type Database = {
           created_by?: string | null
           date_of_birth?: string | null
           date_of_death?: string | null
+          is_deceased?: boolean
           deleted_at?: string | null
           dob_privacy?: Database["public"]["Enums"]["privacy_level"]
           email_contact?: string | null
@@ -460,6 +465,7 @@ export type Database = {
           maiden_name?: string | null
           middle_name?: string | null
           nukh?: string | null
+          occupation?: string | null
           phone?: string | null
           phone_secondary?: string | null
           profile_privacy?: Database["public"]["Enums"]["privacy_level"]
@@ -575,6 +581,7 @@ export type Database = {
           city: string | null
           state: string | null
           date_of_death: string | null
+          is_deceased?: boolean
           avatar_url: string | null
           gotra: string | null
           nukh: string | null
@@ -707,6 +714,7 @@ export type Database = {
         | "SUPER_ADMIN"
         | "ADMIN"
         | "COMMUNITY_MODERATOR"
+        | "MUKHI"
         | "COMMUNITY_MUKHI"
         | "ASSISTANT_MUKHI"
         | "COMMITTEE_MEMBER"
@@ -897,6 +905,7 @@ export const Constants = {
         "SUPER_ADMIN",
         "ADMIN",
         "COMMUNITY_MODERATOR",
+        "MUKHI",
         "COMMUNITY_MUKHI",
         "ASSISTANT_MUKHI",
         "COMMITTEE_MEMBER",

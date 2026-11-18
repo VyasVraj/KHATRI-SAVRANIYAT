@@ -241,6 +241,7 @@ export interface RegistrationPersonInput {
   country?: string | null
   gotra?: string | null
   nukh?: string | null
+  occupation?: string | null
   phone?: string | null
   phone_secondary?: string | null
   email?: string | null
@@ -260,41 +261,8 @@ export interface RegistrationMemberInput extends RegistrationPersonInput {
  * Maps human-readable relationship string to valid database public.family_role enum value.
  * Supported database values: 'HEAD', 'SPOUSE', 'CHILD', 'PARENT', 'SIBLING', 'GRANDPARENT', 'GRANDCHILD', 'EXTENDED'.
  */
-export function mapRelationshipToFamilyRole(relationship: string | null | undefined): FamilyRole {
-  const norm = (relationship || '').trim().toUpperCase()
-  switch (norm) {
-    case 'WIFE':
-    case 'HUSBAND':
-    case 'SPOUSE':
-    case 'PARTNER':
-      return 'SPOUSE'
-    case 'SON':
-    case 'DAUGHTER':
-    case 'CHILD':
-    case 'KID':
-      return 'CHILD'
-    case 'FATHER':
-    case 'MOTHER':
-    case 'PARENT':
-      return 'PARENT'
-    case 'BROTHER':
-    case 'SISTER':
-    case 'SIBLING':
-      return 'SIBLING'
-    case 'GRANDFATHER':
-    case 'GRANDMOTHER':
-    case 'GRANDPARENT':
-      return 'GRANDPARENT'
-    case 'GRANDSON':
-    case 'GRANDDAUGHTER':
-    case 'GRANDCHILD':
-      return 'GRANDCHILD'
-    case 'HEAD':
-      return 'HEAD'
-    default:
-      return 'EXTENDED'
-  }
-}
+import { mapRelationshipToFamilyRole } from '@/constants/familyRelationships'
+export { mapRelationshipToFamilyRole }
 
 export interface CompleteFamilyRegistrationPayload {
   family: {
@@ -832,7 +800,7 @@ function mapFamilyError(message: string, code?: string): string {
     if (lowerMsg.includes('idx_family_members_one_head')) {
       return 'This family already has a designated head.'
     }
-    return message || 'A duplicate record already exists.'
+    return 'A duplicate record already exists.'
   }
   if (code === '23503') {
     return 'Related record not found.'

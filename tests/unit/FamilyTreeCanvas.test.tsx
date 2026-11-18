@@ -279,4 +279,121 @@ describe('RelationshipEdge Component', () => {
     // Spouse edge uses purple stroke
     expect(spouseHtml).toContain('stroke:#9333EA')
   })
+
+  it('renders dedicated allocated details panel when a person is selected without overlapping canvas', () => {
+    vi.mocked(authContext.useAuthContext).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      session: {} as unknown as authContext.AuthContextValue['session'],
+      user: {} as unknown as authContext.AuthContextValue['user'],
+      profile: null,
+    })
+
+    const sampleGraph: TreeGraph = {
+      rootPersonId: ROOT_ID,
+      nodes: new Map([
+        [
+          ROOT_ID,
+          {
+            id: ROOT_ID,
+            person: {
+              id: ROOT_ID,
+              first_name: 'Nanak',
+              middle_name: 'J',
+              last_name: 'Pamnani',
+              gender: 'MALE',
+              date_of_birth: '1964-03-15',
+              profile_privacy: 'COMMUNITY',
+              status: 'ACTIVE',
+            },
+            generation: 0,
+            isRoot: true,
+            isHead: true,
+            rolesInTree: new Set(['ROOT']),
+            relationshipLabel: 'Head of Family',
+            age: 62,
+          },
+        ],
+      ]),
+      edges: new Map(),
+      generations: new Map([[0, [ROOT_ID]]]),
+      isBounded: false,
+    }
+
+    vi.mocked(familyTreeHook.useFamilyTree).mockReturnValue({
+      data: sampleGraph,
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof familyTreeHook.useFamilyTree>)
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <FamilyTreeCanvas rootPersonId={ROOT_ID} selectedPersonId={ROOT_ID} />
+      </MemoryRouter>
+    )
+
+    // Verify canvas and panel structure
+    expect(html).toContain('data-testid="family-tree-canvas"')
+    expect(html).toContain('Recenter')
+    // Dedicated aside container with allocated layout styling
+    expect(html).toContain('<aside')
+    expect(html).toContain('Details for Nanak J Pamnani')
+    expect(html).toContain('Head of Family')
+    expect(html).toContain('View Full Profile')
+    // Verify toolbar controls are inside the canvas
+    expect(html).toContain('title="Recenter Tree"')
+  })
+
+  it('unmounts details panel when no person is selected, allowing full canvas width', () => {
+    vi.mocked(authContext.useAuthContext).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      session: {} as unknown as authContext.AuthContextValue['session'],
+      user: {} as unknown as authContext.AuthContextValue['user'],
+      profile: null,
+    })
+
+    const sampleGraph: TreeGraph = {
+      rootPersonId: ROOT_ID,
+      nodes: new Map([
+        [
+          ROOT_ID,
+          {
+            id: ROOT_ID,
+            person: {
+              id: ROOT_ID,
+              first_name: 'Nanak',
+              middle_name: 'J',
+              last_name: 'Pamnani',
+              gender: 'MALE',
+              date_of_birth: '1964-03-15',
+              profile_privacy: 'COMMUNITY',
+              status: 'ACTIVE',
+            },
+            generation: 0,
+            isRoot: true,
+            rolesInTree: new Set(['ROOT']),
+          },
+        ],
+      ]),
+      edges: new Map(),
+      generations: new Map([[0, [ROOT_ID]]]),
+      isBounded: false,
+    }
+
+    vi.mocked(familyTreeHook.useFamilyTree).mockReturnValue({
+      data: sampleGraph,
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof familyTreeHook.useFamilyTree>)
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <FamilyTreeCanvas rootPersonId={ROOT_ID} selectedPersonId={null} />
+      </MemoryRouter>
+    )
+
+    expect(html).toContain('data-testid="family-tree-canvas"')
+    expect(html).not.toContain('<aside')
+  })
 })
