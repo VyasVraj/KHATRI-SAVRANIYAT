@@ -94,14 +94,21 @@ export const PanchayatFiltersBar: React.FC<PanchayatFiltersBarProps> = ({
           <select
             value={filters.zone || 'ALL'}
             onChange={handleZoneChange}
-            className="flex min-h-[44px] w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-8 text-sm text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex min-h-[44px] w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-8 text-sm text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
             aria-label={t('panchayat.filter_zone', 'Filter by Zone')}
           >
-            <option value="ALL">
+            <option
+              value="ALL"
+              className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 py-1.5"
+            >
               {t('panchayat.all_zones', 'All Zones / Regions')}
             </option>
             {availableZones.map((zone) => (
-              <option key={zone} value={zone}>
+              <option
+                key={zone}
+                value={zone}
+                className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 py-1.5"
+              >
                 {zone}
               </option>
             ))}

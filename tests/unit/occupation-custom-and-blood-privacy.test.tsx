@@ -11,6 +11,7 @@ import {
   getBloodDirectoryMembers,
 } from '@/features/community/services/blood-directory.service'
 import { TwoLevelOccupationSelect, OTHER_OCCUPATION_CATEGORY, OTHER_OPTION_LABEL } from '@/components/forms/TwoLevelOccupationSelect'
+import { BloodGroupConsentCheckbox } from '@/components/forms/BloodGroupConsentCheckbox'
 import { supabase } from '@/lib/supabase'
 
 vi.mock('@/lib/supabase', () => ({
@@ -119,14 +120,15 @@ describe('Feature 2 & 3: TwoLevelOccupationSelect UI & Custom Input', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(supabase.from as any).mockReturnValue({
+    const builder: any = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: vi.fn().mockImplementation((cb) => {
-        cb({ data: [{ occupation_name: 'Solar Panel Technician' }] })
-        return { then: vi.fn() }
-      }),
-    })
+      not: vi.fn().mockReturnThis(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      then: (resolve: any) => Promise.resolve({ data: [{ occupation_name: 'Solar Panel Technician' }] }).then(resolve),
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(supabase.from as any).mockReturnValue(builder)
   })
 
   it('renders all 30 categories and allows category selection', () => {
@@ -192,6 +194,112 @@ describe('Feature 2 & 3: TwoLevelOccupationSelect UI & Custom Input', () => {
     const customInput = screen.getByDisplayValue('Freelance Photographer')
     expect(customInput).toBeInTheDocument()
   })
+
+  it('does NOT treat "Occupation Pending" or "Occupation Not Provided" as custom occupations', () => {
+    const { container } = render(
+      <TwoLevelOccupationSelect
+        categoryValue=""
+        occupationValue="Occupation Pending"
+        onChange={vi.fn()}
+      />
+    )
+
+    // Should NOT show custom input prefilled with "Occupation Pending"
+    const customInput = screen.queryByPlaceholderText(/e\.g\. Freelance Photographer/i)
+    expect(customInput).not.toBeInTheDocument()
+
+    // Step 1 button should show default placeholder, NOT "Other"
+    const step1Btn = container.querySelector('#occupation-select-category')
+    expect(step1Btn).toHaveTextContent(/Select category.../i)
+  })
+
+  it('surfaces direct profession matches when searching for specific titles like Housewife or Doctor', () => {
+    const handleChange = vi.fn()
+    const { container } = render(
+      <TwoLevelOccupationSelect
+        categoryValue=""
+        occupationValue=""
+        onChange={handleChange}
+      />
+    )
+
+    // Open Step 1
+    const step1Btn = container.querySelector('#occupation-select-category') as HTMLElement
+    fireEvent.click(step1Btn)
+
+    // Type "Housewife" into search input
+    const searchInput = screen.getByPlaceholderText(/Search profession or category/i)
+    fireEvent.change(searchInput, { target: { value: 'Housewife' } })
+
+    // "Direct Profession Matches" section must appear
+    expect(screen.getByText(/Direct Profession Matches/i)).toBeInTheDocument()
+    const housewifeBtn = screen.getByRole('button', { name: /Housewife/i })
+    expect(housewifeBtn).toBeInTheDocument()
+
+    // Clicking direct match sets both specific occupation and official category
+    fireEvent.click(housewifeBtn)
+    expect(handleChange).toHaveBeenCalledWith('Housewife', 'Domestic and Household Services')
+  })
+})
+
+describe('Feature 1: BloodGroupConsentCheckbox UI & Accessibility', () => {
+  it('renders unchecked state properly and toggles on click', () => {
+    const handleChange = vi.fn()
+    const { rerender } = render(
+      <BloodGroupConsentCheckbox
+        checked={false}
+        onChange={handleChange}
+      />
+    )
+
+    const checkbox = screen.getByRole('checkbox')
+    expect(checkbox).toHaveAttribute('aria-checked', 'false')
+
+    // Entire container click toggles
+    fireEvent.click(checkbox)
+    expect(handleChange).toHaveBeenCalledWith(true)
+
+    // Rerender as checked
+    rerender(
+      <BloodGroupConsentCheckbox
+        checked={true}
+        onChange={handleChange}
+      />
+    )
+    expect(checkbox).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('supports keyboard accessibility via Space and Enter keys', () => {
+    const handleChange = vi.fn()
+    render(
+      <BloodGroupConsentCheckbox
+        checked={false}
+        onChange={handleChange}
+      />
+    )
+
+    const checkbox = screen.getByRole('checkbox')
+    fireEvent.keyDown(checkbox, { key: ' ' })
+    expect(handleChange).toHaveBeenCalledWith(true)
+
+    fireEvent.keyDown(checkbox, { key: 'Enter' })
+    expect(handleChange).toHaveBeenCalledWith(true)
+  })
+
+  it('prevents interaction when disabled', () => {
+    const handleChange = vi.fn()
+    render(
+      <BloodGroupConsentCheckbox
+        checked={false}
+        onChange={handleChange}
+        disabled={true}
+      />
+    )
+
+    const checkbox = screen.getByRole('checkbox')
+    fireEvent.click(checkbox)
+    expect(handleChange).not.toHaveBeenCalled()
+  })
 })
 
 describe('Feature 5 & 6: Blood Group Directory Consent Filtering', () => {
@@ -247,7 +355,9 @@ describe('Feature 5 & 6: Blood Group Directory Consent Filtering', () => {
     vi.mocked(supabase.from as any).mockReturnValue(mockQuery)
 
     const res = await getBloodDirectoryMembers({ bloodGroup: 'B+' })
-    expect(mockQuery.or).toHaveBeenCalledWith('show_blood_group_in_directory.eq.true,blood_group_consent.eq.true')
+    expect(mockQuery.or).toHaveBeenCalledWith(
+      'blood_group_consent.eq.true,show_in_blood_directory.eq.true,show_blood_group_in_directory.eq.true'
+    )
     expect(res.data).toHaveLength(0)
   })
 })

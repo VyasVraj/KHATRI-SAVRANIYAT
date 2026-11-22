@@ -86,6 +86,36 @@ export async function createPerson(
     // user_id intentionally omitted — remains NULL per PERSON != USER boundary
   }
 
+  // Harmonize blood group consent to database-backed column `blood_group_consent`
+  if (
+    insertPayload.show_blood_group_in_directory !== undefined ||
+    insertPayload.show_in_blood_directory !== undefined ||
+    insertPayload.blood_group_consent !== undefined
+  ) {
+    const consentVal = Boolean(
+      insertPayload.show_blood_group_in_directory ??
+        insertPayload.show_in_blood_directory ??
+        insertPayload.blood_group_consent
+    )
+    insertPayload.blood_group_consent = consentVal
+    insertPayload.show_in_blood_directory = consentVal
+    insertPayload.show_blood_group_in_directory = consentVal
+  }
+
+  // Prevent inserting placeholder strings as real occupations
+  if (insertPayload.occupation) {
+    const raw = String(insertPayload.occupation).trim()
+    if (
+      raw === 'Occupation Pending' ||
+      raw === 'Occupation Not Provided' ||
+      raw === 'Occupation Not Available' ||
+      raw === 'Occupation Rejected'
+    ) {
+      insertPayload.occupation = null
+      insertPayload.occupation_category = null
+    }
+  }
+
   // Synchronize deceased status and person lifecycle status
   if (validated.is_deceased || validated.date_of_death) {
     insertPayload.is_deceased = true
@@ -100,18 +130,18 @@ export async function createPerson(
     .select()
     .single()
 
-  if (error) {
+  if (error || !data) {
     return {
       data: null,
       error: {
-        message: mapPersonError(error.message, error.code),
-        code: error.code,
+        message: error ? mapPersonError(error.message, error.code) : 'Failed to update person record.',
+        code: error?.code,
         cause: error,
       },
     }
   }
 
-  return { data, error: null }
+  return { data: data as PersonRow, error: null }
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +188,25 @@ export async function getPerson(personId: string): Promise<ApiResponse<PersonRow
     }
   }
 
+  // Enrich with private consent values if view does not expose them
+  const pRecord = data as unknown as Record<string, unknown> | null
+  if (pRecord && pRecord.blood_group_consent === undefined) {
+    try {
+      const { data: pConsent } = await supabase
+        .from('persons')
+        .select('blood_group_consent')
+        .eq('id', personId)
+        .maybeSingle()
+      if (pConsent) {
+        pRecord.blood_group_consent = Boolean(pConsent.blood_group_consent)
+        pRecord.show_in_blood_directory = Boolean(pConsent.blood_group_consent)
+        pRecord.show_blood_group_in_directory = Boolean(pConsent.blood_group_consent)
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
   return { data: data as unknown as PersonRow, error: null }
 }
 
@@ -197,6 +246,36 @@ export async function updatePerson(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updatePayload: any = { ...validated }
 
+  // Harmonize blood group consent field to the database-backed column `blood_group_consent`
+  if (
+    updatePayload.show_blood_group_in_directory !== undefined ||
+    updatePayload.show_in_blood_directory !== undefined ||
+    updatePayload.blood_group_consent !== undefined
+  ) {
+    const consentVal = Boolean(
+      updatePayload.show_blood_group_in_directory ??
+        updatePayload.show_in_blood_directory ??
+        updatePayload.blood_group_consent
+    )
+    updatePayload.blood_group_consent = consentVal
+    delete updatePayload.show_in_blood_directory
+    delete updatePayload.show_blood_group_in_directory
+  }
+
+  // Prevent saving placeholder strings as real occupations
+  if (updatePayload.occupation) {
+    const raw = String(updatePayload.occupation).trim()
+    if (
+      raw === 'Occupation Pending' ||
+      raw === 'Occupation Not Provided' ||
+      raw === 'Occupation Not Available' ||
+      raw === 'Occupation Rejected'
+    ) {
+      updatePayload.occupation = null
+      updatePayload.occupation_category = null
+    }
+  }
+
   // Synchronize deceased status and person lifecycle status
   if (validated.is_deceased !== undefined) {
     updatePayload.is_deceased = validated.is_deceased
@@ -211,7 +290,7 @@ export async function updatePerson(
     updatePayload.status = 'ACTIVE'
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('persons')
     .update(updatePayload)
     .eq('id', personId)
@@ -219,18 +298,32 @@ export async function updatePerson(
     .select()
     .single()
 
-  if (error) {
+  // If column error occurs (e.g. occupation_category does not exist in schema), retry with core fields
+  if (error && (error.code === 'PGRST204' || error.code === '42703') && updatePayload.occupation_category) {
+    delete updatePayload.occupation_category
+    const retryRes = await supabase
+      .from('persons')
+      .update(updatePayload)
+      .eq('id', personId)
+      .is('deleted_at', null)
+      .select()
+      .single()
+    data = retryRes.data
+    error = retryRes.error
+  }
+
+  if (error || !data) {
     return {
       data: null,
       error: {
-        message: mapPersonError(error.message, error.code),
-        code: error.code,
+        message: error ? mapPersonError(error.message, error.code) : 'Failed to update person record.',
+        code: error?.code,
         cause: error,
       },
     }
   }
 
-  return { data, error: null }
+  return { data: data as PersonRow, error: null }
 }
 
 // ---------------------------------------------------------------------------

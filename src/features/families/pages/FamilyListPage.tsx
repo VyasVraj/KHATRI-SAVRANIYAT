@@ -151,15 +151,15 @@ export function FamilyListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10 space-y-6">
+    <div className="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
       {/* Success Notification Banner */}
       {successMessage && (
         <div
           role="alert"
-          className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-xs"
+          className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 sm:p-4 text-xs sm:text-sm text-emerald-800 shadow-xs"
         >
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />
             <span className="font-semibold">{successMessage}</span>
           </div>
           <button
@@ -173,74 +173,74 @@ export function FamilyListPage() {
       )}
 
       {/* Census Header Section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-navy-100 pb-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-navy-100 pb-3 sm:pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-brand-700 border border-brand-200">
+            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-brand-700 border border-brand-200">
               {t('census.page_title')}
             </span>
-            <span className="text-xs font-semibold text-navy-500">
+            <span className="text-[11px] sm:text-xs font-semibold text-navy-500">
               • {families.length} {t('census.total_families')}
             </span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold text-navy-900 sm:text-3xl">
+          <h1 className="mt-1 text-xl sm:text-3xl font-bold text-navy-900 tracking-tight">
             {activeTab === 'my' ? 'My Registered Families' : t('census.page_title')}
           </h1>
-          <p className="mt-1 text-sm text-navy-600 max-w-2xl">
+          <p className="mt-0.5 text-xs sm:text-sm text-navy-600 max-w-2xl leading-normal">
             {activeTab === 'my'
               ? 'Households and families registered or headed by you.'
               : t('census.page_subtitle')}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
           <Button
             variant="secondary"
             size="sm"
             onClick={() => navigate(ROUTES.DISCOVER)}
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center justify-center gap-1.5 text-xs py-2 px-2.5 w-full sm:w-auto h-[38px]"
           >
-            <Compass className="h-4 w-4" />
-            <span>Search Directory</span>
+            <Compass className="h-4 w-4 shrink-0" />
+            <span className="truncate">Search Directory</span>
           </Button>
           <Button
             size="sm"
             onClick={() => navigate(ROUTES.FAMILY_CREATE)}
-            className="flex items-center gap-1.5 text-xs font-bold shadow-sm"
+            className="flex items-center justify-center gap-1.5 text-xs font-bold shadow-sm py-2 px-2.5 w-full sm:w-auto h-[38px]"
           >
-            <PlusCircle className="h-4 w-4" />
-            <span>{t('census.start_census')}</span>
+            <PlusCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('census.start_census')}</span>
           </Button>
         </div>
       </div>
 
       {/* View Tabs: All Families vs My Families */}
-      <div className="flex items-center gap-2 border-b border-navy-100 pb-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2 border-b border-navy-100 pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('all')}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors ${
+          className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-2 text-xs font-semibold transition-colors text-center ${
             activeTab === 'all'
               ? 'bg-brand-600 text-white shadow-xs'
-              : 'text-navy-600 hover:bg-navy-50'
+              : 'text-navy-600 hover:bg-navy-50 bg-navy-50/50'
           }`}
         >
-          <Users className="h-3.5 w-3.5" />
-          <span>All Community Families ({families.length})</span>
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">All Families ({families.length})</span>
         </button>
 
         {user?.id && (
           <button
             type="button"
             onClick={() => setActiveTab('my')}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors ${
+            className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-2 text-xs font-semibold transition-colors text-center ${
               activeTab === 'my'
                 ? 'bg-brand-600 text-white shadow-xs'
-                : 'text-navy-600 hover:bg-navy-50'
+                : 'text-navy-600 hover:bg-navy-50 bg-navy-50/50'
             }`}
           >
-            <Heart className="h-3.5 w-3.5" />
-            <span>My Families ({myFamilies.length})</span>
+            <Heart className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">My Families ({myFamilies.length})</span>
           </button>
         )}
       </div>

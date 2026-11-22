@@ -235,6 +235,8 @@ export interface RegistrationPersonInput {
   maiden_name?: string | null
   gender?: 'MALE' | 'FEMALE' | 'OTHER'
   date_of_birth?: string | null
+  current_age?: number | null
+  avatar_url?: string | null
   birth_place?: string | null
   city?: string | null
   state?: string | null
@@ -242,11 +244,14 @@ export interface RegistrationPersonInput {
   gotra?: string | null
   nukh?: string | null
   occupation?: string | null
+  occupation_category?: string | null
+  custom_occupation?: string | null
   phone?: string | null
   phone_secondary?: string | null
   email?: string | null
   email_contact?: string | null
   date_of_death?: string | null
+  is_deceased?: boolean
   blood_group?: string | null
   blood_group_consent?: boolean
   kul?: string | null

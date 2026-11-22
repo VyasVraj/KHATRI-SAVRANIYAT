@@ -1,26 +1,20 @@
 /**
  * MyOccupationRequestsSection component
  *
- * Displays the member's occupation request history and active tracking:
- * - Requested Occupation
- * - Current Approved Occupation
- * - Submitted Date
- * - Status badge (Pending / Approved / Rejected)
- * - Reviewed Date & Admin Remarks / Rejection Reason
- * - Prevent duplicate pending request affordance
+ * Displays the member's current occupation and provides a direct, accessible
+ * affordance to update or set their occupation / profession immediately
+ * without requiring administrative approval.
  */
 
 import { useState } from 'react'
 import {
-  Clock,
   CheckCircle2,
-  XCircle,
   Briefcase,
-  AlertCircle,
-  Plus,
+  Pencil,
 } from 'lucide-react'
 import { useMyOccupationRequests } from '../hooks/useOccupationRequests'
-import { RequestOccupationModal } from './RequestOccupationModal'
+import { UpdateOccupationModal } from './UpdateOccupationModal'
+import type { PersonRow } from '@/types'
 
 interface MyOccupationRequestsSectionProps {
   person: {
@@ -29,6 +23,8 @@ interface MyOccupationRequestsSectionProps {
     middle_name?: string | null
     last_name?: string | null
     occupation?: string | null
+    occupation_category?: string | null
+    custom_occupation?: string | null
   }
   canRequest?: boolean
 }
@@ -38,9 +34,7 @@ export function MyOccupationRequestsSection({
   canRequest = true,
 }: MyOccupationRequestsSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { data: requests = [], isLoading, refetch } = useMyOccupationRequests(person.id)
-
-  const pendingRequest = requests.find((r) => r.status === 'PENDING')
+  const { data: requests = [], refetch } = useMyOccupationRequests(person.id)
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—'
@@ -54,6 +48,18 @@ export function MyOccupationRequestsSection({
     })
   }
 
+  const rawOcc = (person.occupation || '').trim()
+  const isPlaceholder =
+    !rawOcc ||
+    rawOcc === 'Occupation Pending' ||
+    rawOcc === 'Occupation Not Provided' ||
+    rawOcc === 'Occupation Not Available' ||
+    rawOcc === 'Occupation Rejected'
+
+  const displayOccupation = isPlaceholder
+    ? ((person.custom_occupation || person.occupation_category || '').trim() || null)
+    : rawOcc
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
       {/* Header */}
@@ -64,125 +70,87 @@ export function MyOccupationRequestsSection({
           </span>
           <div>
             <h4 className="text-sm font-bold text-slate-900">
-              Occupation Update Requests
+              Occupation / Profession
             </h4>
             <p className="text-xs text-slate-500">
-              Track status of administrative review and occupation modifications
+              Directly choose and update your profession in the community directory
             </p>
           </div>
         </div>
 
         {canRequest && (
           <div>
-            {pendingRequest ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-                <Clock className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-                <span>Request Pending Admin Review</span>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Request Occupation Update</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span>{displayOccupation ? 'Change Occupation' : 'Set Occupation'}</span>
+            </button>
           </div>
         )}
       </div>
 
-      {/* Pending Banner if one is active */}
-      {pendingRequest && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900">
-          <Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-bold">
-              Pending Request: "{pendingRequest.requested_occupation}"
-            </p>
-            <p className="text-amber-800 leading-relaxed text-[11px]">
-              Submitted on {formatDate(pendingRequest.created_at)}. Your request is waiting for Admin approval. The currently approved occupation will remain unchanged until reviewed.
-            </p>
+      {/* Current Active Occupation Badge */}
+      <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 p-3.5">
+        <div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">
+            Active Community Occupation
+          </span>
+          <span className="text-sm font-bold text-slate-900 mt-0.5 block">
+            {displayOccupation || 'Occupation Not Provided'}
+          </span>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span>Direct Update Enabled</span>
+        </span>
+      </div>
+
+      {/* Historical Requests if any exist */}
+      {requests.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Past Modifications
+          </h5>
+          <div className="space-y-2">
+            {requests.map((req) => (
+              <div
+                key={req.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white p-2.5 text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-800">
+                    {req.requested_occupation}
+                  </span>
+                  <span className="text-slate-400 text-[11px]">
+                    {formatDate(req.created_at)}
+                  </span>
+                </div>
+                {req.status === 'APPROVED' && (
+                  <span className="text-emerald-700 font-medium">Approved</span>
+                )}
+                {req.status === 'REJECTED' && (
+                  <span className="text-rose-700 font-medium">Archived</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* List of Requests */}
-      {isLoading ? (
-        <div className="space-y-2 py-2">
-          <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-          <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-4 text-xs text-slate-400">
-          No occupation update requests submitted for this profile yet.
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {requests.map((req) => (
-            <div
-              key={req.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/80 p-3 text-xs"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-slate-800 text-sm">
-                    {req.requested_occupation}
-                  </span>
-                  {req.status === 'PENDING' && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-200">
-                      <Clock className="h-3 w-3" />
-                      Pending
-                    </span>
-                  )}
-                  {req.status === 'APPROVED' && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Approved
-                    </span>
-                  )}
-                  {req.status === 'REJECTED' && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800 border border-rose-200">
-                      <XCircle className="h-3 w-3" />
-                      Rejected
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-slate-500 text-[11px]">
-                  Submitted: {formatDate(req.created_at)}
-                </div>
-
-                {req.status === 'REJECTED' && req.rejection_reason && (
-                  <div className="mt-1 flex items-start gap-1.5 text-rose-800 bg-rose-50/80 p-2 rounded border border-rose-100 text-[11px]">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600 mt-0.5" />
-                    <span>
-                      <strong className="font-semibold">Rejection Reason:</strong> {req.rejection_reason}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {req.reviewed_at && (
-                <div className="text-[11px] text-slate-400 sm:text-right shrink-0">
-                  Reviewed: {formatDate(req.reviewed_at)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* Direct Update Modal */}
+      {isModalOpen && (
+        <UpdateOccupationModal
+          person={person as PersonRow}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => {
+            refetch()
+          }}
+        />
       )}
-
-      {/* Modal */}
-      <RequestOccupationModal
-        person={person}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          refetch()
-        }}
-      />
     </div>
   )
 }

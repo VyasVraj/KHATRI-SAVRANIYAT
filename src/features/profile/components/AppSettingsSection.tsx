@@ -5,10 +5,13 @@
  * and notification preferences navigation (ANDROID-4).
  */
 
-import { Settings, ArrowRight, Shield } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings, ArrowRight, Shield, Download } from 'lucide-react'
 import { LanguageSelector } from '@/features/i18n'
 import { AppTourReplayButton } from '@/features/onboarding'
 import { useLanguage } from '@/features/i18n'
+import { isAppInstalled, onInstallStateChange } from '@/lib/pwa'
+import { InstallAppModal } from '@/components/common/InstallAppModal'
 import type { ProfileTab } from '../types'
 
 export interface AppSettingsSectionProps {
@@ -17,9 +20,48 @@ export interface AppSettingsSectionProps {
 
 export function AppSettingsSection({ onTabChange }: AppSettingsSectionProps) {
   const { t } = useLanguage()
+  const [installModalOpen, setInstallModalOpen] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(isAppInstalled())
+
+  useEffect(() => {
+    return onInstallStateChange((state) => {
+      setIsInstalled(state.isInstalled)
+    })
+  }, [])
 
   return (
     <div className="space-y-6">
+      {/* PWA Application Installation Card */}
+      <div className="rounded-xl border border-navy-200 bg-white p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-brand-600 shrink-0" aria-hidden="true" />
+            <h3 className="text-sm font-semibold text-navy-900">
+              Install Progressive Web App
+            </h3>
+            {isInstalled && (
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                Installed
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-navy-500">
+            {isInstalled
+              ? 'KHATRI SARVANIYAT is running in standalone application mode on this device.'
+              : 'Install KHATRI SARVANIYAT on your home screen or desktop for fast, app-like access without opening a browser.'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setInstallModalOpen(true)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-600 bg-brand-50 px-4 py-2.5 text-xs font-bold text-brand-700 shadow-xs hover:bg-brand-100 min-h-[44px] w-full sm:w-auto shrink-0 transition-colors"
+        >
+          <Download className="h-4 w-4 text-brand-600" />
+          <span>{isInstalled ? 'View App Details' : 'Install Application'}</span>
+        </button>
+      </div>
+
       {/* Language Selector Card */}
       <div className="rounded-xl border border-navy-200 bg-white p-4 sm:p-6 shadow-sm space-y-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-navy-900">
@@ -80,6 +122,11 @@ export function AppSettingsSection({ onTabChange }: AppSettingsSectionProps) {
           <ArrowRight className="h-3.5 w-3.5 text-navy-400" aria-hidden="true" />
         </button>
       </div>
+
+      <InstallAppModal
+        isOpen={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+      />
     </div>
   )
 }

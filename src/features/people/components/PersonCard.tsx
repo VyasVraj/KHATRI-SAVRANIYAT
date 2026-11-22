@@ -15,6 +15,8 @@
 
 import type { Tables } from '@/types/database.types'
 import { toProperCaseName } from '@/utils/text-casing'
+import { cn } from '@/lib/utils'
+import { AvatarImage } from '@/features/media'
 
 type PersonRow = Tables<'persons'>
 
@@ -89,13 +91,34 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
       }
       aria-label={onClick ? `View ${fullName}'s record` : undefined}
     >
-      {/* Avatar initials */}
-      <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700"
-        aria-hidden="true"
-      >
-        {initials}
-      </div>
+      {/* Avatar */}
+      {person.avatar_url ? (
+        <AvatarImage
+          src={person.avatar_url}
+          name={fullName}
+          alt={fullName}
+          size="md"
+          shape="circle"
+          className={cn(
+            'h-12 w-12 shrink-0 text-sm font-semibold border',
+            person.gender === 'FEMALE'
+              ? 'bg-pink-100 text-pink-700 border-pink-200'
+              : 'bg-brand-100 text-brand-700 border-brand-200'
+          )}
+        />
+      ) : (
+        <div
+          className={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold border',
+            person.gender === 'FEMALE'
+              ? 'bg-pink-100 text-pink-700 border-pink-200'
+              : 'bg-brand-100 text-brand-700 border-brand-200'
+          )}
+          aria-hidden="true"
+        >
+          {initials}
+        </div>
+      )}
 
       {/* Content */}
       <div className="min-w-0 flex-1">

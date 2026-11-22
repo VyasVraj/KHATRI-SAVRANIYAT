@@ -73,6 +73,40 @@ export default {
           text: '#172033',
           'text-secondary': '#64748B',
         },
+        // UI Component Semantic Tokens
+        background: '#ffffff',
+        foreground: '#0f172a',
+        card: {
+          DEFAULT: '#ffffff',
+          foreground: '#0f172a',
+        },
+        popover: {
+          DEFAULT: '#ffffff',
+          foreground: '#0f172a',
+        },
+        primary: {
+          DEFAULT: '#2449B8',
+          foreground: '#ffffff',
+        },
+        secondary: {
+          DEFAULT: '#f1f5f9',
+          foreground: '#0f172a',
+        },
+        muted: {
+          DEFAULT: '#f8fafc',
+          foreground: '#64748b',
+        },
+        accent: {
+          DEFAULT: '#f1f5f9',
+          foreground: '#0f172a',
+        },
+        destructive: {
+          DEFAULT: '#dc2626',
+          foreground: '#ffffff',
+        },
+        border: '#e2e8f0',
+        input: '#e2e8f0',
+        ring: '#2449B8',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

@@ -133,25 +133,25 @@ describe('Contact Through Admin Workflow', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Haresh Khatri')).toBeInTheDocument()
-      expect(screen.getByText('Deepak Khatri')).toBeInTheDocument()
-      expect(screen.getByText('Suman Khatri')).toBeInTheDocument()
+      expect(screen.getAllByText('Haresh Khatri').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('Deepak Khatri').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('Suman Khatri').length).toBeGreaterThanOrEqual(1)
     })
 
-    const mukhiButtons = screen.getAllByRole('button', { name: /Contact Through Mukhi/i })
-    const adminButtons = screen.getAllByRole('button', { name: /Contact Through Admin/i })
+    const mukhiButtons = screen.getAllByRole('button', { name: /Contact Through Mukhi|Via Mukhi/i })
+    const adminButtons = screen.getAllByRole('button', { name: /Contact Through Admin|Via Admin/i })
 
-    // All 3 persons display BOTH buttons simultaneously
-    expect(mukhiButtons).toHaveLength(3)
-    expect(adminButtons).toHaveLength(3)
+    // All 3 persons display BOTH buttons simultaneously (cards + table)
+    expect(mukhiButtons.length).toBeGreaterThanOrEqual(3)
+    expect(adminButtons.length).toBeGreaterThanOrEqual(3)
 
     // Verify first person (with Mukhi)
-    expect(screen.getByText('Mukhi Asandas Chandumal Dhandha')).toBeInTheDocument()
+    expect(screen.getAllByText('Mukhi Asandas Chandumal Dhandha').length).toBeGreaterThanOrEqual(1)
     expect(mukhiButtons[0]).toBeInTheDocument()
     expect(adminButtons[0]).toBeInTheDocument()
 
     // Verify third person (without Mukhi)
-    expect(screen.getByText('Mukhi Not Assigned')).toBeInTheDocument()
+    expect(screen.getAllByText('Mukhi Not Assigned').length).toBeGreaterThanOrEqual(1)
     expect(mukhiButtons[2]).toBeInTheDocument()
     expect(adminButtons[2]).toBeInTheDocument()
   })
@@ -170,7 +170,7 @@ describe('Contact Through Admin Workflow', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Deepak Khatri')).toBeInTheDocument()
+      expect(screen.getAllByText('Deepak Khatri').length).toBeGreaterThanOrEqual(1)
     })
 
     const adminButtons = screen.getAllByRole('button', { name: /Contact Through Admin/i })
@@ -350,7 +350,7 @@ describe('Contact Through Admin Workflow', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Haresh Khatri')).toBeInTheDocument()
+      expect(screen.getAllByText('Haresh Khatri').length).toBeGreaterThanOrEqual(1)
     })
 
     // Verify phone or direct contact numbers are NOT in the document

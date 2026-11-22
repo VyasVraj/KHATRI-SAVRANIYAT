@@ -13,7 +13,7 @@
  * - Preserves family Mukhi assignment without creating separate member Mukhi records.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   X,
@@ -38,8 +38,11 @@ import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationS
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { CountryCodeSelect } from '@/components/forms/CountryCodeSelect'
 import { COUNTRY_DIALING_CODES, DEFAULT_DIALING_CODE } from '@/constants/countryDialingCodes'
-import { getCategoryForOccupation } from '@/constants/occupations'
+import { OCCUPATION_CATEGORIES, getCategoryForOccupation } from '@/constants/occupations'
 import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
+import { BloodGroupConsentCheckbox } from '@/components/forms/BloodGroupConsentCheckbox'
+import { ProfilePhotoUpload } from '@/components/forms/ProfilePhotoUpload'
+import { uploadAvatar, deleteAvatar } from '@/features/media/services/avatar.service'
 import { updatePerson } from '@/features/people/services/people.service'
 import { supabase } from '@/lib/supabase'
 import {
@@ -69,11 +72,16 @@ export function EditMemberModal({
   const [middleName, setMiddleName] = useState('')
   const [lastName, setLastName] = useState('')
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE')
+  const [ageMode, setAgeMode] = useState<'dob' | 'age'>('dob')
   const [dob, setDob] = useState('')
+  const [currentAge, setCurrentAge] = useState('')
   const [birthPlace, setBirthPlace] = useState('')
   const [city, setCity] = useState('')
   const [stateName, setStateName] = useState('')
   const [country, setCountry] = useState('India')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null)
 
   // 2. Contact Details State (Optional)
   const [countryCallingCode, setCountryCallingCode] = useState(DEFAULT_DIALING_CODE)
@@ -83,12 +91,40 @@ export function EditMemberModal({
   // 3. Community Information State
   const [gotra, setGotra] = useState('')
   const [nukh, setNukh] = useState('')
-  const [bloodGroup, setBloodGroup] = useState('')
-  const [showBloodGroupInDirectory, setShowBloodGroupInDirectory] = useState(false)
+  const [bloodGroup, setBloodGroup] = useState(() => member?.person?.blood_group || '')
+  const [showBloodGroupInDirectory, setShowBloodGroupInDirectory] = useState(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = (member?.person as any) || {}
+    return Boolean(
+      p.blood_group_consent === true ||
+      p.show_in_blood_directory === true ||
+      p.show_blood_group_in_directory === true
+    )
+  })
 
   // 4. Occupation State (Two-Level: Category & Specific Occupation)
-  const [occupation, setOccupation] = useState('')
-  const [occupationCategory, setOccupationCategory] = useState('')
+  const [occupation, setOccupation] = useState(() => {
+    const rawOcc = (member?.person?.occupation || '').trim()
+    const isPlaceholderOcc =
+      !rawOcc ||
+      rawOcc === 'Occupation Pending' ||
+      rawOcc === 'Occupation Not Provided' ||
+      rawOcc === 'Occupation Not Available' ||
+      rawOcc === 'Occupation Rejected'
+    return isPlaceholderOcc ? '' : rawOcc
+  })
+  const [occupationCategory, setOccupationCategory] = useState(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = (member?.person as any) || {}
+    const rawOcc = (p.occupation || '').trim()
+    const isPlaceholderOcc =
+      !rawOcc ||
+      rawOcc === 'Occupation Pending' ||
+      rawOcc === 'Occupation Not Provided' ||
+      rawOcc === 'Occupation Not Available' ||
+      rawOcc === 'Occupation Rejected'
+    return p.occupation_category || (isPlaceholderOcc ? '' : getCategoryForOccupation(rawOcc)) || ''
+  })
 
   // 5. Family & Relationship State
   const [role, setRole] = useState<FamilyRole>(member?.role ?? 'EXTENDED')
@@ -114,11 +150,18 @@ export function EditMemberModal({
     : 'Family Head'
 
   // Candidate connecting spouses (other active members in this family)
-  const candidateSpouses = familyMembers.filter(
-    (m) => m.person_id !== member?.person_id && m.person?.status !== 'DECEASED'
+  const candidateSpouses = useMemo(
+    () =>
+      familyMembers.filter(
+        (m) => m.person_id !== member?.person_id && m.person?.status !== 'DECEASED'
+      ),
+    [familyMembers, member?.person_id]
   )
 
   const isInLaw = /sister-in-law|brother-in-law|साली|ननद|भाभी|जेठानी|देवरानी|साला|बहनोई|देवर|जेठ/i.test(relationship)
+
+  const memberId = member?.id
+  const personId = member?.person_id || member?.person?.id
 
   // Initialize and pre-fill all values from the existing person & membership records
   useEffect(() => {
@@ -128,7 +171,15 @@ export function EditMemberModal({
       setMiddleName(p?.middle_name || '')
       setLastName(p?.last_name || '')
       setGender((p?.gender as 'MALE' | 'FEMALE' | 'OTHER') || 'MALE')
-      setDob(p?.date_of_birth ? p.date_of_birth.substring(0, 10) : '')
+      const initialDob = p?.date_of_birth ? p.date_of_birth.substring(0, 10) : ''
+      setDob(initialDob)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const initialAge = (p as any)?.current_age != null ? String((p as any).current_age) : ''
+      setCurrentAge(initialAge)
+      setAgeMode(initialDob ? 'dob' : (initialAge ? 'age' : 'dob'))
+      setCurrentAvatarUrl(p?.avatar_url || null)
+      setAvatarFile(null)
+      setAvatarPreview(null)
       setBirthPlace(p?.birth_place || '')
       setCity(p?.city || '')
       setStateName(p?.state || '')
@@ -154,14 +205,45 @@ export function EditMemberModal({
       setGotra(p?.gotra || '')
       setNukh(p?.nukh || '')
       setBloodGroup(p?.blood_group || '')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const consentVal = Boolean((p as any)?.show_blood_group_in_directory ?? (p as any)?.blood_group_consent ?? false)
+      const pRecord = p as unknown as {
+        show_in_blood_directory?: boolean
+        blood_group_consent?: boolean
+        show_blood_group_in_directory?: boolean
+        occupation_category?: string
+        custom_occupation?: string
+      }
+      const consentVal = Boolean(
+        pRecord?.blood_group_consent === true ||
+        pRecord?.show_in_blood_directory === true ||
+        pRecord?.show_blood_group_in_directory === true
+      )
       setShowBloodGroupInDirectory(consentVal)
-      const rawOcc = p?.occupation || ''
-      setOccupation(rawOcc)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rawCat = (p as any)?.occupation_category || getCategoryForOccupation(rawOcc) || ''
-      setOccupationCategory(rawCat)
+
+      const rawOcc = (p?.occupation || '').trim()
+      const rawCat = (pRecord?.occupation_category || '').trim()
+      const rawCustom = (pRecord?.custom_occupation || '').trim()
+      const isPlaceholderOcc =
+        !rawOcc ||
+        rawOcc === 'Occupation Pending' ||
+        rawOcc === 'Occupation Not Provided' ||
+        rawOcc === 'Occupation Not Available' ||
+        rawOcc === 'Occupation Rejected'
+
+      if (isPlaceholderOcc) {
+        if (rawCat && rawCat !== 'Other') {
+          setOccupation(rawCustom || rawCat)
+          setOccupationCategory(rawCat)
+        } else if (rawCustom) {
+          setOccupation(rawCustom)
+          setOccupationCategory(rawCat || 'Other')
+        } else {
+          setOccupation('')
+          setOccupationCategory('')
+        }
+      } else {
+        setOccupation(rawCustom || rawOcc)
+        setOccupationCategory(rawCat || getCategoryForOccupation(rawOcc) || 'Other')
+      }
       setIsHead(Boolean(member.is_head))
       setRole(member.role)
 
@@ -203,7 +285,8 @@ export function EditMemberModal({
         }
       }
     }
-  }, [member, isOpen, candidateSpouses])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, memberId, personId])
 
   function handleRelationshipChange(newRel: string) {
     setRelationship(newRel)
@@ -270,6 +353,66 @@ export function EditMemberModal({
           : `${countryCallingCode} ${cleanPhone}`
         : null
 
+      // Clean occupation value (prevent persisting placeholder strings)
+      const cleanOcc = occupation.trim()
+      const cleanCat = occupationCategory.trim()
+      const isPlaceholderOcc =
+        !cleanOcc ||
+        cleanOcc === 'Occupation Pending' ||
+        cleanOcc === 'Occupation Not Provided' ||
+        cleanOcc === 'Occupation Not Available' ||
+        cleanOcc === 'Occupation Rejected'
+
+      let chosenCategory: string | null = cleanCat || null
+      let chosenSpecific: string | null = isPlaceholderOcc ? null : cleanOcc
+
+      // If specific occupation is entered but category is missing, derive it from sub-occupation catalog
+      if (chosenSpecific && (!chosenCategory || chosenCategory === 'Other')) {
+        const derived = getCategoryForOccupation(chosenSpecific)
+        if (derived) {
+          chosenCategory = derived
+        }
+      }
+
+      // If category is provided but specific occupation is empty, default specific to category
+      if (chosenCategory && chosenCategory !== 'Other' && !chosenSpecific) {
+        chosenSpecific = chosenCategory
+      }
+
+      // Canonical 30 Category for DB table:
+      // The database trigger `validate_person_mandatory_fields_guard` requires `persons.occupation`
+      // to match one of the 30 official categories in `public.occupations` (or 'Occupation Pending').
+      let dbOfficialOccupation: string | null = null
+      let dbCustomOccupation: string | null = null
+
+      if (chosenCategory && chosenCategory !== 'Other') {
+        const matchedOfficial = OCCUPATION_CATEGORIES.find(
+          (c) => c.toLowerCase() === chosenCategory!.toLowerCase()
+        )
+        if (matchedOfficial) {
+          dbOfficialOccupation = matchedOfficial
+          if (chosenSpecific && chosenSpecific.toLowerCase() !== matchedOfficial.toLowerCase()) {
+            dbCustomOccupation = chosenSpecific
+          }
+        }
+      } else if (chosenCategory === 'Other' && chosenSpecific) {
+        const detected = getCategoryForOccupation(chosenSpecific)
+        dbOfficialOccupation = detected || 'Business and Entrepreneurship'
+        dbCustomOccupation = chosenSpecific
+      } else if (chosenSpecific) {
+        const detected = getCategoryForOccupation(chosenSpecific)
+        if (detected) {
+          dbOfficialOccupation = detected
+          chosenCategory = detected
+          dbCustomOccupation = chosenSpecific
+        }
+      }
+
+      const parsedCurrentAge =
+        ageMode === 'age' && currentAge.trim() ? parseInt(currentAge.trim(), 10) : null
+      const parsedDob =
+        ageMode === 'dob' && dob ? dob : null
+
       // Prepare Person updates
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const personUpdates: Record<string, any> = {
@@ -277,7 +420,8 @@ export function EditMemberModal({
         middle_name: middleName.trim() || null,
         last_name: lastName.trim(),
         gender,
-        date_of_birth: dob || null,
+        date_of_birth: parsedDob,
+        current_age: parsedCurrentAge,
         date_of_death: isDeceased && dateOfDeath ? dateOfDeath : null,
         is_deceased: isDeceased,
         birth_place: birthPlace.trim() || null,
@@ -291,8 +435,10 @@ export function EditMemberModal({
         blood_group: bloodGroup || null,
         show_blood_group_in_directory: showBloodGroupInDirectory,
         blood_group_consent: showBloodGroupInDirectory,
-        occupation: occupation.trim() || null,
-        occupation_category: occupationCategory.trim() || null,
+        show_in_blood_directory: showBloodGroupInDirectory,
+        occupation: dbOfficialOccupation,
+        occupation_category: chosenCategory,
+        custom_occupation: dbCustomOccupation,
       }
 
       // Prepare Membership updates
@@ -314,7 +460,60 @@ export function EditMemberModal({
         p_membership_data: membershipUpdates,
       })
 
-      // 2. If RPC fails or is missing, fallback to direct services
+      // 2. Direct DB update to persons table guarantees persistence of blood_group_consent and occupation
+      // regardless of RPC version deployed on backend
+      try {
+        const directPayload: Record<string, unknown> = {
+          blood_group_consent: showBloodGroupInDirectory,
+          show_in_blood_directory: showBloodGroupInDirectory,
+          show_blood_group_in_directory: showBloodGroupInDirectory,
+          occupation: dbOfficialOccupation,
+        }
+        if (chosenCategory) {
+          directPayload.occupation_category = chosenCategory
+        }
+        if (dbCustomOccupation) {
+          directPayload.custom_occupation = dbCustomOccupation
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: directErr } = await (supabase.from('persons') as any)
+          .update(directPayload)
+          .eq('id', targetPersonId)
+
+        if (directErr && (directErr.code === 'PGRST204' || directErr.code === '42703')) {
+          // If custom columns do not exist on persons table, update core columns
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.from('persons') as any)
+            .update({
+              blood_group_consent: showBloodGroupInDirectory,
+              show_in_blood_directory: showBloodGroupInDirectory,
+              show_blood_group_in_directory: showBloodGroupInDirectory,
+              occupation: dbOfficialOccupation,
+            })
+            .eq('id', targetPersonId)
+        }
+      } catch {
+        // Non-blocking if RLS or RPC handled
+      }
+
+      // If custom occupation entered, record in custom_occupations if table is available
+      if (dbCustomOccupation) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.from as any)('custom_occupations').insert({
+            occupation_name: dbCustomOccupation,
+            normalized_name: dbCustomOccupation.toLowerCase().trim(),
+            category_name: chosenCategory || 'Other',
+            is_approved: true,
+            is_active: true,
+          })
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      // 3. If RPC fails or is missing, fallback to direct services
       if (rpcError) {
         const personRes = await updatePerson(targetPersonId, personUpdates)
         if (personRes.error) {
@@ -327,12 +526,31 @@ export function EditMemberModal({
         })
       }
 
+      // Update avatar if a new photo was selected or removed
+      if (avatarFile && targetPersonId) {
+        try {
+          await uploadAvatar(avatarFile, { type: 'person', id: targetPersonId }, {
+            previousAvatarUrl: member?.person?.avatar_url,
+          })
+        } catch {
+          // Non-blocking
+        }
+      } else if (!currentAvatarUrl && !avatarFile && member?.person?.avatar_url && targetPersonId) {
+        try {
+          await deleteAvatar({ type: 'person', id: targetPersonId }, member.person.avatar_url)
+        } catch {
+          await updatePerson(targetPersonId, { avatar_url: null })
+        }
+      }
+
       setSuccessMessage('Member details updated successfully!')
 
       // Invalidate queries to refresh UI immediately across all sections
       queryClient.invalidateQueries({ queryKey: ['public-occupation-directory'] })
       queryClient.invalidateQueries({ queryKey: ['public-occupations'] })
       queryClient.invalidateQueries({ queryKey: ['blood-directory'] })
+      queryClient.invalidateQueries({ queryKey: ['blood-directory-members'] })
+      queryClient.invalidateQueries({ queryKey: ['blood-group-directory'] })
       queryClient.invalidateQueries({ queryKey: ['persons'] })
       queryClient.invalidateQueries({ queryKey: ['person', targetPersonId] })
       queryClient.invalidateQueries({ queryKey: ['community-persons'] })
@@ -419,6 +637,22 @@ export function EditMemberModal({
               </h3>
             </div>
 
+            {/* Profile Photo Upload */}
+            <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-3">
+              <ProfilePhotoUpload
+                id="edit-member-avatar"
+                currentPhotoUrl={currentAvatarUrl}
+                previewUrl={avatarPreview}
+                onPhotoSelected={(file, preview) => {
+                  setAvatarFile(file)
+                  setAvatarPreview(preview)
+                  if (!file && !preview) {
+                    setCurrentAvatarUrl(null)
+                  }
+                }}
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input
                 id="edit-first-name"
@@ -467,21 +701,58 @@ export function EditMemberModal({
               </div>
 
               <div>
-                <label
-                  htmlFor="edit-dob"
-                  className="block text-[11px] font-bold uppercase tracking-wide text-navy-800 mb-1"
-                >
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  id="edit-dob"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  disabled={isSaving}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs sm:text-sm text-navy-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-navy-800">
+                    Age / DOB <span className="text-navy-400 font-normal lowercase">(optional)</span>
+                  </label>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[10px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setAgeMode('dob')}
+                      className={`px-1.5 py-0.5 rounded transition-all ${
+                        ageMode !== 'age'
+                          ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                          : 'text-navy-600 hover:text-navy-900'
+                      }`}
+                    >
+                      DOB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAgeMode('age')}
+                      className={`px-1.5 py-0.5 rounded transition-all ${
+                        ageMode === 'age'
+                          ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                          : 'text-navy-600 hover:text-navy-900'
+                      }`}
+                    >
+                      Age
+                    </button>
+                  </div>
+                </div>
+
+                {ageMode === 'age' ? (
+                  <Input
+                    id="edit-current-age"
+                    type="number"
+                    min={0}
+                    max={125}
+                    value={currentAge}
+                    onChange={(e) => setCurrentAge(e.target.value)}
+                    placeholder="Years (0 - 125)"
+                    disabled={isSaving}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    id="edit-dob"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    disabled={isSaving}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs sm:text-sm text-navy-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                )}
               </div>
 
               <Input
@@ -611,27 +882,12 @@ export function EditMemberModal({
               </select>
 
               {/* Blood Group Directory Consent Checkbox */}
-              <div className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3">
-                <input
-                  type="checkbox"
-                  id="edit-blood-group-consent"
-                  checked={showBloodGroupInDirectory}
-                  onChange={(e) => setShowBloodGroupInDirectory(e.target.checked)}
-                  disabled={isSaving}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                <div className="space-y-0.5">
-                  <label
-                    htmlFor="edit-blood-group-consent"
-                    className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block"
-                  >
-                    Show my blood group details in the Blood Group Directory.
-                  </label>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    If enabled, your name, selected blood group, family name, and permitted location details may appear in the community Blood Group Directory. Your personal phone number and email address will remain private.
-                  </p>
-                </div>
-              </div>
+              <BloodGroupConsentCheckbox
+                id="edit-blood-group-consent"
+                checked={showBloodGroupInDirectory}
+                onChange={setShowBloodGroupInDirectory}
+                disabled={isSaving}
+              />
             </div>
           </div>
 

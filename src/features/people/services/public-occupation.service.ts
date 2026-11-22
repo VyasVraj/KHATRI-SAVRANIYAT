@@ -139,30 +139,105 @@ export async function getPublicOccupationDirectory(
     )
 
     if (!rpcError && Array.isArray(rpcData)) {
-      return {
-        data: rpcData.map((row: Record<string, unknown>) => {
-          const resolved = resolveOccupationDisplay(
-            String(row.occupation || ''),
-            undefined
-          )
-          const finalOccupation =
-            row.occupation_status === 'APPROVED' ||
-            (row.occupation &&
-              row.occupation !== 'Occupation Pending' &&
-              row.occupation !== 'Occupation Not Available')
-              ? String(row.occupation)
-              : resolved.occupation
+      // Check if any row has an unprovided, pending, or custom occupation that can be resolved via community_persons
+      let personMap: Map<string, { occupation: string | null; occupation_category: string | null; custom_occupation: string | null }> | null = null
 
-          return {
-            person_id: String(row.person_id || ''),
-            full_name: String(row.full_name || ''),
-            occupation: finalOccupation,
-            occupation_status: (row.occupation_status as OccupationDisplayStatus) || resolved.status,
-            associated_mukhi_name: row.associated_mukhi_name ? String(row.associated_mukhi_name) : null,
-            associated_mukhi_region: row.associated_mukhi_region ? String(row.associated_mukhi_region) : null,
-            associated_mukhi_id: row.associated_mukhi_id ? String(row.associated_mukhi_id) : null,
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: compData } = await (supabase.from('community_persons') as any)
+          .select('id, occupation, occupation_category, custom_occupation')
+        if (Array.isArray(compData)) {
+          personMap = new Map()
+          for (const cp of compData) {
+            if (cp.id) {
+              personMap.set(cp.id, {
+                occupation: cp.occupation || null,
+                occupation_category: cp.occupation_category || null,
+                custom_occupation: cp.custom_occupation || null,
+              })
+            }
           }
-        }),
+        }
+      } catch {
+        // Graceful fallback if query fails
+      }
+
+      // Direct community_persons view already queried above securely without RLS 401
+
+      const mapped = rpcData.map((row: Record<string, unknown>) => {
+        const pId = String(row.person_id || '')
+        let rowOcc = String(row.occupation || '')
+        let rowStatus = (row.occupation_status as OccupationDisplayStatus) || 'NOT_PROVIDED'
+
+        if (personMap) {
+          const extra = personMap.get(pId)
+          if (extra) {
+            const extraOcc = (extra.occupation || '').trim()
+            const extraCat = (extra.occupation_category || '').trim()
+            const extraCustom = (extra.custom_occupation || '').trim()
+            const isPlaceholder =
+              !extraOcc ||
+              extraOcc === 'Occupation Pending' ||
+              extraOcc === 'Occupation Not Provided' ||
+              extraOcc === 'Occupation Not Available' ||
+              extraOcc === 'Occupation Rejected'
+
+            if (!isPlaceholder) {
+              rowOcc = extraCustom && extraCustom.toLowerCase() !== extraOcc.toLowerCase()
+                ? `${extraOcc} (${extraCustom})`
+                : extraOcc
+              rowStatus = 'APPROVED'
+            } else if (extraCat && extraCat !== 'Other') {
+              rowOcc = extraCustom && extraCustom.toLowerCase() !== extraCat.toLowerCase()
+                ? `${extraCat} (${extraCustom})`
+                : extraCat
+              rowStatus = 'APPROVED'
+            } else if (extraCustom) {
+              rowOcc = extraCustom
+              rowStatus = 'APPROVED'
+            } else if (rowOcc && rowOcc !== 'Occupation Not Provided' && rowOcc !== 'Occupation Pending') {
+              if (extraCustom && extraCustom.toLowerCase() !== rowOcc.toLowerCase()) {
+                rowOcc = `${rowOcc} (${extraCustom})`
+              }
+            }
+          }
+        }
+
+        const resolved = resolveOccupationDisplay(
+          rowOcc,
+          undefined
+        )
+        const finalOccupation =
+          rowStatus === 'APPROVED' ||
+          (rowOcc &&
+            rowOcc !== 'Occupation Pending' &&
+            rowOcc !== 'Occupation Not Available' &&
+            rowOcc !== 'Occupation Not Provided' &&
+            rowOcc !== 'Occupation Rejected')
+            ? (rowOcc === 'Occupation Not Provided' ? resolved.occupation : rowOcc)
+            : resolved.occupation
+
+        return {
+          person_id: pId,
+          full_name: String(row.full_name || ''),
+          occupation: finalOccupation,
+          occupation_status: rowStatus === 'APPROVED' ? 'APPROVED' : ((row.occupation_status as OccupationDisplayStatus) || resolved.status),
+          associated_mukhi_name: row.associated_mukhi_name ? String(row.associated_mukhi_name) : null,
+          associated_mukhi_region: row.associated_mukhi_region ? String(row.associated_mukhi_region) : null,
+          associated_mukhi_id: row.associated_mukhi_id ? String(row.associated_mukhi_id) : null,
+        }
+      })
+
+      let finalData = mapped
+      if (occupation && occupation.trim() && occupation.trim() !== 'ALL') {
+        const targetOcc = occupation.trim().toLowerCase()
+        finalData = mapped.filter((item) =>
+          item.occupation.toLowerCase().includes(targetOcc)
+        )
+      }
+
+      return {
+        data: finalData,
         error: null,
       }
     }
@@ -257,7 +332,7 @@ export async function getPublicOccupationDirectory(
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cpRes = await (supabase.from as any)('community_persons')
-        .select('id, first_name, middle_name, last_name, occupation, date_of_death, status')
+        .select('id, first_name, middle_name, last_name, occupation, occupation_category, custom_occupation, date_of_death, status')
         .order('first_name', { ascending: true })
       if (!cpRes.error && Array.isArray(cpRes.data)) {
         personsData = cpRes.data
@@ -323,7 +398,29 @@ export async function getPublicOccupationDirectory(
       }
 
       const name = [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ')
-      const resolved = resolveOccupationDisplay(p.occupation, latestRequestMap.get(p.id))
+      let displayOcc = p.occupation
+      const cat = (p.occupation_category || '').trim()
+      const custom = (p.custom_occupation || '').trim()
+      const isPlaceholder =
+        !displayOcc ||
+        displayOcc === 'Occupation Pending' ||
+        displayOcc === 'Occupation Not Provided' ||
+        displayOcc === 'Occupation Not Available' ||
+        displayOcc === 'Occupation Rejected'
+
+      if (!isPlaceholder) {
+        if (custom && custom.toLowerCase() !== displayOcc.toLowerCase()) {
+          displayOcc = `${displayOcc} (${custom})`
+        }
+      } else if (cat && cat !== 'Other') {
+        displayOcc = custom && custom.toLowerCase() !== cat.toLowerCase()
+          ? `${cat} (${custom})`
+          : cat
+      } else if (custom) {
+        displayOcc = custom
+      }
+
+      const resolved = resolveOccupationDisplay(displayOcc, latestRequestMap.get(p.id))
 
       if (occupation?.trim()) {
         const occFilterLower = occupation.trim().toLowerCase()

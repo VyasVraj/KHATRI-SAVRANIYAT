@@ -86,11 +86,13 @@ export function EventFiltersBar({
                 event_type: e.target.value as EventType | 'ALL',
               })
             }
-            className="min-h-[44px] rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="min-h-[44px] rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
           >
-            <option value="ALL">All Event Types</option>
+            <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+              All Event Types
+            </option>
             {EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>
+              <option key={t} value={t} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                 {t.charAt(0) + t.slice(1).toLowerCase()}
               </option>
             ))}
@@ -107,11 +109,17 @@ export function EventFiltersBar({
                 scope: e.target.value as 'ALL' | 'GLOBAL' | 'MY_GROUPS',
               })
             }
-            className="min-h-[44px] rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="min-h-[44px] rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
           >
-            <option value="ALL">All Scopes</option>
-            <option value="GLOBAL">Community-Wide Only</option>
-            <option value="MY_GROUPS">My Groups Only</option>
+            <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+              All Scopes
+            </option>
+            <option value="GLOBAL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+              Community-Wide Only
+            </option>
+            <option value="MY_GROUPS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+              My Groups Only
+            </option>
           </select>
         </div>
 

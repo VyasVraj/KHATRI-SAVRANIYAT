@@ -11,6 +11,7 @@
 
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Pencil, Trash2, Network } from 'lucide-react'
 import { usePerson } from '../hooks/usePerson'
 import { useSoftDeletePerson } from '../hooks/usePersonMutations'
@@ -27,6 +28,7 @@ import { ROUTES } from '@/constants/app'
 export function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { user, profile } = useAuthContext()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -38,8 +40,11 @@ export function PersonDetailPage() {
   // Family head status does NOT grant permission to edit other members' profiles.
   // Super Admin and Admin retain system administrative management.
   const isOwner = Boolean(user?.id && person?.user_id === user.id)
+  const isCreator = Boolean(user?.id && person?.created_by === user.id)
   const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
-  const canEdit = isOwner || isAdmin
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
+  const canEdit = isOwner || isCreator || isAdmin || isAuthorizedByPolicy
 
   async function handleSoftDelete() {
     if (!personId) return
@@ -159,7 +164,16 @@ export function PersonDetailPage() {
 
       {/* Detail panel */}
       <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
-        <PersonDetail person={person} canEdit={canEdit} />
+        <PersonDetail
+          person={person}
+          canEdit={canEdit}
+          onAvatarUpdated={() => {
+            if (personId) {
+              void queryClient.invalidateQueries({ queryKey: ['persons', personId] })
+              void queryClient.invalidateQueries({ queryKey: ['persons'] })
+            }
+          }}
+        />
       </div>
 
       {/* Community verification section */}

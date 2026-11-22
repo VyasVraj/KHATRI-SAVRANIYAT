@@ -88,11 +88,11 @@ export function MukhiFiltersBar({
             aria-label="Filter by Region, Gram, or City"
             value={filters.city ?? 'ALL'}
             onChange={(e) => onFilterChange('city', e.target.value)}
-            className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="min-h-[44px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
           >
-            <option value="ALL">All Regions / Grams / Cities</option>
+            <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Regions / Grams / Cities</option>
             {availableCities.map((ct) => (
-              <option key={ct} value={ct}>
+              <option key={ct} value={ct} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                 {ct}
               </option>
             ))}
@@ -109,11 +109,11 @@ export function MukhiFiltersBar({
               id="mukhi-state-filter"
               value={filters.state ?? 'ALL'}
               onChange={(e) => onFilterChange('state', e.target.value)}
-              className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="min-h-[44px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
             >
-              <option value="ALL">{t('mukhi.filter_all_states', 'All States')}</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">{t('mukhi.filter_all_states', 'All States')}</option>
               {availableStates.map((st) => (
-                <option key={st} value={st}>
+                <option key={st} value={st} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {st}
                 </option>
               ))}
@@ -132,11 +132,11 @@ export function MukhiFiltersBar({
               id="mukhi-sort-control"
               value={filters.sort ?? 'NAME_ASC'}
               onChange={(e) => onFilterChange('sort', e.target.value)}
-              className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-xs font-medium text-slate-700 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="min-h-[44px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs transition hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer dark:[color-scheme:dark] [color-scheme:light]"
             >
-              <option value="NAME_ASC">Name (A to Z)</option>
-              <option value="NAME_DESC">Name (Z to A)</option>
-              <option value="SERIAL_ASC">Register Serial (1 - 118)</option>
+              <option value="NAME_ASC" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Name (A to Z)</option>
+              <option value="NAME_DESC" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Name (Z to A)</option>
+              <option value="SERIAL_ASC" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Register Serial (1 - 118)</option>
             </select>
           </div>
         </div>

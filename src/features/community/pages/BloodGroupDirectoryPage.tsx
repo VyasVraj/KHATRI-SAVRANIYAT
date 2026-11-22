@@ -203,70 +203,129 @@ export function BloodGroupDirectoryPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-5 py-3">Person Name</th>
-                  <th className="px-5 py-3">Blood Group</th>
-                  <th className="px-5 py-3">Location</th>
-                  <th className="px-5 py-3">Family Head</th>
-                  <th className="px-5 py-3 text-right">Emergency Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {members.map((m) => (
-                  <tr key={m.person_id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 py-4 font-bold text-navy-900 whitespace-nowrap">
-                      {m.full_name}
+          <>
+            {/* Mobile Cards View (Screens < 768px) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {members.map((m) => (
+                <div key={m.person_id} className="p-3.5 space-y-2.5 hover:bg-slate-50/60 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-navy-900 text-sm break-words">
+                        {m.full_name}
+                      </h4>
                       {m.family_name && (
-                        <div className="text-[11px] font-normal text-slate-500">
+                        <div className="text-[11px] text-slate-500 font-medium">
                           {m.family_name}
                         </div>
                       )}
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-extrabold text-rose-700 border border-rose-200">
-                        <Heart className="h-3 w-3 fill-rose-600 text-rose-600" />
-                        {m.blood_group}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
-                      {m.city ? (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>
-                            {m.city}
-                            {m.state ? `, ${m.state}` : ''}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">Location unlisted</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                        <span className="font-medium">
-                          {m.family_head_name || 'Family Head'}
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-extrabold text-rose-700 border border-rose-200 shrink-0">
+                      <Heart className="h-3 w-3 fill-rose-600 text-rose-600" />
+                      {m.blood_group}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                    {m.city ? (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <span>
+                          {m.city}
+                          {m.state ? `, ${m.state}` : ''}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-5 py-4 text-right whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenContact(m)}
-                        className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs"
-                      >
-                        <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
-                        Contact Through Family Head
-                      </Button>
-                    </td>
+                    ) : (
+                      <span className="text-slate-400 italic text-[11px]">Location unlisted</span>
+                    )}
+
+                    <div className="flex items-center gap-1 text-slate-700">
+                      <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                      <span className="font-medium text-xs">
+                        {m.family_head_name || 'Family Head'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenContact(m)}
+                      className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs py-2 shadow-xs flex items-center justify-center gap-1.5 h-[36px]"
+                    >
+                      <PhoneCall className="h-3.5 w-3.5" />
+                      <span>Contact Through Family Head</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (Screens >= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3">Person Name</th>
+                    <th className="px-5 py-3">Blood Group</th>
+                    <th className="px-5 py-3">Location</th>
+                    <th className="px-5 py-3">Family Head</th>
+                    <th className="px-5 py-3 text-right">Emergency Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {members.map((m) => (
+                    <tr key={m.person_id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-5 py-4 font-bold text-navy-900 whitespace-nowrap">
+                        {m.full_name}
+                        {m.family_name && (
+                          <div className="text-[11px] font-normal text-slate-500">
+                            {m.family_name}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-extrabold text-rose-700 border border-rose-200">
+                          <Heart className="h-3 w-3 fill-rose-600 text-rose-600" />
+                          {m.blood_group}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
+                        {m.city ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <span>
+                              {m.city}
+                              {m.state ? `, ${m.state}` : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">Location unlisted</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-slate-700 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                          <span className="font-medium">
+                            {m.family_head_name || 'Family Head'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenContact(m)}
+                          className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs"
+                        >
+                          <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
+                          Contact Through Family Head
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

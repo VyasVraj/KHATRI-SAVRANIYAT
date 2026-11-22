@@ -161,15 +161,20 @@ describe('Media service: avatar.service', () => {
   })
 
   describe('uploadAvatar', () => {
-    it('permanently blocks all photo uploads with PHOTO_UPLOADS_DISABLED error', async () => {
+    it('uploads valid photo to avatars storage bucket and invokes RPC', async () => {
+      mockUpload.mockResolvedValue({ error: null })
+      vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never)
+
       const validFile = new File(['mock data'], 'avatar.png', { type: 'image/png' })
       const res = await uploadAvatar(validFile, { type: 'person', id: '11111111-1111-1111-1111-111111111111' })
 
-      expect(res.data).toBeNull()
-      expect(res.error).not.toBeNull()
-      expect(res.error?.code).toBe('PHOTO_UPLOADS_DISABLED')
-      expect(res.error?.message).toContain('permanently disabled')
-      expect(mockUpload).not.toHaveBeenCalled()
+      expect(res.error).toBeNull()
+      expect(res.data).toBeDefined()
+      expect(mockUpload).toHaveBeenCalled()
+      expect(supabase.rpc).toHaveBeenCalledWith('set_person_avatar', {
+        p_person_id: '11111111-1111-1111-1111-111111111111',
+        p_avatar_url: expect.stringContaining('avatars/persons/'),
+      })
     })
   })
 })

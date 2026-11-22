@@ -55,16 +55,20 @@ export function CancelEventModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cancel-event-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
     >
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
             <AlertCircle className="h-5 w-5" />
             <h2 id="cancel-event-title" className="text-lg font-semibold text-foreground">

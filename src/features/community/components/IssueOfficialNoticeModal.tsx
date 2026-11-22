@@ -360,14 +360,14 @@ export const IssueOfficialNoticeModal: React.FC<IssueOfficialNoticeModalProps> =
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CircularCategory)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark] cursor-pointer"
               >
-                <option value="GENERAL">General Notice</option>
-                <option value="CENSUS">Census & Lineage</option>
-                <option value="GOVERNANCE">Governance & Elections</option>
-                <option value="WELFARE">Social Welfare & Arbitration</option>
-                <option value="URGENT">Urgent Alert</option>
-                <option value="ELECTION">Election Commission</option>
+                <option value="GENERAL" className="bg-slate-800 text-white">General Notice</option>
+                <option value="CENSUS" className="bg-slate-800 text-white">Census & Lineage</option>
+                <option value="GOVERNANCE" className="bg-slate-800 text-white">Governance & Elections</option>
+                <option value="WELFARE" className="bg-slate-800 text-white">Social Welfare & Arbitration</option>
+                <option value="URGENT" className="bg-slate-800 text-white">Urgent Alert</option>
+                <option value="ELECTION" className="bg-slate-800 text-white">Election Commission</option>
               </select>
             </div>
 
@@ -421,11 +421,11 @@ export const IssueOfficialNoticeModal: React.FC<IssueOfficialNoticeModalProps> =
               <select
                 value={destinationGroupId}
                 onChange={(e) => setDestinationGroupId(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark] cursor-pointer"
               >
-                <option value="GLOBAL">Community-Wide Notice (Global)</option>
+                <option value="GLOBAL" className="bg-slate-800 text-white">Community-Wide Notice (Global)</option>
                 {userManagedGroups.map((g) => (
-                  <option key={g.id} value={g.id}>
+                  <option key={g.id} value={g.id} className="bg-slate-800 text-white">
                     {g.name} (Group)
                   </option>
                 ))}

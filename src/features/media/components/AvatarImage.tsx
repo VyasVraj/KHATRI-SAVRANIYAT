@@ -10,6 +10,7 @@ import { User, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getInitials } from '../utils/image.utils'
 import { resolveAvatarUrl } from '../services/avatar.service'
+import { ImagePreviewModal } from './ImagePreviewModal'
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 export type AvatarShape = 'circle' | 'rounded'
@@ -22,6 +23,7 @@ export interface AvatarImageProps {
   shape?: AvatarShape
   className?: string
   isFamily?: boolean
+  enablePreview?: boolean
 }
 
 const SIZE_CLASSES: Record<AvatarSize, { container: string; text: string; icon: string }> = {
@@ -41,7 +43,9 @@ export function AvatarImage({
   shape = 'circle',
   className,
   isFamily = false,
+  enablePreview = true,
 }: AvatarImageProps) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(() => {
     if (!src) return null
     // If it's already an http(s) URL that doesn't start with avatars/, default to it initially
@@ -92,7 +96,7 @@ export function AvatarImage({
   const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-lg'
 
   if (resolvedSrc && !imageError) {
-    return (
+    const imgElement = (
       <img
         src={resolvedSrc}
         alt={accessibleAlt}
@@ -101,9 +105,47 @@ export function AvatarImage({
           'object-cover border border-navy-200 bg-navy-50 flex-shrink-0',
           dimensions.container,
           shapeClass,
+          enablePreview && 'cursor-pointer hover:opacity-90 transition-opacity',
           className
         )}
       />
+    )
+
+    if (!enablePreview) {
+      return imgElement
+    }
+
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={accessibleAlt ? `View larger photo for ${accessibleAlt}` : 'View larger profile photo'}
+          title="Click to view larger photo"
+          onClick={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            setIsPreviewOpen(true)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation()
+              e.preventDefault()
+              setIsPreviewOpen(true)
+            }
+          }}
+          className={cn('inline-flex flex-shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500', shapeClass)}
+        >
+          {imgElement}
+        </div>
+        <ImagePreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          src={resolvedSrc}
+          alt={accessibleAlt}
+          title={name || alt}
+        />
+      </>
     )
   }
 

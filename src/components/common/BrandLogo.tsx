@@ -54,7 +54,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const imageElement = (
     <div
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md',
+        'relative inline-flex shrink-0 items-center justify-center rounded-md',
         sizeClass,
         className
       )}

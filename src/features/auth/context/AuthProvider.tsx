@@ -9,6 +9,7 @@
 import {
   useEffect,
   useState,
+  useCallback,
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -38,6 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(data)
   }
 
+  const refreshProfile = useCallback(async () => {
+    if (session?.user?.id) {
+      await fetchProfile(session.user.id)
+    }
+  }, [session?.user?.id])
+
   useEffect(() => {
     // 1. Resolve the initial session on app load
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -65,8 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false)
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
+    // 3. Listen to global avatar updates to immediately refresh current user profile
+    const handleAvatarUpdated = () => {
+      if (session?.user?.id) {
+        void fetchProfile(session.user.id)
+      }
+    }
+
+    window.addEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+    }
+  }, [session?.user?.id])
 
   const value: AuthContextValue = {
     session,
@@ -74,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     isLoading,
     isAuthenticated: session !== null,
+    refreshProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

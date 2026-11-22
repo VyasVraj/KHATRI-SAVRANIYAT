@@ -85,11 +85,28 @@ function getTodayIso(): string {
   return `${year}-${month}-${day}`
 }
 
-/** Deployed: date_of_birth DATE - MANDATORY */
+/** Date of birth is OPTIONAL */
 const dateOfBirthField = z
-  .string({ required_error: 'Date of Birth is required' })
+  .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be in YYYY-MM-DD format')
-  .refine((val) => val <= getTodayIso(), 'Date of birth cannot be in the future')
+  .refine((val) => !val || val <= getTodayIso(), 'Date of birth cannot be in the future')
+  .nullable()
+  .optional()
+  .or(z.literal(''))
+
+/** Current age (when Date of Birth is unknown) */
+const currentAgeField = z
+  .union([
+    z.number().int().min(0, 'Age cannot be negative').max(130, 'Please enter a valid age'),
+    z
+      .string()
+      .trim()
+      .regex(/^\d+$/, 'Age must be a valid number')
+      .transform((val) => parseInt(val, 10))
+      .pipe(z.number().int().min(0, 'Age cannot be negative').max(130, 'Please enter a valid age')),
+  ])
+  .nullable()
+  .optional()
 
 /** Deployed: date_of_death DATE nullable — stored as ISO string */
 const dateOfDeathField = z
@@ -99,16 +116,14 @@ const dateOfDeathField = z
   .nullable()
   .optional()
 
-/** Deployed: birth_place VARCHAR - MANDATORY */
+/** Birthplace is OPTIONAL */
 const birthPlaceField = z
-  .string({ required_error: 'Birthplace is required' })
+  .string()
   .transform(sanitizeText)
-  .pipe(
-    z
-      .string()
-      .min(1, 'Birthplace is required')
-      .max(200, 'Birthplace must not exceed 200 characters')
-  )
+  .pipe(z.string().max(200, 'Birthplace must not exceed 200 characters'))
+  .nullable()
+  .optional()
+  .or(z.literal(''))
 
 /** Deployed: gotra VARCHAR - MANDATORY */
 const gotraField = z
@@ -241,6 +256,8 @@ export const createPersonSchema = z
     show_blood_group_in_directory: z.boolean().optional().default(false),
     blood_group_consent: z.boolean().optional().default(false),
     date_of_birth: dateOfBirthField,
+    current_age: currentAgeField,
+    avatar_url: z.string().nullable().optional(),
     date_of_death: dateOfDeathField,
     is_deceased: z.boolean().optional().default(false),
     birth_place: birthPlaceField,
@@ -330,6 +347,8 @@ export const updatePersonSchema = z
     show_blood_group_in_directory: z.boolean().optional(),
     blood_group_consent: z.boolean().optional(),
     date_of_birth: dateOfBirthField.optional(),
+    current_age: currentAgeField,
+    avatar_url: z.string().nullable().optional(),
     date_of_death: dateOfDeathField,
     is_deceased: z.boolean().optional(),
     birth_place: birthPlaceField.optional(),

@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { FamilyTreePage } from '@/features/tree/pages/FamilyTreePage'
 import { PersonDetailPage } from '@/features/people/pages/PersonDetailPage'
 import * as usePersonHook from '@/features/people/hooks/usePerson'
@@ -284,12 +285,17 @@ describe('PersonDetailPage Integration with Family Tree', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
     const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={[`/people/${VALID_UUID}`]}>
-        <Routes>
-          <Route path="/people/:personId" element={<PersonDetailPage />} />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[`/people/${VALID_UUID}`]}>
+          <Routes>
+            <Route path="/people/:personId" element={<PersonDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
 
     expect(html).toContain('Family tree')

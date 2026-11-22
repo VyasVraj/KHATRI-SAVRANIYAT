@@ -138,4 +138,51 @@ describe('EditMemberModal Component', () => {
     expect(html).toContain('Cancel')
     expect(html).toContain('Save Member Details')
   })
+
+  it('renders Blood Group Consent Checkbox unchecked when consent is false or null', () => {
+    const html = renderComponent(
+      <EditMemberModal
+        member={{
+          ...MOCK_MEMBER,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          person: { ...MOCK_PERSON, blood_group_consent: false, show_in_blood_directory: false } as any,
+        }}
+        familyId="family-001"
+        isOpen={true}
+        onClose={vi.fn()}
+      />
+    )
+    expect(html).toContain('Show my blood group details in the Blood Group Directory')
+    expect(html).not.toContain('checked=""')
+  })
+
+  it('renders Blood Group Consent Checkbox checked when person has consent enabled', () => {
+    const html = renderComponent(
+      <EditMemberModal
+        member={{
+          ...MOCK_MEMBER,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          person: { ...MOCK_PERSON, blood_group_consent: true, show_in_blood_directory: true } as any,
+        }}
+        familyId="family-001"
+        isOpen={true}
+        onClose={vi.fn()}
+      />
+    )
+    expect(html).toContain('Show my blood group details in the Blood Group Directory')
+    expect(html).toContain('checked=""')
+  })
+
+  it('renders Occupation selection fields in Edit Member Details', () => {
+    const html = renderComponent(
+      <EditMemberModal
+        member={MOCK_MEMBER}
+        familyId="family-001"
+        isOpen={true}
+        onClose={vi.fn()}
+      />
+    )
+    expect(html).toContain('Occupation / Profession')
+    expect(html).toContain('Step 1: Occupation Category (30 Official)')
+  })
 })

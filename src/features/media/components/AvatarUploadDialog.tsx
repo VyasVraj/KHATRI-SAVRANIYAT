@@ -2,14 +2,16 @@
  * AvatarUploadDialog Component
  *
  * Accessible modal dialog enabling avatar selection, drag-and-drop,
- * client-side preview, validation, upload, and deletion.
+ * client-side preview, validation, automatic Web Worker WebP compression,
+ * safe replacement upload, and deletion.
  */
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Trash2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import { X, Trash2, Loader2, Image as ImageIcon, AlertCircle, Sparkles } from 'lucide-react'
 import type { AvatarTarget } from '../types'
-import { validateAvatarFile, cropAndResizeAvatar } from '../utils/image.utils'
-import { uploadAvatar, deleteAvatar } from '../services/avatar.service'
+import { validateAvatarFile } from '../utils/image.utils'
+import { compressProfilePhoto } from '../utils/imageCompression.utils'
+import { uploadAvatar, deleteAvatar, broadcastAvatarChange } from '../services/avatar.service'
 import { Button } from '@/components/forms/Button'
 
 export interface AvatarUploadDialogProps {
@@ -37,23 +39,23 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [optimizedInfo, setOptimizedInfo] = useState<{
+    originalSize: number
+    compressedSize: number
+    savedPercentage: number
+  } | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Clear preview URL object URL when component unmounts or file changes
   useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl(null)
-      return
-    }
-
-    const objectUrl = URL.createObjectURL(selectedFile)
-    setPreviewUrl(objectUrl)
-
     return () => {
-      URL.revokeObjectURL(objectUrl)
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl)
+      }
     }
-  }, [selectedFile])
+  }, [previewUrl])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -63,24 +65,27 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
       setErrorMessage(null)
       setIsUploading(false)
       setIsDeleting(false)
+      setIsOptimizing(false)
+      setOptimizedInfo(null)
     }
   }, [isOpen])
 
   // Handle Escape key
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && isOpen && !isUploading && !isDeleting) {
+      if (e.key === 'Escape' && isOpen && !isUploading && !isDeleting && !isOptimizing) {
         onClose()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isUploading, isDeleting, onClose])
+  }, [isOpen, isUploading, isDeleting, isOptimizing, onClose])
 
   if (!isOpen) return null
 
-  const handleFileChange = (file: File | null) => {
+  const handleFileChange = async (file: File | null) => {
     setErrorMessage(null)
+    setOptimizedInfo(null)
     if (!file) return
 
     const validation = validateAvatarFile(file)
@@ -89,7 +94,29 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
       return
     }
 
-    setSelectedFile(file)
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl)
+    }
+
+    setIsOptimizing(true)
+    try {
+      // Automatic client-side non-blocking compression
+      const compressed = await compressProfilePhoto(file)
+      setSelectedFile(compressed.file)
+      setPreviewUrl(compressed.previewUrl)
+      setOptimizedInfo({
+        originalSize: compressed.originalSize,
+        compressedSize: compressed.compressedSize,
+        savedPercentage: compressed.savedPercentage,
+      })
+    } catch {
+      // Direct fallback
+      const objectUrl = URL.createObjectURL(file)
+      setSelectedFile(file)
+      setPreviewUrl(objectUrl)
+    } finally {
+      setIsOptimizing(false)
+    }
   }
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -106,18 +133,22 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
     setErrorMessage(null)
 
     try {
-      // Crop & resize on client
-      const processedBlob = await cropAndResizeAvatar(selectedFile)
-
-      const result = await uploadAvatar(processedBlob, target)
+      // Upload compressed image to storage and update database RPC
+      // Safe replacement sequence ensures previous photo is preserved if DB fails
+      const result = await uploadAvatar(selectedFile, target, {
+        previousAvatarUrl: currentAvatarUrl,
+      })
       if (result.error) {
         setErrorMessage(result.error.message)
         setIsUploading(false)
         return
       }
 
-      if (onSuccess && result.data) {
-        onSuccess(result.data.url)
+      if (result.data) {
+        broadcastAvatarChange(target, result.data.url)
+        if (onSuccess) {
+          onSuccess(result.data.url)
+        }
       }
       onClose()
     } catch (err) {
@@ -140,6 +171,7 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
         return
       }
 
+      broadcastAvatarChange(target, null)
       if (onSuccess) {
         onSuccess(null)
       }
@@ -155,7 +187,7 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/60 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isUploading && !isDeleting) {
+        if (e.target === e.currentTarget && !isUploading && !isDeleting && !isOptimizing) {
           onClose()
         }
       }}
@@ -163,17 +195,17 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
       aria-modal="true"
       aria-labelledby="avatar-dialog-title"
     >
-      <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl border border-navy-200 overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-navy-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-navy-100 px-6 py-4">
-          <h2 id="avatar-dialog-title" className="text-lg font-semibold text-navy-900">
+          <h2 id="avatar-dialog-title" className="text-lg font-bold text-navy-900">
             {dialogTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            disabled={isUploading || isDeleting}
-            className="rounded-lg p-1.5 text-navy-400 hover:bg-navy-100 hover:text-navy-700 disabled:opacity-50"
+            disabled={isUploading || isDeleting || isOptimizing}
+            className="rounded-lg p-1.5 text-navy-400 hover:text-navy-600 hover:bg-navy-50 disabled:opacity-50"
             aria-label="Close dialog"
           >
             <X className="h-5 w-5" />
@@ -182,26 +214,21 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-4">
-          <div
-            role="alert"
-            className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200"
-          >
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span>Profile photo uploads and changes have been disabled across the platform.</span>
-          </div>
-
           {errorMessage && (
-            <div
-              role="alert"
-              className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200"
-            >
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Preview / Dropzone */}
-          {previewUrl ? (
+          {isOptimizing ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-3">
+              <Loader2 className="h-10 w-10 text-brand-600 animate-spin" />
+              <p className="text-sm font-semibold text-navy-800">Optimizing profile photo...</p>
+              <p className="text-xs text-navy-500">Compressing to WebP (&lt; 100 KB)</p>
+            </div>
+          ) : previewUrl ? (
             <div className="flex flex-col items-center justify-center space-y-3">
               <div className="relative h-44 w-44 rounded-full overflow-hidden border-4 border-brand-100 shadow-md">
                 <img
@@ -210,9 +237,23 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
                   className="h-full w-full object-cover"
                 />
               </div>
+
+              {optimizedInfo && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>
+                    Image compressed successfully – {Math.max(1, Math.round(optimizedInfo.compressedSize / 1024))} KB
+                  </span>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setSelectedFile(null)}
+                onClick={() => {
+                  setSelectedFile(null)
+                  setPreviewUrl(null)
+                  setOptimizedInfo(null)
+                }}
                 disabled={isUploading}
                 className="text-xs text-brand-600 hover:text-brand-800 underline font-medium"
               >
@@ -241,7 +282,7 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
                 Click to select or drag and drop photo
               </p>
               <p className="mt-1 text-xs text-navy-500">
-                JPEG, PNG, WEBP, or GIF (max 5 MB)
+                JPEG, PNG, WebP, HEIC (Auto-compressed to WebP &lt; 100 KB)
               </p>
             </div>
           )}
@@ -249,7 +290,7 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
@@ -266,7 +307,7 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={isDeleting || isUploading}
+                disabled={isDeleting || isUploading || isOptimizing}
                 className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
               >
                 {isDeleting ? (
@@ -281,20 +322,29 @@ export const AvatarUploadDialog: React.FC<AvatarUploadDialogProps> = ({
 
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="secondary"
               size="sm"
               onClick={onClose}
-              disabled={isUploading || isDeleting}
+              disabled={isUploading || isDeleting || isOptimizing}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               variant="primary"
               size="sm"
               onClick={handleSave}
-              disabled={true}
+              disabled={!selectedFile || isUploading || isDeleting || isOptimizing}
             >
-              Upload Disabled
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  Uploading...
+                </>
+              ) : (
+                'Save Photo'
+              )}
             </Button>
           </div>
         </div>

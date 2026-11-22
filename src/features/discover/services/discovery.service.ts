@@ -40,13 +40,13 @@ import type {
 
 /** Safe projection for directory queries and community_persons view (server-authoritative) */
 export const PERSON_DIRECTORY_COLUMNS =
-  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, age, birth_place, city, state, date_of_death, gotra, kul, nukh, status, verification_status, is_same_family'
+  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, age, birth_place, city, state, date_of_death, gotra, kul, nukh, status, verification_status, is_same_family, avatar_url'
 
 const PERSON_VIEW_COLUMNS = PERSON_DIRECTORY_COLUMNS
 
 /** Fallback safe projection for persons table (pre-migration compatibility) */
 const PERSON_FALLBACK_COLUMNS =
-  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, date_of_death, gotra, kul, nukh, status, verification_status'
+  'id, first_name, middle_name, last_name, maiden_name, gender, dob_year, date_of_death, gotra, kul, nukh, status, verification_status, avatar_url'
 
 const FAMILY_DIRECTORY_COLUMNS =
   'id, family_name, description, gotra, kul, nukh, city, state, country, status, verification_status, profile_privacy, members_privacy'

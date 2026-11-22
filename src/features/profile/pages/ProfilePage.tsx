@@ -60,7 +60,9 @@ export function ProfilePage() {
 
   const handleRefresh = () => {
     if (user?.id) {
-      queryClient.invalidateQueries({ queryKey: ['persons', 'by-user', user.id] })
+      void queryClient.invalidateQueries({ queryKey: ['persons', 'by-user', user.id] })
+      void queryClient.invalidateQueries({ queryKey: ['persons'] })
+      void queryClient.invalidateQueries({ queryKey: ['profile'] })
     }
   }
 

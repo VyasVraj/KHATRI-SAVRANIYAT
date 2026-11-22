@@ -16,6 +16,7 @@ import { ROUTES } from '@/constants/app'
 import { Button } from '@/components/forms/Button'
 import { toProperCaseName } from '@/utils/text-casing'
 import { formatRelationshipDisplay } from '@/constants/familyRelationships'
+import { AvatarImage } from '@/features/media'
 
 /** Formats an ISO timestamp to locale date string. */
 function formatDate(iso: string | null): string {
@@ -81,15 +82,23 @@ export function MemberCard({
       }`}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Person details */}
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={ROUTES.PERSON_DETAIL(member.person_id)}
-              className="font-medium text-navy-900 hover:text-teal-700 hover:underline"
-            >
-              {personName}
-            </Link>
+        {/* Person details with profile avatar */}
+        <div className="flex items-center gap-3 min-w-0">
+          <AvatarImage
+            src={member.person?.avatar_url}
+            name={personName}
+            alt={personName}
+            size="md"
+            shape="circle"
+          />
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to={ROUTES.PERSON_DETAIL(member.person_id)}
+                className="font-medium text-navy-900 hover:text-teal-700 hover:underline"
+              >
+                {personName}
+              </Link>
 
             {member.person?.age != null && (
               <span
@@ -130,7 +139,10 @@ export function MemberCard({
                   className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-800"
                 >
                   <Briefcase className="h-3 w-3 text-blue-600" />
-                  {member.person.occupation}
+                  {(member.person as unknown as { custom_occupation?: string | null })?.custom_occupation &&
+                  (member.person as unknown as { custom_occupation?: string | null }).custom_occupation!.toLowerCase() !== member.person.occupation.toLowerCase()
+                    ? `${member.person.occupation} (${(member.person as unknown as { custom_occupation?: string | null }).custom_occupation})`
+                    : member.person.occupation}
                 </span>
               )}
 
@@ -184,6 +196,7 @@ export function MemberCard({
             </Link>
           </div>
         </div>
+      </div>
 
         {/* Action buttons (only for active members when authorized) */}
         {!isFormer && (canAdministerMember || canEditThisMember) && (

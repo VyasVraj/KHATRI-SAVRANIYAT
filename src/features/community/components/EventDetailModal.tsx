@@ -92,7 +92,14 @@ export function EventDetailModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-xl space-y-5">
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div className="space-y-2 min-w-0">

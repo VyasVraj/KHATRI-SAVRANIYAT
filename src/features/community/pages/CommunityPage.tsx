@@ -533,7 +533,7 @@ export function CommunityPage() {
         <nav
           ref={navRef}
           onWheel={handleNavWheel}
-          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent scroll-smooth touch-pan-x"
+          className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto pb-2 no-scrollbar scroll-smooth touch-pan-x"
           aria-label="Community Hub Tabs"
           role="tablist"
           onKeyDown={handleTabKeyDown}

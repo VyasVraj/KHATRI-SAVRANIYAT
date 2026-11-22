@@ -329,6 +329,41 @@ export async function uploadCircularPdfToStorage(
 }
 
 /**
+ * Safely parse any date value (ISO string, date string, timestamp) into epoch milliseconds.
+ * Returns -Infinity for missing, null, empty, or invalid dates so they are sorted last.
+ */
+export function parseCircularDate(dateVal?: string | null): number {
+  if (!dateVal || typeof dateVal !== 'string' || dateVal.trim() === '') {
+    return -Infinity
+  }
+  const timestamp = new Date(dateVal).getTime()
+  return isNaN(timestamp) ? -Infinity : timestamp
+}
+
+/**
+ * Compares two circular items in strict descending chronological order:
+ * 1. Primary: Official issue_date descending (newest year, newest month, newest day first).
+ * 2. Missing or invalid dates are placed safely at the bottom (after all valid dates).
+ * 3. Tie-breaker: If dates are identical, sort by circular_number or id descending.
+ *
+ * NOTE: Pinned circulars do NOT override chronological ordering.
+ * A pinned older circular will not appear above a newer circular solely because it is pinned.
+ */
+export function sortCircularsChronologically(a: CircularItem, b: CircularItem): number {
+  const timeA = parseCircularDate(a.issue_date)
+  const timeB = parseCircularDate(b.issue_date)
+
+  if (timeA !== timeB) {
+    return timeB - timeA // Descending: newest date first
+  }
+
+  // Tie-breaker for identical dates: circular_number or id descending
+  const numA = a.circular_number || a.id || ''
+  const numB = b.circular_number || b.id || ''
+  return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+/**
  * Fetch verified official community circulars matching criteria.
  * Queries RPC or announcements table and merges with canonical registry.
  */
@@ -348,7 +383,8 @@ export async function getCirculars(
       if (!rpcError && Array.isArray(rpcData)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dbItems = rpcData.map((row: any) => {
-          const pubDate = row.published_at || row.created_at || new Date().toISOString()
+          const pubDate = row.published_at || null
+          const isValidDate = pubDate && !isNaN(new Date(pubDate).getTime())
           const cat = (row.category || 'GENERAL') as Exclude<CircularCategory, 'ALL'>
           return {
             id: row.id,
@@ -361,12 +397,14 @@ export async function getCirculars(
             issuing_authority: row.issuing_authority || 'Central Panchayat Secretariat',
             signatory_name: row.signatory_name || 'Central Secretariat',
             signatory_title: row.signatory_title || 'Authorized Signatory',
-            issue_date: pubDate,
-            formatted_date: new Date(pubDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            }),
+            issue_date: pubDate || '',
+            formatted_date: isValidDate
+              ? new Date(pubDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Date Not Provided',
             is_pinned: Boolean(row.is_pinned),
             status: row.status || 'PUBLISHED',
             committee_id: row.group_id || 'comm-central-panchayat',
@@ -393,8 +431,9 @@ export async function getCirculars(
         if (!annError && Array.isArray(annData)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           dbItems = annData.map((a: any) => {
-            const pubDate = a.published_at || a.created_at || new Date().toISOString()
-            const yr = new Date(pubDate).getFullYear()
+            const pubDate = a.published_at || null
+            const isValidDate = pubDate && !isNaN(new Date(pubDate).getTime())
+            const yr = isValidDate ? new Date(pubDate).getFullYear() : 'UNDATED'
             const seq = String(a.id || '').replace(/[^0-9]/g, '').slice(0, 3).padStart(3, '1')
             const circNum = a.circular_number || `CIR-${yr}-${seq}`
             const cat = (a.announcement_type || 'GENERAL') as Exclude<CircularCategory, 'ALL'>
@@ -410,12 +449,14 @@ export async function getCirculars(
               issuing_authority: a.issuing_authority || 'Central Panchayat Secretariat',
               signatory_name: a.signatory_name || 'Central Secretariat',
               signatory_title: a.signatory_title || 'Authorized Signatory',
-              issue_date: pubDate,
-              formatted_date: new Date(pubDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              }),
+              issue_date: pubDate || '',
+              formatted_date: isValidDate
+                ? new Date(pubDate).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : 'Date Not Provided',
               is_pinned: Boolean(a.is_pinned),
               status: a.status || 'PUBLISHED',
               committee_id: a.group_id || 'comm-central-panchayat',
@@ -487,12 +528,10 @@ export async function getCirculars(
       )
     }
 
-    // Sort: pinned first, then issue_date descending
-    items.sort((a, b) => {
-      if (a.is_pinned && !b.is_pinned) return -1
-      if (!a.is_pinned && b.is_pinned) return 1
-      return new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime()
-    })
+    // Sort strictly in descending chronological order by official circular issue_date
+    // Newest year, month, and day first; missing/invalid dates placed last.
+    // Pinned circulars do NOT override chronological order.
+    items.sort(sortCircularsChronologically)
 
     const availableCategories: CircularCategory[] = [
       'ALL',
@@ -621,6 +660,18 @@ export async function publishOfficialCircular(
       )
 
       if (!rpcError && newId) {
+        // Authoritative: ensure the official circular issue_date is persisted to published_at
+        if (input.issue_date && input.status === 'PUBLISHED') {
+          try {
+            const issueIso = new Date(input.issue_date).toISOString()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from as any)('announcements')
+              .update({ published_at: issueIso })
+              .eq('id', newId)
+          } catch {
+            // Non-blocking
+          }
+        }
         return { data: { id: newId, pdf_url: generatedPdfUrl }, error: null }
       }
     } catch {
@@ -651,7 +702,10 @@ export async function publishOfficialCircular(
         effective_date: input.effective_date || null,
         status: input.status,
         is_pinned: Boolean(input.is_pinned),
-        published_at: input.status === 'PUBLISHED' ? new Date().toISOString() : null,
+        published_at:
+          input.status === 'PUBLISHED'
+            ? (input.issue_date ? new Date(input.issue_date).toISOString() : new Date().toISOString())
+            : null,
       })
       .select('id')
       .single()
@@ -751,6 +805,17 @@ export async function updateOfficialCircular(
       )
 
       if (!rpcError && updated) {
+        if (input.issue_date) {
+          try {
+            const issueIso = new Date(input.issue_date).toISOString()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from as any)('announcements')
+              .update({ published_at: issueIso })
+              .eq('id', input.id)
+          } catch {
+            // Non-blocking
+          }
+        }
         return { data: true, error: null }
       }
     } catch {
@@ -775,6 +840,7 @@ export async function updateOfficialCircular(
         contact_info: input.contact_info || null,
         status: input.status,
         is_pinned: Boolean(input.is_pinned),
+        published_at: input.issue_date ? new Date(input.issue_date).toISOString() : undefined,
         updated_at: new Date().toISOString(),
       })
       .eq('id', input.id)

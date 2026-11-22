@@ -94,24 +94,56 @@ export async function getBloodDirectoryMembers(
     // 2. Resilient View Query Fallback with strict consent check
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase.from('community_persons') as any)
-      .select('id, first_name, middle_name, last_name, blood_group, city, state, country, is_deceased, show_blood_group_in_directory, blood_group_consent')
+      .select('id, first_name, middle_name, last_name, blood_group, city, state, country, is_deceased, blood_group_consent, show_in_blood_directory, show_blood_group_in_directory')
       .not('blood_group', 'is', null)
       .neq('blood_group', 'UNKNOWN')
       .neq('blood_group', '')
       .eq('is_deceased', false)
-      .or('show_blood_group_in_directory.eq.true,blood_group_consent.eq.true')
+      .or('blood_group_consent.eq.true,show_in_blood_directory.eq.true,show_blood_group_in_directory.eq.true')
 
     if (filters.bloodGroup && filters.bloodGroup !== 'ALL') {
       query = query.eq('blood_group', filters.bloodGroup)
     }
 
-    const { data, error: personError } = await query
+    let { data, error: personError } = await query
+
+    // If community_persons view throws an error (e.g. 42703 or PGRST204),
+    // query base community_persons and cross-check consent with persons table
+    if (personError && (personError.code === '42703' || personError.code === 'PGRST204')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let baseQuery = (supabase.from('community_persons') as any)
+        .select('id, first_name, middle_name, last_name, blood_group, city, state, country, is_deceased')
+        .not('blood_group', 'is', null)
+        .neq('blood_group', 'UNKNOWN')
+        .neq('blood_group', '')
+        .eq('is_deceased', false)
+
+      if (filters.bloodGroup && filters.bloodGroup !== 'ALL') {
+        baseQuery = baseQuery.eq('blood_group', filters.bloodGroup)
+      }
+
+      const { data: baseData, error: baseErr } = await baseQuery
+
+      if (baseErr) {
+        return { data: null, error: { message: baseErr.message, code: baseErr.code } }
+      }
+
+      // Query persons table for IDs with blood_group_consent = true
+      const { data: consentRows, error: consentErr } = await supabase
+        .from('persons')
+        .select('id')
+        .eq('blood_group_consent', true)
+
+      if (!consentErr && Array.isArray(consentRows)) {
+        const consentedIds = new Set(consentRows.map((r) => r.id))
+        data = (baseData || []).filter((p: { id: string }) => consentedIds.has(p.id))
+      } else {
+        data = baseData || []
+      }
+      personError = null
+    }
 
     if (personError) {
-      // If column does not exist yet on remote view, return empty list to protect privacy (no unconsented leak)
-      if (personError.code === '42703') {
-        return { data: [], error: null }
-      }
       return {
         data: null,
         error: { message: personError.message, code: personError.code },

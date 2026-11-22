@@ -48,10 +48,10 @@ export function AnnouncementCard({
   return (
     <div
       onClick={() => onView(announcement)}
-      className={`group relative flex cursor-pointer flex-col justify-between rounded-xl border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md ${
+      className={`group relative flex cursor-pointer flex-col justify-between rounded-xl border p-5 shadow-sm transition hover:border-blue-500/50 hover:shadow-md ${
         announcement.is_pinned
-          ? 'border-amber-300 bg-amber-50/20 dark:border-amber-700/50 dark:bg-amber-950/10'
-          : 'border-border'
+          ? 'border-amber-300 bg-amber-50/30 dark:border-amber-700/50 dark:bg-amber-950/20'
+          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
       }`}
     >
       <div>
@@ -66,12 +66,12 @@ export function AnnouncementCard({
             )}
             <AnnouncementTypeBadge type={announcement.announcement_type} />
             {announcement.group_name ? (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Users className="h-3 w-3" />
                 {announcement.group_name}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Globe className="h-3 w-3" />
                 Community-Wide
               </span>
@@ -89,14 +89,14 @@ export function AnnouncementCard({
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200"
                 aria-label="Announcement options"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-10 z-20 w-36 rounded-md border bg-popover py-1 shadow-lg">
+                <div className="absolute right-0 top-10 z-20 w-36 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1 shadow-lg">
                   {onEdit && (
                     <button
                       type="button"
@@ -104,7 +104,7 @@ export function AnnouncementCard({
                         setMenuOpen(false)
                         onEdit(announcement)
                       }}
-                      className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-xs text-popover-foreground hover:bg-muted"
+                      className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     >
                       <Edit className="h-3.5 w-3.5" />
                       Edit
@@ -117,7 +117,7 @@ export function AnnouncementCard({
                         setMenuOpen(false)
                         onArchive(announcement.id)
                       }}
-                      className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-xs text-popover-foreground hover:bg-muted"
+                      className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     >
                       <Archive className="h-3.5 w-3.5" />
                       Archive
@@ -143,18 +143,18 @@ export function AnnouncementCard({
         </div>
 
         {/* Title */}
-        <h3 className="mt-3 text-base font-semibold text-foreground group-hover:text-primary">
+        <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-white group-hover:text-blue-600">
           {announcement.title}
         </h3>
 
         {/* Body Snippet */}
-        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground whitespace-pre-line">
+        <p className="mt-2 line-clamp-3 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">
           {announcement.content}
         </p>
       </div>
 
       {/* Footer Info */}
-      <div className="mt-4 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
+      <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3 text-xs text-slate-500 dark:text-slate-400">
         <span className="flex items-center gap-1.5">
           <UserIcon className="h-3 w-3" />
           {announcement.author?.display_name || 'Community Member'}

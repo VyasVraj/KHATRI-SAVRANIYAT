@@ -13,16 +13,18 @@ import { AppHeader } from './AppHeader'
 import { AppFooter } from './AppFooter'
 import { MobileBottomNav } from './MobileBottomNav'
 import { AppTourOverlay } from '@/features/onboarding'
+import { ScrollToTop } from '@/components/common/ScrollToTop'
 
 export function RootLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
+      <ScrollToTop />
       <div className="print:hidden">
         <AppHeader />
       </div>
       <main
         id="main-content"
-        className="flex-1 pb-16 md:pb-0 print:p-0 print:m-0"
+        className="flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 print:p-0 print:m-0"
         // Accessibility: skip link target
         tabIndex={-1}
       >

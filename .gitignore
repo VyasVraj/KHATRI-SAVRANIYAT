@@ -64,3 +64,6 @@ temp/
 tests/load/results/
 *.k6-summary.json
 
+
+.vercel
+.env*

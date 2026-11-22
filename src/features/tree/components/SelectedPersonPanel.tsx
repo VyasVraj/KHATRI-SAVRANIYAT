@@ -21,6 +21,7 @@ import { ROUTES } from '@/constants/app'
 import { cn } from '@/lib/utils'
 import { toProperCaseName } from '@/utils/text-casing'
 import { formatRelationshipDisplay } from '@/constants/familyRelationships'
+import { AvatarImage } from '@/features/media'
 
 interface SelectedPersonPanelProps {
   node: TreeNode | null
@@ -42,12 +43,6 @@ function formatDate(isoDate?: string | null): string | null {
   }
 }
 
-function getInitials(firstName?: string | null, lastName?: string | null): string {
-  const f = firstName?.trim()[0]?.toUpperCase() ?? ''
-  const l = lastName?.trim()[0]?.toUpperCase() ?? ''
-  return f + l || '?'
-}
-
 export const SelectedPersonPanel: React.FC<SelectedPersonPanelProps> = ({
   node,
   onClose,
@@ -64,7 +59,6 @@ export const SelectedPersonPanel: React.FC<SelectedPersonPanelProps> = ({
       .join(' ')
   )
 
-  const initials = getInitials(person.first_name, person.last_name)
   const isFemale = person.gender === 'FEMALE'
   const isAuthorized = person.is_same_family !== false
 
@@ -80,17 +74,19 @@ export const SelectedPersonPanel: React.FC<SelectedPersonPanelProps> = ({
         {/* Header with Close Button */}
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div
+            <AvatarImage
+              src={person.avatar_url}
+              name={fullName}
+              alt={fullName}
+              size="md"
+              shape="circle"
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold border',
+                'h-10 w-10 shrink-0 text-xs font-bold border',
                 isFemale
                   ? 'bg-[#FCE7F3] text-[#BE185D] border-[#FBCFE8]'
                   : 'bg-[#DBEAFE] text-[#1D4ED8] border-[#BFDBFE]'
               )}
-              aria-hidden="true"
-            >
-              <span>{initials}</span>
-            </div>
+            />
 
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-bold text-[#101828] leading-tight" title={fullName}>

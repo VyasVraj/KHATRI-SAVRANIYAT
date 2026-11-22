@@ -133,6 +133,8 @@ export interface PersonRow {
   date_of_birth: string | null  // ISO date string YYYY-MM-DD
   dob_year?: number | null      // Generated public birth year (YYYY)
   age?: number | null           // Calculated age in years
+  current_age?: number | null   // Manually entered age when DOB unknown
+  age_as_of_date?: string | null // Reference date for current_age
   date_of_death: string | null
   is_deceased?: boolean
   birth_place: string | null
@@ -142,6 +144,7 @@ export interface PersonRow {
   kul: string | null
   occupation?: string | null
   occupation_category?: string | null
+  custom_occupation?: string | null
   // Contact (access controlled by contact_privacy + RLS)
   phone: string | null
   phone_secondary: string | null
@@ -374,6 +377,8 @@ export interface PersonUpdate {
   maiden_name?: string | null
   gender?: Gender | null
   date_of_birth?: string | null
+  current_age?: number | null
+  age_as_of_date?: string | null
   date_of_death?: string | null
   is_deceased?: boolean
   gotra?: string | null
@@ -384,6 +389,7 @@ export interface PersonUpdate {
   bio?: string | null
   occupation?: string | null
   occupation_category?: string | null
+  custom_occupation?: string | null
   education?: string | null
   birth_place?: string | null
   residence_place?: string | null

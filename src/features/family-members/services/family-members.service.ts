@@ -66,7 +66,7 @@ export interface ListPersonFamiliesOptions {
 
 /** Safe projection for person join to prevent leaking protected contact or full DOB fields */
 const PERSON_MEMBER_SAFE_COLUMNS =
-  'id, first_name, middle_name, last_name, maiden_name, gender, date_of_death, is_deceased, birth_place, gotra, kul, nukh, occupation, status, verification_status, profile_privacy, avatar_url, email_contact, phone'
+  'id, first_name, middle_name, last_name, maiden_name, gender, date_of_birth, date_of_death, is_deceased, birth_place, city, state, country, gotra, kul, nukh, blood_group, blood_group_consent, occupation, status, verification_status, profile_privacy, avatar_url, email_contact, phone'
 
 /**
  * Retrieves the registered contact email of the current Family Head for a family.
@@ -268,6 +268,43 @@ export async function listFamilyMembers(
           for (const p of personData) {
             personsMap[p.id] = p
           }
+        }
+
+        // Enrich with exact persons table values (blood_group_consent, blood_group, occupation, occupation_category, custom_occupation)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: pDirectRows } = await (supabase.from('persons') as any)
+            .select('id, blood_group, blood_group_consent, show_blood_group_in_directory, show_in_blood_directory, occupation, occupation_category, custom_occupation')
+            .in('id', personIds)
+          if (pDirectRows && Array.isArray(pDirectRows)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const item of pDirectRows as any[]) {
+              if (personsMap[item.id]) {
+                const consent = Boolean(
+                  item.blood_group_consent ||
+                  item.show_blood_group_in_directory ||
+                  item.show_in_blood_directory
+                )
+                personsMap[item.id].blood_group_consent = consent
+                personsMap[item.id].show_in_blood_directory = consent
+                personsMap[item.id].show_blood_group_in_directory = consent
+                if (item.blood_group) {
+                  personsMap[item.id].blood_group = item.blood_group
+                }
+                if (item.occupation) {
+                  personsMap[item.id].occupation = item.occupation
+                }
+                if (item.occupation_category) {
+                  personsMap[item.id].occupation_category = item.occupation_category
+                }
+                if (item.custom_occupation) {
+                  personsMap[item.id].custom_occupation = item.custom_occupation
+                }
+              }
+            }
+          }
+        } catch {
+          // Non-blocking
         }
       }
     } catch {

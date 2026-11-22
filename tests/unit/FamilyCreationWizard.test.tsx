@@ -178,7 +178,7 @@ describe('FamilyCreationWizard Component — Khatri Sarvaniyat Registration', ()
       expect(html).toContain('3. City / Gaon, 4. State &amp; 5. Country')
       expect(html).toContain('6. Gotra &amp; 7. Nukh Lineage')
       expect(html).toContain('Description / Family History / Notes (Optional)')
-      expect(html).toContain('Kul / Sub-lineage (Optional)')
+      expect(html).not.toContain('Kul / Sub-lineage')
 
       // Strictly no creator-editable privacy controls
       expect(html).not.toContain('Profile Privacy')

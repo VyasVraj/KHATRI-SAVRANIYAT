@@ -12,23 +12,30 @@
  * No dangerouslySetInnerHTML. All values are rendered as React text.
  */
 
-import { useState, useContext } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import type { Tables } from '@/types/database.types'
 import { PRIVACY_LEVEL_LABELS, canManagePrivacy } from '@/constants/app'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import type { PrivacyLevel } from '@/types'
-import { AvatarImage } from '@/features/media'
+import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { usePersonFamilyMukhi } from '@/features/community'
 import { formatBloodGroup } from '@/constants/bloodGroup'
 import { toProperCaseName } from '@/utils/text-casing'
-import { Shield, ShieldAlert, Phone, Briefcase } from 'lucide-react'
+import { Shield, ShieldAlert, Phone, Briefcase, Pencil, Camera } from 'lucide-react'
 import { MyOccupationRequestsSection } from './MyOccupationRequestsSection'
+import { UpdateOccupationModal } from './UpdateOccupationModal'
 
 type PersonRow = Tables<'persons'> & {
   blood_group?: string | null
   age?: number | null
   is_same_family?: boolean
+  occupation_category?: string | null
+  custom_occupation?: string | null
+  city?: string | null
+  state?: string | null
+  country?: string | null
+  can_edit?: boolean
 }
 
 /** Human-readable gender labels */
@@ -68,15 +75,69 @@ interface PersonDetailProps {
 /**
  * Full read-only person detail panel.
  */
-export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdated: _onAvatarUpdated }: PersonDetailProps) {
+export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdated }: PersonDetailProps) {
   const auth = useContext(AuthContext)
   const isPrivacyManager = canManagePrivacy(auth?.profile?.role)
   const isOwner = Boolean(auth?.user?.id && person.user_id && auth.user.id === person.user_id)
+  const isCreator = Boolean(auth?.user?.id && person.created_by && auth.user.id === person.created_by)
   const isSameFamily = Boolean((person as unknown as { is_same_family?: boolean })?.is_same_family)
-  const canViewProtected = isPrivacyManager || isOwner || isSameFamily
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
+  const hasEditPermission = _canEdit || isOwner || isCreator || isPrivacyManager || isAuthorizedByPolicy
+  const canViewProtected = isPrivacyManager || isOwner || isCreator || isSameFamily || isAuthorizedByPolicy
 
-  const currentAvatarUrl = person.avatar_url ?? null
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(person.avatar_url ?? null)
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [contactRequested, setContactRequested] = useState(false)
+  const [updateOccupationModalOpen, setUpdateOccupationModalOpen] = useState(false)
+
+  // Sync avatarUrl whenever person.avatar_url changes or global update event fires
+  useEffect(() => {
+    setAvatarUrl(person.avatar_url ?? null)
+  }, [person.avatar_url])
+
+  useEffect(() => {
+    const handleAvatarUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ target: { type: string; id: string }; url: string | null }>
+      if (customEvent.detail && customEvent.detail.target?.type === 'person' && customEvent.detail.target?.id === person.id) {
+        setAvatarUrl(customEvent.detail.url)
+      }
+    }
+    window.addEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+    return () => window.removeEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+  }, [person.id])
+
+  // Resolve authoritative display occupation
+  const displayOccupation = (() => {
+    const rawOcc = (person.occupation || '').trim()
+    const rawCat = (person.occupation_category || '').trim()
+    const rawCustom = ((person as unknown as { custom_occupation?: string | null })?.custom_occupation || '').trim()
+
+    const isPlaceholder =
+      !rawOcc ||
+      rawOcc === 'Occupation Pending' ||
+      rawOcc === 'Occupation Not Provided' ||
+      rawOcc === 'Occupation Not Available' ||
+      rawOcc === 'Occupation Rejected'
+
+    if (!isPlaceholder) {
+      if (rawCustom && rawCustom.toLowerCase() !== rawOcc.toLowerCase()) {
+        return `${rawOcc} (${rawCustom})`
+      }
+      return rawOcc
+    }
+
+    if (rawCat && rawCat !== 'Other') {
+      if (rawCustom && rawCustom.toLowerCase() !== rawCat.toLowerCase()) {
+        return `${rawCat} (${rawCustom})`
+      }
+      return rawCat
+    }
+
+    if (rawCustom) return rawCustom
+
+    return null
+  })()
 
   const { data: familyMukhiInfo, isLoading: isMukhiLoading } = usePersonFamilyMukhi(person.id)
 
@@ -91,13 +152,29 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
       {/* Name and avatar section */}
       <section aria-labelledby="person-name-heading" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-navy-100 pb-5">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <AvatarImage
-            src={currentAvatarUrl}
-            name={fullName}
-            alt={fullName}
-            size="xl"
-            shape="circle"
-          />
+          <div className="relative group shrink-0">
+            <AvatarImage
+              src={avatarUrl}
+              name={fullName}
+              alt={fullName}
+              size="xl"
+              shape="circle"
+            />
+            {hasEditPermission && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAvatarDialogOpen(true)
+                }}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-brand-600 text-white shadow-md hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 transition-transform active:scale-95"
+                title={avatarUrl ? 'Change photo' : 'Upload photo'}
+                aria-label={avatarUrl ? 'Change photo' : 'Upload photo'}
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 id="person-name-heading" className="text-xl font-semibold text-navy-900 truncate">
@@ -111,6 +188,18 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
             </div>
             {person.maiden_name && (
               <p className="mt-0.5 text-sm text-navy-500 truncate">née {toProperCaseName(person.maiden_name)}</p>
+            )}
+            {hasEditPermission && (
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={() => setAvatarDialogOpen(true)}
+                  className="text-xs text-brand-600 hover:text-brand-800 font-medium inline-flex items-center gap-1 hover:underline"
+                >
+                  <Camera className="h-3 w-3" />
+                  <span>{avatarUrl ? 'Change photo' : 'Upload photo'}</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -131,10 +220,16 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
           />
           {canViewProtected ? (
             <>
-              <DetailRow label="Date of birth" value={formatDate(person.date_of_birth)} />
-              {person.age !== undefined && person.age !== null && (
-                <DetailRow label="Calculated age" value={`${person.age} years`} />
-              )}
+              {person.date_of_birth ? (
+                <>
+                  <DetailRow label="Date of birth" value={formatDate(person.date_of_birth)} />
+                  {person.age !== undefined && person.age !== null && (
+                    <DetailRow label="Calculated age" value={`${person.age} years`} />
+                  )}
+                </>
+              ) : (person.current_age !== undefined && person.current_age !== null) || (person.age !== undefined && person.age !== null) ? (
+                <DetailRow label="Current age" value={`${person.current_age ?? person.age} years (Recorded age)`} />
+              ) : null}
               <DetailRow label="Birth place" value={person.birth_place ? toProperCaseName(person.birth_place) : null} />
               <DetailRow label="Blood Group" value={formatBloodGroup(person.blood_group)} />
             </>
@@ -155,7 +250,7 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
       </section>
 
       {/* Community identity */}
-      {canViewProtected && (person.gotra || person.nukh || person.occupation) && (
+      {canViewProtected && (
         <section aria-labelledby="community-heading">
           <h3
             id="community-heading"
@@ -169,15 +264,27 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
             <div className="flex justify-between items-center border-b border-navy-100 py-2.5 text-sm gap-2">
               <dt className="text-navy-500 shrink-0">Occupation / Profession</dt>
               <dd className="max-w-[65%] sm:max-w-[55%] text-right font-medium text-navy-800 break-words flex items-center justify-end gap-1.5 flex-wrap">
-                {person.occupation && person.occupation !== 'Occupation Pending' && person.occupation !== 'Occupation Not Provided' ? (
+                {displayOccupation ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
                     <Briefcase className="h-3 w-3 text-blue-600" />
-                    <span>{person.occupation}</span>
+                    <span>{displayOccupation}</span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 border border-slate-200">
                     <span>Occupation Not Provided</span>
                   </span>
+                )}
+
+                {hasEditPermission && (
+                  <button
+                    type="button"
+                    onClick={() => setUpdateOccupationModalOpen(true)}
+                    className="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer"
+                    title="Update Occupation / Profession"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>{displayOccupation ? 'Edit' : 'Add'}</span>
+                  </button>
                 )}
               </dd>
             </div>
@@ -339,6 +446,30 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
           <DetailRow label="Last updated" value={formatDate(person.updated_at)} />
         </dl>
       </section>
+
+      {/* Direct Occupation Update Modal */}
+      {hasEditPermission && updateOccupationModalOpen && (
+        <UpdateOccupationModal
+          person={person}
+          isOpen={updateOccupationModalOpen}
+          onClose={() => setUpdateOccupationModalOpen(false)}
+        />
+      )}
+
+      {/* Profile Photo Upload & Safe Replacement Dialog */}
+      {hasEditPermission && avatarDialogOpen && (
+        <AvatarUploadDialog
+          isOpen={avatarDialogOpen}
+          onClose={() => setAvatarDialogOpen(false)}
+          target={{ type: 'person', id: person.id }}
+          currentAvatarUrl={avatarUrl}
+          title="Update Profile Photo"
+          onSuccess={(newUrl) => {
+            setAvatarUrl(newUrl)
+            onAvatarUpdated?.(newUrl)
+          }}
+        />
+      )}
     </div>
   )
 }

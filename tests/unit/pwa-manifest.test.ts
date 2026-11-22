@@ -25,7 +25,7 @@ describe('PWA Web App Manifest & Static Assets', () => {
     const manifest = JSON.parse(content)
 
     expect(manifest.name).toBe('KHATRI SARVANIYAT')
-    expect(manifest.short_name).toBe('KHATRI SARVANIYAT')
+    expect(['KHATRI', 'KHATRI SARVANIYAT']).toContain(manifest.short_name)
     expect(manifest.start_url).toBe('/')
     expect(manifest.scope).toBe('/')
     expect(manifest.display).toBe('standalone')
@@ -84,5 +84,44 @@ describe('PWA Web App Manifest & Static Assets', () => {
 
     // worker-src in global CSP
     expect(headers).toContain("worker-src 'self'")
+  })
+
+  it('5. required mobile PWA & iOS icon assets exist with exact required dimensions', () => {
+    const requiredIcons = [
+      { file: 'pwa-192x192.png', width: 192, height: 192 },
+      { file: 'pwa-512x512.png', width: 512, height: 512 },
+      { file: 'maskable-icon-192x192.png', width: 192, height: 192 },
+      { file: 'maskable-icon-512x512.png', width: 512, height: 512 },
+      { file: 'apple-touch-icon.png', width: 180, height: 180 },
+      { file: 'favicon-32x32.png', width: 32, height: 32 },
+      { file: 'favicon-16x16.png', width: 16, height: 16 },
+      { file: 'logo.png', width: 512, height: 512 },
+      { file: 'khatri-logo.png', width: 512, height: 512 },
+    ]
+
+    for (const { file, width, height } of requiredIcons) {
+      const p = path.join(rootDir, 'public', file)
+      expect(fs.existsSync(p), `${file} must exist`).toBe(true)
+
+      const buf = fs.readFileSync(p)
+      expect(buf[0]).toBe(137) // PNG header
+      const w = buf.readUInt32BE(16)
+      const h = buf.readUInt32BE(20)
+      expect(w).toBe(width)
+      expect(h).toBe(height)
+    }
+  })
+
+  it('6. sw.js includes all icon assets in STATIC_PRECACHE_URLS and has updated cache version', () => {
+    const swPath = path.join(rootDir, 'public', 'sw.js')
+    const sw = fs.readFileSync(swPath, 'utf8')
+
+    expect(sw).toContain("const CACHE_VERSION = 'cr-shell-v5'")
+    expect(sw).toContain("'/pwa-192x192.png'")
+    expect(sw).toContain("'/pwa-512x512.png'")
+    expect(sw).toContain("'/maskable-icon-192x192.png'")
+    expect(sw).toContain("'/maskable-icon-512x512.png'")
+    expect(sw).toContain("'/apple-touch-icon.png'")
+    expect(sw).toContain("'/logo.png'")
   })
 })

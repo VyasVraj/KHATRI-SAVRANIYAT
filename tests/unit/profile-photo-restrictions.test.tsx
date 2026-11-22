@@ -16,27 +16,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersonDetail } from '@/features/people/components/PersonDetail'
 import { ProfileOverviewSection } from '@/features/profile/components/ProfileOverviewSection'
-import { ProfileCompletenessSection } from '@/features/profile/components/ProfileCompletenessSection'
-import { FamilyDetail } from '@/features/families/components/FamilyDetail'
 import { uploadAvatar } from '@/features/media/services/avatar.service'
-import { AuthContext } from '@/features/auth/context/AuthContext'
 import type { Tables } from '@/types/database.types'
 
 type PersonRow = Tables<'persons'>
 type ProfileRow = Tables<'profiles'>
-type FamilyRow = Tables<'families'>
-
-const mockAuthContextValue = {
-  user: { id: 'user-1' } as unknown as import('@supabase/supabase-js').User,
-  profile: { id: 'user-1', role: 'ADMIN', is_active: true } as unknown as ProfileRow,
-  session: null,
-  isLoading: false,
-  isAuthenticated: true,
-  refreshProfile: async () => {},
-  signInWithPassword: async () => ({ error: null }),
-  signUpWithPassword: async () => ({ error: null }),
-  signOut: async () => {},
-}
 
 const mockPerson = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -84,29 +68,12 @@ const mockProfile: ProfileRow = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
-const mockFamily = {
-  id: '33333333-3333-3333-3333-333333333333',
-  family_name: 'Khatri Parivar',
-  city: 'Vadodara',
-  state: 'Gujarat',
-  country: 'India',
-  gotra: 'Vatsa',
-  nukh: 'Khatri',
-  avatar_url: null,
-  selected_mukhi_id: null,
-  profile_privacy: 'COMMUNITY',
-  members_privacy: 'COMMUNITY',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-  deleted_at: null,
-} as unknown as FamilyRow
-
-describe('Profile Photo Upload and Change Restrictions', () => {
+describe('Restored Profile Photo Feature and Permissions', () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 
-  it('removes "Change photo" button and dialog from PersonDetail even when canEdit=true', () => {
+  it('renders "Change photo" / camera action on PersonDetail when canEdit=true', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -115,15 +82,29 @@ describe('Profile Photo Upload and Change Restrictions', () => {
       </QueryClientProvider>
     )
 
-    // "Change photo" button must NOT exist
-    expect(screen.queryByRole('button', { name: /Change photo/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Change photo/i)).not.toBeInTheDocument()
+    // "Change photo" / "Upload photo" action must exist for authorized user
+    const uploadBtns = screen.getAllByRole('button', { name: /upload photo/i })
+    expect(uploadBtns.length).toBeGreaterThan(0)
+    expect(uploadBtns[0]).toBeInTheDocument()
 
     // Initials avatar fallback must exist for the person's name
     expect(screen.getByText('HK')).toBeInTheDocument()
   })
 
-  it('removes "Change photo" button from ProfileOverviewSection', () => {
+  it('hides "Change photo" action on PersonDetail when canEdit=false', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PersonDetail person={mockPerson} canEdit={false} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    expect(screen.queryByRole('button', { name: /upload photo/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /change photo/i })).not.toBeInTheDocument()
+  })
+
+  it('renders "Change photo" action in ProfileOverviewSection', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -138,56 +119,40 @@ describe('Profile Photo Upload and Change Restrictions', () => {
       </QueryClientProvider>
     )
 
-    // "Change photo" button must NOT exist
-    expect(screen.queryByRole('button', { name: /Change photo/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Change photo/i)).not.toBeInTheDocument()
+    // "Change photo" or "Upload photo" button must exist
+    const uploadBtns = screen.getAllByRole('button', { name: /upload photo/i })
+    expect(uploadBtns.length).toBeGreaterThan(0)
+    expect(uploadBtns[0]).toBeInTheDocument()
   })
 
-  it('removes photo upload action from ProfileCompletenessSection', () => {
+  it('displays avatar image when avatar_url is provided', () => {
+    const personWithAvatar = {
+      ...mockPerson,
+      avatar_url: 'https://example.com/avatar.webp',
+    }
+
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ProfileCompletenessSection
-            userId={mockProfile.id}
-            linkedPerson={mockPerson}
-            isLoadingPerson={false}
-          />
+          <PersonDetail person={personWithAvatar} canEdit={false} />
         </MemoryRouter>
       </QueryClientProvider>
     )
 
-    // Photo upload button must NOT exist in actionable missing fields
-    expect(screen.queryByRole('button', { name: /Upload Photo/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Upload Photo/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Profile Photo \/ Portrait/i)).not.toBeInTheDocument()
+    const img = screen.getByRole('img', { name: /haresh kumar khatri/i })
+    expect(img).toBeInTheDocument()
+    expect(img).toHaveAttribute('src', 'https://example.com/avatar.webp')
   })
 
-  it('removes "Change crest" button from FamilyDetail', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={mockAuthContextValue}>
-          <MemoryRouter>
-            <FamilyDetail family={mockFamily} canManageMembers={true} />
-          </MemoryRouter>
-        </AuthContext.Provider>
-      </QueryClientProvider>
-    )
-
-    // "Change crest" button must NOT exist
-    expect(screen.queryByRole('button', { name: /Change crest/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Change crest/i)).not.toBeInTheDocument()
-  })
-
-  it('uploadAvatar service rejects any upload attempt with PHOTO_UPLOADS_DISABLED error', async () => {
-    const dummyBlob = new Blob(['test'], { type: 'image/jpeg' })
-    const result = await uploadAvatar(dummyBlob, {
+  it('uploadAvatar service validates file and processes upload', async () => {
+    const invalidBlob = new Blob(['test'], { type: 'text/plain' })
+    const result = await uploadAvatar(invalidBlob, {
       type: 'person',
       id: mockPerson.id,
     })
 
     expect(result.data).toBeNull()
     expect(result.error).toBeDefined()
-    expect(result.error?.code).toBe('PHOTO_UPLOADS_DISABLED')
-    expect(result.error?.message).toMatch(/Profile photo uploads and changes have been permanently disabled/i)
+    expect(result.error?.code).toBe('VALIDATION_ERROR')
   })
 })

@@ -119,6 +119,15 @@ export function PersonEditPage() {
           maiden_name: person.maiden_name ?? undefined,
           gender: person.gender === 'PREFER_NOT_TO_SAY' ? undefined : (person.gender ?? undefined),
           blood_group: (person as unknown as { blood_group?: CreatePersonInput['blood_group'] })?.blood_group ?? undefined,
+          show_blood_group_in_directory: Boolean(
+            (person as unknown as { show_blood_group_in_directory?: boolean; blood_group_consent?: boolean; show_in_blood_directory?: boolean })
+              .show_blood_group_in_directory ??
+            (person as unknown as { blood_group_consent?: boolean }).blood_group_consent ??
+            (person as unknown as { show_in_blood_directory?: boolean }).show_in_blood_directory ??
+            false
+          ),
+          occupation: (person as unknown as { occupation?: string })?.occupation ?? undefined,
+          occupation_category: (person as unknown as { occupation_category?: string })?.occupation_category ?? undefined,
           date_of_birth: person.date_of_birth ?? undefined,
           date_of_death: person.date_of_death ?? undefined,
           is_deceased: Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death),

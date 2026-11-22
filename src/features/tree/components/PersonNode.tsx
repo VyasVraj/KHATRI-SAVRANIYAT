@@ -20,14 +20,9 @@ import { Crown, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toProperCaseName } from '@/utils/text-casing'
 import { formatRelationshipDisplay } from '@/constants/familyRelationships'
+import { AvatarImage } from '@/features/media'
 import type { PersonNodeData } from '../types'
 import { TREE_NODE_WIDTH, TREE_NODE_HEIGHT } from '../types'
-
-function getInitials(firstName?: string | null, lastName?: string | null): string {
-  const f = firstName?.trim()[0]?.toUpperCase() ?? ''
-  const l = lastName?.trim()[0]?.toUpperCase() ?? ''
-  return f + l || '?'
-}
 
 export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function PersonNode({
   data,
@@ -41,7 +36,6 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
       .join(' ')
   )
 
-  const initials = getInitials(person.first_name, person.last_name)
   const isFemale = person.gender === 'FEMALE'
   const isDeceased = Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death)
 
@@ -130,18 +124,20 @@ export const PersonNode: React.FC<NodeProps<PersonNodeData>> = memo(function Per
         className="w-2.5 h-2.5 !bg-[#9333EA] !border-2 !border-white transition-transform hover:scale-125 opacity-0"
       />
 
-      {/* Left side: Initial-based circular avatar */}
-      <div
+      {/* Left side: Profile photo or initial-based avatar */}
+      <AvatarImage
+        src={person.avatar_url}
+        name={fullName}
+        alt={fullName}
+        size="md"
+        shape="circle"
         className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-transform group-hover:scale-105',
+          'h-11 w-11 shrink-0 text-xs font-bold transition-transform group-hover:scale-105 border',
           isFemale
-            ? 'bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8]'
-            : 'bg-[#DBEAFE] text-[#1D4ED8] border border-[#BFDBFE]'
+            ? 'bg-[#FCE7F3] text-[#BE185D] border-[#FBCFE8]'
+            : 'bg-[#DBEAFE] text-[#1D4ED8] border-[#BFDBFE]'
         )}
-        aria-hidden="true"
-      >
-        <span className="tracking-tight">{initials}</span>
-      </div>
+      />
 
       {/* Right side: Name, Role Pill, Age */}
       <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">

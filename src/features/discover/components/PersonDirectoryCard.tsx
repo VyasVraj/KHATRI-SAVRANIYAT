@@ -18,6 +18,8 @@ import type { PersonDiscoveryResult } from '../types'
 import { ROUTES } from '@/constants/app'
 import { useTranslation } from '@/features/i18n'
 import { toProperCaseName } from '@/utils/text-casing'
+import { cn } from '@/lib/utils'
+import { AvatarImage } from '@/features/media'
 
 interface PersonDirectoryCardProps {
   person: PersonDiscoveryResult
@@ -128,13 +130,29 @@ export function PersonDirectoryCard({
       <div>
         {/* Top row: Avatar + Name + Verification */}
         <div className="flex items-start gap-3">
-          {/* Avatar Initials */}
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 group-hover:bg-brand-200"
-            aria-hidden="true"
-          >
-            {initials}
-          </div>
+          {/* Avatar */}
+          {person.avatar_url ? (
+            <AvatarImage
+              src={person.avatar_url}
+              name={fullName}
+              alt={fullName}
+              size="md"
+              shape="circle"
+              className={cn(
+                'h-11 w-11 shrink-0 text-sm font-bold border',
+                person.gender === 'FEMALE'
+                  ? 'bg-pink-100 text-pink-700 border-pink-200'
+                  : 'bg-brand-100 text-brand-700 border-brand-200'
+              )}
+            />
+          ) : (
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 group-hover:bg-brand-200"
+              aria-hidden="true"
+            >
+              {initials}
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">

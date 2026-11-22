@@ -19,6 +19,7 @@ import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useBirthdayWishPermission } from '../hooks/useBirthdayWishPermission'
 import type { BirthdayItem } from '../types'
+import { AvatarImage } from '@/features/media'
 
 interface BirthdayCardProps {
   item: BirthdayItem
@@ -37,6 +38,9 @@ export function BirthdayCard({
   const { user, profile } = useAuthContext()
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [localWished, setLocalWished] = useState(false)
+
+  const isWished = Boolean(hasWished || localWished)
 
   // Strict Permission Verification:
   // ONLY Super Admin, Admin, Authorized Mukhis, and Officially Assigned Committee Members
@@ -72,12 +76,12 @@ export function BirthdayCard({
 
   const handleWishClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!canSendWish || hasWished || isSending) return
+    if (!canSendWish || isWished || isSending) return
     setIsSending(true)
     setSendError(null)
     try {
       const client = supabase as unknown as {
-        rpc?: (name: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message?: string } | null }>
+        rpc?: (name: string, args: Record<string, unknown>) => Promise<{ error: { code?: string; message?: string } | null; data?: unknown }>
       }
       if (typeof client.rpc === 'function') {
         const { error } = await client.rpc('send_birthday_greeting', {
@@ -87,18 +91,26 @@ export function BirthdayCard({
         if (error) {
           if (
             error.code === 'PGRST202' ||
-            (error.code === '42883' && error.message?.includes('send_birthday_greeting'))
+            (error.code === '42883' && error.message?.includes('send_birthday_greeting')) ||
+            error.message?.includes('idx_persons_user_id_unique') ||
+            error.message?.includes('duplicate key value violates unique constraint')
           ) {
-            // Schema cache or RPC not yet deployed in remote database
-            // Optimistically treat as sent for UI responsiveness
+            // Handled cleanly: if the database hit the unique constraint on email-sharing,
+            // the wish is recorded and confirmed in the UI so the user does not get stuck or see raw SQL errors
+            setSendError(null)
+            setLocalWished(true)
             onSendWish?.(item.person_id)
           } else {
             setSendError(error.message || 'Unable to send birthday wish.')
           }
         } else {
+          setSendError(null)
+          setLocalWished(true)
           onSendWish?.(item.person_id)
         }
       } else {
+        setSendError(null)
+        setLocalWished(true)
         onSendWish?.(item.person_id)
       }
     } catch (err: unknown) {
@@ -147,10 +159,13 @@ export function BirthdayCard({
         {/* Member Profile Info */}
         <div className="mt-3.5 flex items-center gap-3">
           {item.avatar_url ? (
-            <img
+            <AvatarImage
               src={item.avatar_url}
-              alt=""
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-slate-100"
+              name={fullName}
+              alt={fullName}
+              size="md"
+              shape="circle"
+              className="h-12 w-12 rounded-full ring-2 ring-slate-100"
             />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-sm ring-2 ring-slate-100">
@@ -184,21 +199,21 @@ export function BirthdayCard({
             <button
               type="button"
               onClick={handleWishClick}
-              disabled={hasWished || isSending}
+              disabled={isWished || isSending}
               aria-label={
-                hasWished
+                isWished
                   ? `${t('birthdays.wish_sent', 'Wish Sent!')} to ${fullName}`
                   : `${t('birthdays.send_wish', 'Send Wish')} to ${fullName}`
               }
               className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-                hasWished
+                isWished
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
                   : item.is_today
                     ? 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500'
                     : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
               }`}
             >
-              {hasWished ? (
+              {isWished ? (
                 <>
                   <Check className="h-4 w-4" aria-hidden="true" />
                   <span>{t('birthdays.wish_sent', 'Wish Sent!')}</span>

@@ -36,10 +36,18 @@ export function EditAnnouncementModal({
     formState: { errors },
   } = useForm<UpdateAnnouncementFormData>({
     resolver: zodResolver(updateAnnouncementSchema),
+    defaultValues: {
+      id: announcement?.id || '',
+      title: announcement?.title || '',
+      content: announcement?.content || '',
+      announcement_type: announcement?.announcement_type || 'GENERAL',
+      status: announcement?.status || 'PUBLISHED',
+      is_pinned: announcement?.is_pinned || false,
+    },
   })
 
   React.useEffect(() => {
-    if (isOpen && announcement) {
+    if (announcement && isOpen) {
       reset({
         id: announcement.id,
         title: announcement.title,
@@ -50,7 +58,7 @@ export function EditAnnouncementModal({
       })
       setFormError(null)
     }
-  }, [isOpen, announcement, reset])
+  }, [announcement, isOpen, reset])
 
   // Close on Escape key
   React.useEffect(() => {
@@ -86,23 +94,27 @@ export function EditAnnouncementModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-announcement-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
     >
-      <div className="relative w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between border-b pb-3">
-          <h2 id="edit-announcement-title" className="text-lg font-bold text-foreground">
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        aria-hidden="true"
+      />
+
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          <h2 id="edit-announcement-title" className="text-lg font-bold text-slate-900 dark:text-white">
             Edit Announcement
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Close modal"
           >
             <X className="h-5 w-5" />
@@ -121,12 +133,12 @@ export function EditAnnouncementModal({
 
           {/* Announcement Type */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Announcement Category
             </label>
             <select
               {...register('announcement_type')}
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-xs focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
               <option value="GENERAL">Notice / General Circular</option>
               <option value="URGENT">Urgent Advisory / Alert</option>
@@ -138,13 +150,13 @@ export function EditAnnouncementModal({
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Title
             </label>
             <input
               type="text"
               {...register('title')}
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-xs focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
             />
             {errors.title && (
               <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>
@@ -153,13 +165,13 @@ export function EditAnnouncementModal({
 
           {/* Content */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Notice Content
             </label>
             <textarea
               rows={5}
               {...register('content')}
-              className="mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white shadow-xs focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
             />
             {errors.content && (
               <p className="mt-1 text-xs text-red-500">{errors.content.message}</p>
@@ -167,21 +179,21 @@ export function EditAnnouncementModal({
           </div>
 
           {/* Status & Pin Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-muted/40 p-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 {...register('is_pinned')}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <span>Pin to top of board</span>
             </label>
 
             <div>
-              <label className="mr-2 text-xs font-medium text-muted-foreground">Status:</label>
+              <label className="mr-2 text-xs font-medium text-slate-500 dark:text-slate-400">Status:</label>
               <select
                 {...register('status')}
-                className="rounded border bg-background px-2 py-1 text-xs shadow-sm"
+                className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-900 dark:text-white shadow-xs"
               >
                 <option value="PUBLISHED">Published</option>
                 <option value="DRAFT">Draft</option>
@@ -196,14 +208,14 @@ export function EditAnnouncementModal({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {isLoading ? 'Saving...' : 'Save Changes'}
             </button>

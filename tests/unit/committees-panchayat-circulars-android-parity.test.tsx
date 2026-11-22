@@ -357,16 +357,22 @@ describe('ANDROID-13: Committees, Panchayat Leadership & Circulars', () => {
   // 3. Circulars & Official Directives (Screens 47–49)
   // ===========================================================================
   describe('Circulars & Official Directives (Screens 47–49)', () => {
-    it('returns canonical circulars sorted with pinned directives first', async () => {
+    it('returns canonical circulars sorted in descending chronological order by official date (newest first)', async () => {
       const res = await getCirculars()
       expect(res.error).toBeNull()
       expect(res.data?.items.length).toBeGreaterThanOrEqual(6)
 
       const items = res.data?.items || []
-      expect(items[0].is_pinned).toBe(true)
-      expect(items[1].is_pinned).toBe(true)
-      expect(['CIR-2026-001', 'CIR-2026-002']).toContain(items[0].circular_number)
-      expect(['CIR-2026-001', 'CIR-2026-002']).toContain(items[1].circular_number)
+      // Newest date (05 May 2026: CIR-2026-006) appears first, pinned does not override chronological sorting
+      expect(items[0].circular_number).toBe('CIR-2026-006')
+      expect(items[items.length - 1].circular_number).toBe('CIR-2026-001')
+
+      // Verify strict descending chronological order throughout the list
+      for (let i = 0; i < items.length - 1; i++) {
+        const timeCurrent = new Date(items[i].issue_date).getTime()
+        const timeNext = new Date(items[i + 1].issue_date).getTime()
+        expect(timeCurrent).toBeGreaterThanOrEqual(timeNext)
+      }
     })
 
     it('filters circulars by category', async () => {

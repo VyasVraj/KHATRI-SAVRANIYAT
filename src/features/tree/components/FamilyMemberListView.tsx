@@ -13,16 +13,11 @@ import { ROUTES } from '@/constants/app'
 import { cn } from '@/lib/utils'
 import { toProperCaseName } from '@/utils/text-casing'
 import { formatRelationshipDisplay } from '@/constants/familyRelationships'
+import { AvatarImage } from '@/features/media'
 
 interface FamilyMemberListViewProps {
   nodes: TreeNode[]
   onSelectPersonInTree: (personId: string) => void
-}
-
-function getInitials(firstName?: string | null, lastName?: string | null): string {
-  const f = firstName?.trim()[0]?.toUpperCase() ?? ''
-  const l = lastName?.trim()[0]?.toUpperCase() ?? ''
-  return f + l || '?'
 }
 
 export const FamilyMemberListView: React.FC<FamilyMemberListViewProps> = ({
@@ -65,7 +60,6 @@ export const FamilyMemberListView: React.FC<FamilyMemberListViewProps> = ({
               .filter(Boolean)
               .join(' ')
           )
-          const initials = getInitials(person.first_name, person.last_name)
           const isFemale = person.gender === 'FEMALE'
 
           return (
@@ -77,17 +71,19 @@ export const FamilyMemberListView: React.FC<FamilyMemberListViewProps> = ({
               )}
             >
               <div className="flex items-start gap-3">
-                <div
+                <AvatarImage
+                  src={person.avatar_url}
+                  name={fullName}
+                  alt={fullName}
+                  size="md"
+                  shape="circle"
                   className={cn(
-                    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold border',
+                    'h-11 w-11 shrink-0 text-xs font-bold border',
                     isFemale
                       ? 'bg-[#FCE7F3] text-[#BE185D] border-[#FBCFE8]'
                       : 'bg-[#DBEAFE] text-[#1D4ED8] border-[#BFDBFE]'
                   )}
-                  aria-hidden="true"
-                >
-                  <span>{initials}</span>
-                </div>
+                />
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">

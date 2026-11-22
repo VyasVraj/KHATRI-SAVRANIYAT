@@ -381,6 +381,8 @@ export type Database = {
           date_of_birth: string | null
           dob_year?: number | null
           age?: number | null
+          current_age?: number | null
+          age_as_of_date?: string | null
           date_of_death: string | null
           is_deceased?: boolean
           deleted_at: string | null
@@ -416,6 +418,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
+          current_age?: number | null
+          age_as_of_date?: string | null
           date_of_death?: string | null
           is_deceased?: boolean
           deleted_at?: string | null
@@ -451,6 +455,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
+          current_age?: number | null
+          age_as_of_date?: string | null
           date_of_death?: string | null
           is_deceased?: boolean
           deleted_at?: string | null

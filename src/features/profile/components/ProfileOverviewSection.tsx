@@ -5,7 +5,7 @@
  * census record linkage (PERSON != USER), and quick completeness overview.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -19,6 +19,9 @@ import {
   Search,
   PlusCircle,
   Sparkles,
+  Briefcase,
+  Pencil,
+  Camera,
 } from 'lucide-react'
 import type { ProfileRow, PersonRow } from '@/types'
 import type { ProfileTab } from '../types'
@@ -27,9 +30,10 @@ import { updateProfile } from '../services/profile.service'
 import { ROUTES } from '@/constants/app'
 import { Input } from '@/components/forms/Input'
 import { Button } from '@/components/forms/Button'
-import { AvatarImage } from '@/features/media'
+import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { useLanguage } from '@/features/i18n'
 import { calculatePersonDataQuality } from '@/features/verification/services/dataQuality.service'
+import { UpdateOccupationModal } from '@/features/people/components/UpdateOccupationModal'
 
 export interface ProfileOverviewSectionProps {
   userId: string
@@ -51,7 +55,25 @@ export function ProfileOverviewSection({
   const { t } = useLanguage()
   const [updateSuccess, setUpdateSuccess] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
-  const currentAvatar = profile.avatar_url ?? null
+  const [isOccupationModalOpen, setIsOccupationModalOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? linkedPerson?.avatar_url ?? null)
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
+
+  // Sync avatarUrl whenever profile or linkedPerson changes or global avatar event fires
+  useEffect(() => {
+    setAvatarUrl(profile.avatar_url ?? linkedPerson?.avatar_url ?? null)
+  }, [profile.avatar_url, linkedPerson?.avatar_url])
+
+  useEffect(() => {
+    const handleAvatarUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ target: { type: string; id: string }; url: string | null }>
+      if (customEvent.detail) {
+        setAvatarUrl(customEvent.detail.url)
+      }
+    }
+    window.addEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+    return () => window.removeEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+  }, [])
 
   const {
     register,
@@ -88,14 +110,26 @@ export function ProfileOverviewSection({
       {/* Avatar + Identity summary card */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-navy-200 bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="shrink-0">
+          <div className="relative group shrink-0">
             <AvatarImage
-              src={currentAvatar}
+              src={avatarUrl}
               name={profile.display_name ?? profile.email}
               alt={profile.display_name ?? 'Profile avatar'}
               size="xl"
               shape="circle"
             />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setAvatarDialogOpen(true)
+              }}
+              className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-brand-600 text-white shadow-md hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 transition-transform active:scale-95"
+              title={avatarUrl ? 'Change photo' : 'Upload photo'}
+              aria-label={avatarUrl ? 'Change photo' : 'Upload photo'}
+            >
+              <Camera className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-base sm:text-lg font-semibold text-navy-900 truncate">
@@ -104,6 +138,16 @@ export function ProfileOverviewSection({
             <p className="text-xs sm:text-sm text-navy-500 break-all sm:break-normal truncate sm:overflow-visible">
               {profile.email}
             </p>
+            <div className="mt-1">
+              <button
+                type="button"
+                onClick={() => setAvatarDialogOpen(true)}
+                className="text-xs text-brand-600 hover:text-brand-800 font-medium inline-flex items-center gap-1 hover:underline"
+              >
+                <Camera className="h-3 w-3" />
+                <span>{avatarUrl ? 'Change photo' : 'Upload photo'}</span>
+              </button>
+            </div>
             <div className="mt-1.5 flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 rounded-full bg-navy-100 px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-medium text-navy-700">
                 <Shield className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -245,6 +289,30 @@ export function ProfileOverviewSection({
                     {linkedPerson.birth_place ? `Birth Place: ${linkedPerson.birth_place} • ` : ''}
                     Privacy: {linkedPerson.profile_privacy}
                   </p>
+
+                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-teal-200/70 pt-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-navy-700 min-w-0">
+                      <Briefcase className="h-3.5 w-3.5 text-teal-700 shrink-0" />
+                      <span className="font-medium text-navy-600">Occupation:</span>
+                      <span className="font-semibold text-navy-900 truncate">
+                        {(() => {
+                          const occ = (linkedPerson.occupation || '').trim()
+                          const isPl = !occ || occ === 'Occupation Pending' || occ === 'Occupation Not Provided'
+                          return isPl
+                            ? ((linkedPerson.custom_occupation || linkedPerson.occupation_category || '').trim() || 'Occupation Not Provided')
+                            : occ
+                        })()}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsOccupationModalOpen(true)}
+                      className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold text-teal-800 bg-white hover:bg-teal-50 border border-teal-300 transition-colors cursor-pointer shrink-0"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>{linkedPerson.occupation && linkedPerson.occupation !== 'Occupation Pending' ? 'Edit' : 'Add'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
@@ -264,6 +332,17 @@ export function ProfileOverviewSection({
                   </Link>
                 </div>
               </div>
+
+              {isOccupationModalOpen && linkedPerson && (
+                <UpdateOccupationModal
+                  person={linkedPerson}
+                  isOpen={isOccupationModalOpen}
+                  onClose={() => setIsOccupationModalOpen(false)}
+                  onSuccess={() => {
+                    onProfileUpdated?.()
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-navy-200 bg-navy-50/40 p-3.5 sm:p-4">
@@ -300,6 +379,20 @@ export function ProfileOverviewSection({
           )}
         </div>
       </div>
+
+      {avatarDialogOpen && (
+        <AvatarUploadDialog
+          isOpen={avatarDialogOpen}
+          onClose={() => setAvatarDialogOpen(false)}
+          target={linkedPerson ? { type: 'person', id: linkedPerson.id } : { type: 'profile', id: userId }}
+          currentAvatarUrl={avatarUrl}
+          title="Update Profile Photo"
+          onSuccess={(newUrl) => {
+            setAvatarUrl(newUrl)
+            onProfileUpdated?.()
+          }}
+        />
+      )}
     </div>
   )
 }

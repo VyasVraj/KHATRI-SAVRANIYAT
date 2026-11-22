@@ -26,6 +26,8 @@ export interface AuthContextValue {
   isLoading: boolean
   /** Convenience: whether a session currently exists */
   isAuthenticated: boolean
+  /** Force refetch the user's latest profile from public.profiles */
+  refreshProfile?: () => Promise<void>
 }
 
 // ---------------------------------------------------------------------------

@@ -9,8 +9,9 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Shield } from 'lucide-react'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Shield, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_NAME, ROUTES, ADMIN_ROLES, PLATFORM_ADMIN_ROLES } from '@/constants/app'
 import { BrandLogo } from '@/components/common/BrandLogo'
@@ -19,6 +20,10 @@ import { signOut } from '@/features/auth/services/auth.service'
 import { NotificationBell } from '@/features/notifications'
 import { LanguageSelector } from '@/features/i18n'
 import { AccessibilityFontSizeSlider } from '@/components/common/AccessibilityFontSizeSlider'
+import { isAppInstalled, onInstallStateChange } from '@/lib/pwa'
+import { InstallAppModal } from '@/components/common/InstallAppModal'
+import { AvatarImage } from '@/features/media'
+import { usePersonByUserId } from '@/features/people'
 
 const NAV_LINKS = [
   { label: 'Discover', href: ROUTES.DISCOVER },
@@ -41,9 +46,85 @@ function getInitials(name: string | null | undefined): string {
 export function AppHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [installModalOpen, setInstallModalOpen] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(isAppInstalled())
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
-  const { isAuthenticated, profile, isLoading } = useAuthContext()
+  const location = useLocation()
+  const { isAuthenticated, user, profile, isLoading } = useAuthContext()
+  const { data: linkedPerson } = usePersonByUserId(user?.id)
+  const [liveAvatarUrl, setLiveAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLiveAvatarUrl(profile?.avatar_url ?? linkedPerson?.avatar_url ?? null)
+  }, [profile?.avatar_url, linkedPerson?.avatar_url])
+
+  useEffect(() => {
+    const handleAvatarUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ target: { type: string; id: string }; url: string | null }>
+      if (customEvent.detail) {
+        setLiveAvatarUrl(customEvent.detail.url)
+      }
+    }
+    window.addEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+    return () => window.removeEventListener('community-roots:avatar-updated', handleAvatarUpdated)
+  }, [])
+
+  const currentAvatarUrl = liveAvatarUrl ?? profile?.avatar_url ?? linkedPerson?.avatar_url ?? null
+
+  // Close mobile drawer on route navigation
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [location.pathname])
+
+  // Lock body scroll and listen for Escape key when mobile drawer is open
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [mobileMenuOpen])
+
+  // Swipe-to-close drawer touch gesture handling
+  const touchStartX = useRef<number | null>(null)
+  const touchCurrentX = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchCurrentX.current = e.touches[0].clientX
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentX.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current !== null && touchCurrentX.current !== null) {
+      const deltaX = touchCurrentX.current - touchStartX.current
+      if (deltaX < -40) {
+        setMobileMenuOpen(false)
+      }
+    }
+    touchStartX.current = null
+    touchCurrentX.current = null
+  }
+
+  useEffect(() => {
+    return onInstallStateChange((state) => {
+      setIsInstalled(state.isInstalled)
+    })
+  }, [])
 
   // Close user dropdown on outside click
   useEffect(() => {
@@ -66,8 +147,9 @@ export function AppHeader() {
   const initials = getInitials(profile?.display_name)
 
   return (
-    <header className="sticky top-0 z-50 border-b border-navy-200 bg-navy-900">
-      {/* Skip navigation link for accessibility */}
+    <>
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-navy-200 bg-navy-900 print:hidden">
+        {/* Skip navigation link for accessibility */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-brand-500 focus:px-4 focus:py-2 focus:text-white focus:outline-none"
@@ -80,11 +162,11 @@ export function AppHeader() {
           {/* Logo / Brand */}
           <Link
             to={ROUTES.HOME}
-            className="flex items-center gap-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 group"
+            className="flex items-center gap-2 sm:gap-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 group min-w-0 shrink"
             aria-label={`${APP_NAME} — Home`}
           >
-            <BrandLogo size="sm" alt={APP_NAME} priority className="transition-transform group-hover:scale-105" />
-            <span className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap">
+            <BrandLogo size="sm" alt={APP_NAME} priority className="transition-transform group-hover:scale-105 shrink-0" />
+            <span className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap truncate">
               {APP_NAME}
             </span>
           </Link>
@@ -141,12 +223,24 @@ export function AppHeader() {
                       aria-label="User menu"
                       className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-navy-200 transition-colors hover:bg-navy-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
                     >
-                      <span
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white"
-                        aria-hidden="true"
-                      >
-                        {initials}
-                      </span>
+                      {currentAvatarUrl ? (
+                        <AvatarImage
+                          src={currentAvatarUrl}
+                          name={profile?.display_name ?? 'User'}
+                          alt={profile?.display_name ?? 'My Account'}
+                          size="xs"
+                          shape="circle"
+                          enablePreview={false}
+                          className="h-7 w-7 border border-navy-700 shadow-xs"
+                        />
+                      ) : (
+                        <span
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white"
+                          aria-hidden="true"
+                        >
+                          {initials}
+                        </span>
+                      )}
                       <span className="max-w-[120px] truncate">
                         {profile?.display_name ?? 'My Account'}
                       </span>
@@ -243,6 +337,20 @@ export function AppHeader() {
                           <AccessibilityFontSizeSlider variant="light" />
                         </div>
 
+                        {/* PWA Install Action */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            setInstallModalOpen(true)
+                          }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-navy-700 hover:bg-navy-50"
+                        >
+                          <Download className="h-4 w-4 text-brand-600" />
+                          {isInstalled ? 'Installation Instructions' : 'Install App'}
+                        </button>
+
                         <hr className="my-1 border-navy-100" />
                         <button
                           type="button"
@@ -279,182 +387,287 @@ export function AppHeader() {
           </div>
 
           {/* Mobile menu toggle & actions */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:hidden">
             <LanguageSelector />
             {!isLoading && isAuthenticated && <NotificationBell />}
             <button
               type="button"
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-2 text-navy-200 transition-colors hover:bg-navy-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
               aria-expanded={mobileMenuOpen}
-              aria-controls="mobile-menu"
+              aria-controls="mobile-drawer"
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              onClick={() => setMobileMenuOpen(true)}
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <Menu className="h-5 w-5" aria-hidden="true" />
-              )}
+              <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
-      {mobileMenuOpen && (
-        <nav
-          id="mobile-menu"
-          aria-label="Mobile navigation"
-          className="border-t border-navy-700 bg-navy-900 md:hidden"
-        >
-          <div className="space-y-1 px-4 pb-4 pt-2">
-            {NAV_LINKS.map(({ label, href }) => {
-              const tourTarget =
-                href === ROUTES.DISCOVER
-                  ? 'nav-discover'
-                  : href === ROUTES.FAMILIES
-                  ? 'nav-my-family'
-                  : href === ROUTES.COMMUNITY
-                  ? 'nav-community'
-                  : undefined
+      {/* Mobile Navigation Drawer & Semi-Transparent Backdrop Portal */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className={cn(
+              'fixed inset-0 z-[60] transition-opacity duration-300 md:hidden',
+              mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+            )}
+          >
+            {/* Backdrop: Dark semi-transparent overlay covering 100% of screen & bottom nav */}
+            <div
+              className="absolute inset-0 bg-navy-950/75 backdrop-blur-xs transition-opacity"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
 
-              return (
-                <NavLink
-                  key={href}
-                  to={href}
-                  data-tour-target={tourTarget}
+            {/* Slide-out Drawer Panel */}
+            <aside
+              id="mobile-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              className={cn(
+                'absolute inset-y-0 left-0 flex w-[85vw] max-w-[320px] flex-col bg-navy-900 border-r border-navy-800 text-white shadow-2xl transition-transform duration-300 ease-in-out',
+                mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+              )}
+            >
+              {/* Drawer Top Header with Safe Area Inset */}
+              <div className="flex h-16 shrink-0 items-center justify-between border-b border-navy-800 px-4 pt-[env(safe-area-inset-top,0px)] bg-navy-950/80">
+                <Link
+                  to={ROUTES.HOME}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'block rounded px-3 py-2 text-sm font-medium transition-colors min-h-[44px] flex items-center',
-                      isActive
-                        ? 'bg-brand-700 text-white'
-                        : 'text-navy-200 hover:bg-navy-700 hover:text-white'
-                    )
-                  }
+                  className="flex items-center gap-2 text-white focus-visible:outline-none min-w-0 shrink"
+                  aria-label={`${APP_NAME} — Home`}
                 >
-                  {label}
-                </NavLink>
-              )
-            })}
+                  <BrandLogo size="sm" alt={APP_NAME} priority className="shrink-0" />
+                  <span className="text-base font-bold tracking-tight text-white whitespace-nowrap truncate">
+                    {APP_NAME}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-label="Close navigation menu"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-navy-300 hover:bg-navy-800 hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
 
-            {/* Mobile auth section */}
-            {!isLoading && (
-              <div className="mt-3 flex flex-col gap-2 border-t border-navy-700 pt-3">
-                {isAuthenticated ? (
-                  <>
-                    <Link
-                      to={ROUTES.PROFILE}
-                      data-tour-target="nav-profile"
+              {/* Drawer Scrollable Links with Safe Area Inset */}
+              <nav
+                id="mobile-drawer-nav"
+                aria-label="Mobile navigation links"
+                className="flex-1 overflow-y-auto px-3 py-3 space-y-1 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]"
+              >
+                {NAV_LINKS.map(({ label, href }) => {
+                  const tourTarget =
+                    href === ROUTES.DISCOVER
+                      ? 'nav-discover'
+                      : href === ROUTES.FAMILIES
+                      ? 'nav-my-family'
+                      : href === ROUTES.COMMUNITY
+                      ? 'nav-community'
+                      : undefined
+
+                  return (
+                    <NavLink
+                      key={href}
+                      to={href}
+                      data-tour-target={tourTarget}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex min-h-[44px] items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
+                          isActive
+                            ? 'bg-brand-700 text-white font-bold'
+                            : 'text-navy-200 hover:bg-navy-800 hover:text-white'
+                        )
+                      }
                     >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
-                        {initials}
-                      </span>
-                      {profile?.display_name ?? 'My Profile'}
-                    </Link>
-                    <Link
-                      to={ROUTES.CONNECTIONS}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
-                    >
-                      <UserCheck className="h-4 w-4" />
-                      Connections
-                    </Link>
-                    <Link
-                      to={ROUTES.PEOPLE}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
-                    >
-                      <Users className="h-4 w-4" />
-                      Census Records
-                    </Link>
-                    <Link
-                      to={ROUTES.NOTIFICATIONS}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
-                    >
-                      <Bell className="h-4 w-4" />
-                      Notifications
-                    </Link>
-                    {profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI', 'SUPER_ADMIN', 'ADMIN'].includes(profile.role) && (
-                      <Link
-                        to={ROUTES.MUKHI_PORTAL}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-navy-700 hover:text-white"
-                      >
-                        <Shield className="h-4 w-4 text-amber-400" />
-                        Mukhi Portal
-                      </Link>
-                    )}
-                    {profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role) && (
-                      <Link
-                        to={ROUTES.ADMIN}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-navy-700 hover:text-white"
-                      >
-                        <Shield className="h-4 w-4 text-brand-400" />
-                        Admin Hub
-                      </Link>
-                    )}
-                    {profile?.role && ADMIN_ROLES.includes(profile.role) && (
+                      {label}
+                    </NavLink>
+                  )
+                })}
+
+                {/* Mobile auth section */}
+                {!isLoading && (
+                  <div className="mt-3 flex flex-col gap-1.5 border-t border-navy-800 pt-3">
+                    {isAuthenticated ? (
                       <>
                         <Link
-                          to={ROUTES.CLAIM_REVIEW_QUEUE}
+                          to={ROUTES.PROFILE}
+                          data-tour-target="nav-profile"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
+                          className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
                         >
-                          <ShieldCheck className="h-4 w-4 text-brand-400" />
-                          Claim Reviews
+                          {currentAvatarUrl ? (
+                            <AvatarImage
+                              src={currentAvatarUrl}
+                              name={profile?.display_name ?? 'User'}
+                              alt={profile?.display_name ?? 'My Profile'}
+                              size="xs"
+                              shape="circle"
+                              enablePreview={false}
+                              className="h-7 w-7 shrink-0 border border-navy-700 shadow-xs"
+                            />
+                          ) : (
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white shrink-0">
+                              {initials}
+                            </span>
+                          )}
+                          <span className="truncate">{profile?.display_name ?? 'My Profile'}</span>
                         </Link>
                         <Link
-                          to={ROUTES.VERIFICATION_REVIEW_QUEUE}
+                          to={ROUTES.CONNECTIONS}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
+                          className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
                         >
-                          <CheckCircle className="h-4 w-4 text-emerald-400" />
-                          Verification Reviews
+                          <UserCheck className="h-4 w-4 shrink-0 text-navy-400" />
+                          <span>Connections</span>
                         </Link>
+                        <Link
+                          to={ROUTES.PEOPLE}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                        >
+                          <Users className="h-4 w-4 shrink-0 text-navy-400" />
+                          <span>Census Records</span>
+                        </Link>
+                        <Link
+                          to={ROUTES.NOTIFICATIONS}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                        >
+                          <Bell className="h-4 w-4 shrink-0 text-navy-400" />
+                          <span>Notifications</span>
+                        </Link>
+                        {profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI', 'SUPER_ADMIN', 'ADMIN'].includes(profile.role) && (
+                          <Link
+                            to={ROUTES.MUKHI_PORTAL}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-navy-800 hover:text-white"
+                          >
+                            <Shield className="h-4 w-4 shrink-0 text-amber-400" />
+                            <span>Mukhi Portal</span>
+                          </Link>
+                        )}
+                        {profile?.role && PLATFORM_ADMIN_ROLES.includes(profile.role) && (
+                          <Link
+                            to={ROUTES.ADMIN}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-navy-800 hover:text-white"
+                          >
+                            <Shield className="h-4 w-4 shrink-0 text-brand-400" />
+                            <span>Admin Hub</span>
+                          </Link>
+                        )}
+                        {profile?.role && ADMIN_ROLES.includes(profile.role) && (
+                          <>
+                            <Link
+                              to={ROUTES.CLAIM_REVIEW_QUEUE}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                            >
+                              <ShieldCheck className="h-4 w-4 shrink-0 text-brand-400" />
+                              <span>Claim Reviews</span>
+                            </Link>
+                            <Link
+                              to={ROUTES.VERIFICATION_REVIEW_QUEUE}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                            >
+                              <CheckCircle className="h-4 w-4 shrink-0 text-emerald-400" />
+                              <span>Verification Reviews</span>
+                            </Link>
+                          </>
+                        )}
+
+                        {/* Mobile Text Size / Accessibility Slider */}
+                        <div className="my-2">
+                          <AccessibilityFontSizeSlider variant="dark" />
+                        </div>
+
+                        {/* PWA Install Mobile Action */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            setInstallModalOpen(true)
+                          }}
+                          className="flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                        >
+                          <Download className="h-4 w-4 shrink-0 text-brand-400" />
+                          <span>{isInstalled ? 'Installation Instructions' : 'Install App'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSignOut}
+                          className="flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-navy-800 hover:text-red-300"
+                        >
+                          <LogOut className="h-4 w-4 shrink-0" />
+                          <span>Sign out</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Guest Mobile Text Size / Accessibility Slider */}
+                        <div className="my-2">
+                          <AccessibilityFontSizeSlider variant="dark" />
+                        </div>
+
+                        {/* Guest PWA Install Mobile Action */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            setInstallModalOpen(true)
+                          }}
+                          className="flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-navy-800 hover:text-white"
+                        >
+                          <Download className="h-4 w-4 shrink-0 text-brand-400" />
+                          <span>{isInstalled ? 'Installation Instructions' : 'Install App'}</span>
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <Link
+                            to={ROUTES.SIGN_IN}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex min-h-[44px] items-center justify-center rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-navy-700"
+                          >
+                            Sign In
+                          </Link>
+                          <Link
+                            to={ROUTES.SIGN_UP}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex min-h-[44px] items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700 shadow-sm"
+                          >
+                            Join Community
+                          </Link>
+                        </div>
                       </>
                     )}
-                    {/* Mobile Text Size / Accessibility Slider (Part 21) */}
-                    <div className="my-2">
-                      <AccessibilityFontSizeSlider variant="dark" />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-navy-700"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to={ROUTES.SIGN_IN}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block rounded px-3 py-2 text-center text-sm font-medium text-navy-200 transition-colors hover:bg-navy-700 hover:text-white"
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      to={ROUTES.SIGN_UP}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block rounded bg-brand-600 px-3 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-brand-700"
-                    >
-                      Join Community
-                    </Link>
-                  </>
+                  </div>
                 )}
-              </div>
-            )}
-          </div>
-        </nav>
-      )}
+              </nav>
+            </aside>
+          </div>,
+          document.body
+        )}
+
+      {/* PWA Install Guide Modal */}
+      <InstallAppModal
+        isOpen={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+      />
     </header>
+
+    {/* Document flow spacer to preserve layout offset and prevent content from going under the fixed header */}
+    <div className="h-16 w-full shrink-0 print:hidden" aria-hidden="true" />
+  </>
   )
 }

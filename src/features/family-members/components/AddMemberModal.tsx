@@ -42,6 +42,10 @@ import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { CitySelector } from '@/components/forms/CitySelector'
 import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
 import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
+import { BloodGroupConsentCheckbox } from '@/components/forms/BloodGroupConsentCheckbox'
+import { ProfilePhotoUpload } from '@/components/forms/ProfilePhotoUpload'
+import { uploadAvatar } from '@/features/media/services/avatar.service'
+import { OCCUPATION_CATEGORIES, getCategoryForOccupation } from '@/constants/occupations'
 import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
 import {
   mapRelationshipToFamilyRole,
@@ -176,7 +180,9 @@ export function AddMemberModal({
   const [lastName, setLastName] = useState('')
   const [maidenName, setMaidenName] = useState('')
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE')
+  const [ageMode, setAgeMode] = useState<'dob' | 'age'>('dob')
   const [dateOfBirth, setDateOfBirth] = useState('')
+  const [currentAge, setCurrentAge] = useState('')
   const [birthPlace, setBirthPlace] = useState('')
   const [bloodGroup, setBloodGroup] = useState('')
   const [showBloodGroupInDirectory, setShowBloodGroupInDirectory] = useState(false)
@@ -187,8 +193,9 @@ export function AddMemberModal({
   const [email, setEmail] = useState('')
   const [headEmail, setHeadEmail] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [phoneSecondary, setPhoneSecondary] = useState('')
   const [isDeceased, setIsDeceased] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   // Existing Person Selection
   const [selectedPersonId, setSelectedPersonId] = useState('')
@@ -223,10 +230,6 @@ export function AddMemberModal({
       if (headPhone) {
         setPhone((prev) => (prev ? prev : headPhone))
       }
-      const headSecPhone = activeHead.person?.phone_secondary
-      if (headSecPhone) {
-        setPhoneSecondary((prev) => (prev ? prev : headSecPhone))
-      }
     }
   }, [activeHead?.person, isOpen])
 
@@ -238,7 +241,9 @@ export function AddMemberModal({
     setLastName(activeHead?.person?.last_name || family?.family_name || '')
     setMaidenName('')
     setGender(getAutoGender(relationship, activeHead?.person?.gender))
+    setAgeMode('dob')
     setDateOfBirth('')
+    setCurrentAge('')
     const defaultLocation = [family?.city, family?.state].filter(Boolean).join(', ') || activeHead?.person?.birth_place || ''
     setBirthPlace(defaultLocation)
     setBloodGroup('')
@@ -250,8 +255,9 @@ export function AddMemberModal({
     const defaultHeadEmail = activeHead?.person?.email_contact || headEmail || ''
     setEmail(defaultHeadEmail)
     setPhone(activeHead?.person?.phone || '')
-    setPhoneSecondary(activeHead?.person?.phone_secondary || '')
     setIsDeceased(false)
+    setAvatarFile(null)
+    setAvatarPreview(null)
     setSelectedPersonId('')
     setPersonSearch('')
     setReferencePersonId(activeHead?.person_id ?? propHeadPersonId ?? '')
@@ -382,34 +388,30 @@ export function AddMemberModal({
         setErrorMessage('Gender is required.')
         return
       }
-      if (!dateOfBirth) {
-        setErrorMessage('Date of Birth is required.')
-        return
-      }
-      const dobNormalized = normalizeDateInput(dateOfBirth)
-      if (!dobNormalized) {
-        setErrorMessage('Date of Birth is required.')
-        return
-      }
-      const dobDate = new Date(dobNormalized)
-      const today = new Date()
-      today.setHours(23, 59, 59, 999)
-      if (dobDate > today) {
-        setErrorMessage('Date of birth cannot be in the future.')
-        return
+
+      if (ageMode === 'age') {
+        if (currentAge.trim()) {
+          const ageNum = parseInt(currentAge.trim(), 10)
+          if (isNaN(ageNum) || ageNum < 0 || ageNum > 125) {
+            setErrorMessage('Please enter a valid age between 0 and 125.')
+            return
+          }
+        }
+      } else if (dateOfBirth.trim()) {
+        const dobNormalized = normalizeDateInput(dateOfBirth)
+        if (dobNormalized) {
+          const dobDate = new Date(dobNormalized)
+          const today = new Date()
+          today.setHours(23, 59, 59, 999)
+          if (dobDate > today) {
+            setErrorMessage('Date of birth cannot be in the future.')
+            return
+          }
+        }
       }
 
       if (!bloodGroup || bloodGroup === 'UNKNOWN') {
         setErrorMessage('Please select Blood Group.')
-        return
-      }
-
-      const finalBirthPlace =
-        sanitizeOptional(birthPlace) ||
-        ([family?.city, family?.state].filter(Boolean).join(', ') || null)
-
-      if (!finalBirthPlace) {
-        setErrorMessage('Birthplace is required.')
         return
       }
 
@@ -433,11 +435,6 @@ export function AddMemberModal({
 
       if (phone.trim() && !/^[0-9+\s\-()]{7,25}$/.test(phone.trim())) {
         setErrorMessage('Please enter a valid primary phone number (digits, +, -).')
-        return
-      }
-
-      if (phoneSecondary.trim() && !/^[0-9+\s\-()]{7,25}$/.test(phoneSecondary.trim())) {
-        setErrorMessage('Please enter a valid secondary phone number (digits, +, -).')
         return
       }
 
@@ -485,6 +482,11 @@ export function AddMemberModal({
           sanitizeOptional(birthPlace) ||
           ([family?.city, family?.state].filter(Boolean).join(', ') || null)
 
+        const parsedCurrentAge =
+          ageMode === 'age' && currentAge.trim() ? parseInt(currentAge.trim(), 10) : null
+        const parsedDob =
+          ageMode === 'dob' && dateOfBirth.trim() ? normalizeDateInput(dateOfBirth) : null
+
         const createRes = await createPerson(
           {
             first_name: toProperCaseName(firstName.trim()),
@@ -492,19 +494,37 @@ export function AddMemberModal({
             last_name: toProperCaseName(lastName.trim()),
             maiden_name: maidenName.trim() ? toProperCaseName(maidenName.trim()) : null,
             gender,
-            date_of_birth: normalizeDateInput(dateOfBirth)!,
-            birth_place: finalBirthPlace ? toProperCaseName(finalBirthPlace) : finalBirthPlace!,
+            date_of_birth: parsedDob,
+            current_age: parsedCurrentAge,
+            birth_place: finalBirthPlace ? toProperCaseName(finalBirthPlace) : null,
             blood_group: bloodGroup as CreatePersonInput['blood_group'],
             show_blood_group_in_directory: showBloodGroupInDirectory,
             blood_group_consent: showBloodGroupInDirectory,
             is_deceased: isDeceased,
             gotra: finalGotra ? toProperCaseName(finalGotra) : finalGotra!,
             nukh: finalNukh ? toProperCaseName(finalNukh) : finalNukh!,
-            occupation: sanitizeOptional(occupation),
+            occupation: (() => {
+              const occ = sanitizeOptional(occupation)
+              const cat = sanitizeOptional(occupationCategory)
+              if (cat && cat !== 'Other' && (OCCUPATION_CATEGORIES as readonly string[]).includes(cat)) {
+                return cat
+              }
+              if (occ) {
+                const detected = getCategoryForOccupation(occ)
+                if (detected) return detected
+              }
+              if (!occ && cat && cat !== 'Other') return cat
+              return occ || 'Occupation Pending'
+            })(),
             occupation_category: sanitizeOptional(occupationCategory),
+            custom_occupation: (() => {
+              const occ = sanitizeOptional(occupation)
+              const cat = sanitizeOptional(occupationCategory)
+              if (occ && cat && occ.toLowerCase() !== cat.toLowerCase()) return occ
+              return null
+            })(),
             email_contact: sanitizeOptional(email),
             phone: sanitizeOptional(phone),
-            phone_secondary: sanitizeOptional(phoneSecondary),
             profile_privacy: 'PRIVATE',
             contact_privacy: 'PRIVATE',
             dob_privacy: 'PRIVATE',
@@ -518,6 +538,15 @@ export function AddMemberModal({
 
         memberPersonId = createRes.data.id
         memberName = `${createRes.data.first_name} ${createRes.data.last_name}`
+
+        // Upload avatar photo if selected
+        if (avatarFile) {
+          try {
+            await uploadAvatar(avatarFile, { type: 'person', id: memberPersonId })
+          } catch {
+            // Non-blocking avatar upload
+          }
+        }
       } else {
         memberPersonId = selectedPersonId
         const found = persons.find((p) => p.id === selectedPersonId)
@@ -613,6 +642,10 @@ export function AddMemberModal({
       void queryClient.invalidateQueries({ queryKey: ['relationships'] })
       void queryClient.invalidateQueries({ queryKey: ['family-members'] })
       void queryClient.invalidateQueries({ queryKey: ['families'] })
+      void queryClient.invalidateQueries({ queryKey: ['persons'] })
+      void queryClient.invalidateQueries({ queryKey: ['community-persons'] })
+      void queryClient.invalidateQueries({ queryKey: ['public-occupation-directory'] })
+      void queryClient.invalidateQueries({ queryKey: ['public-occupations'] })
 
       if (andAddAnother) {
         setSuccessBanner(`✓ "${memberName}" was successfully added as ${relationship}! Ready to add another member.`)
@@ -761,6 +794,18 @@ export function AddMemberModal({
               </div>
             )}
 
+            {/* Profile Photo Upload */}
+            <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-3">
+              <ProfilePhotoUpload
+                id="add-member-avatar"
+                previewUrl={avatarPreview}
+                onPhotoSelected={(file, preview) => {
+                  setAvatarFile(file)
+                  setAvatarPreview(preview)
+                }}
+              />
+            </div>
+
             {/* Standard Name Order: First, Middle, Last, Maiden */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
@@ -788,7 +833,7 @@ export function AddMemberModal({
               />
             </div>
 
-            {/* Identity: Gender, DOB, Blood Group, Birthplace, Date of Death */}
+            {/* Identity: Gender, Age / DOB Toggle, Blood Group, Birthplace (Optional) */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <label htmlFor="member-gender" className="block text-sm font-medium text-navy-700">
@@ -806,14 +851,67 @@ export function AddMemberModal({
                 </select>
               </div>
 
-              <Input
-                label="Date of Birth"
-                required
-                type="date"
-                max={new Date().toISOString().split('T')[0]}
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-              />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-navy-700">
+                    Age / Birth Date <span className="text-navy-400 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setAgeMode('dob')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        ageMode !== 'age'
+                          ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                          : 'text-navy-600 hover:text-navy-900'
+                      }`}
+                    >
+                      Date of Birth
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAgeMode('age')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        ageMode === 'age'
+                          ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                          : 'text-navy-600 hover:text-navy-900'
+                      }`}
+                    >
+                      Current Age
+                    </button>
+                  </div>
+                </div>
+
+                {ageMode === 'age' ? (
+                  <div>
+                    <Input
+                      id="member-current-age"
+                      type="number"
+                      min={0}
+                      max={125}
+                      value={currentAge}
+                      onChange={(e) => setCurrentAge(e.target.value)}
+                      placeholder="Completed years (0 - 125)"
+                    />
+                    <p className="mt-1 text-[11px] text-navy-500">
+                      Recorded as completed years without computing a synthetic birth date.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Input
+                      id="member-dob"
+                      type="date"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                    <p className="mt-1 text-[11px] text-navy-500">
+                      Optional: Leave blank if exact birth date is unknown.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-1">
                 <label htmlFor="member-blood-group" className="block text-sm font-medium text-navy-700">
@@ -833,31 +931,17 @@ export function AddMemberModal({
                 </select>
 
                 {/* Blood Group Directory Consent Checkbox */}
-                <div className="mt-2.5 flex items-start gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2.5">
-                  <input
-                    type="checkbox"
-                    id="member-blood-group-consent"
-                    checked={showBloodGroupInDirectory}
-                    onChange={(e) => setShowBloodGroupInDirectory(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <div className="space-y-0.5">
-                    <label
-                      htmlFor="member-blood-group-consent"
-                      className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block"
-                    >
-                      Show my blood group details in the Blood Group Directory.
-                    </label>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      If enabled, your name, selected blood group, family name, and permitted location details may appear in the community Blood Group Directory. Your personal phone number and email address will remain private.
-                    </p>
-                  </div>
-                </div>
+                <BloodGroupConsentCheckbox
+                  id="member-blood-group-consent"
+                  checked={showBloodGroupInDirectory}
+                  onChange={setShowBloodGroupInDirectory}
+                  disabled={isSubmitting}
+                />
               </div>
 
               <CitySelector
-                label="Birthplace"
-                required
+                label="Birthplace (Optional)"
+                required={false}
                 placeholder="Search birthplace worldwide..."
                 value={birthPlace}
                 onSelectCity={(selected) => {
@@ -918,21 +1002,15 @@ export function AddMemberModal({
 
             {/* Contact Details */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1 border-t border-navy-100">
-              <PhoneInputWithCountryCode
-                id="member-primary-phone"
-                label="Primary Phone Number"
-                value={phone}
-                onChange={setPhone}
-                placeholder="Enter mobile number"
-              />
-
-              <PhoneInputWithCountryCode
-                id="member-secondary-phone"
-                label="Secondary Phone"
-                value={phoneSecondary}
-                onChange={setPhoneSecondary}
-                placeholder="Enter secondary mobile number"
-              />
+              <div className="sm:col-span-2">
+                <PhoneInputWithCountryCode
+                  id="member-primary-phone"
+                  label="Primary Phone Number"
+                  value={phone}
+                  onChange={setPhone}
+                  placeholder="Enter mobile number"
+                />
+              </div>
 
               <div className="sm:col-span-2">
                 <Input

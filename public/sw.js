@@ -5,7 +5,7 @@
  * 1. ONLY static application shell resources are allowed in Cache Storage:
  *    - HTML application shell (/index.html)
  *    - Content-hashed JavaScript and CSS (/assets/*)
- *    - Safe public static branding assets (/favicon.svg, /manifest.webmanifest, icons)
+ *    - Safe public static branding assets (/favicon.svg, /manifest.webmanifest, icons, /offline.html)
  * 2. STRICTLY FORBIDDEN from Cache Storage:
  *    - All Supabase requests (REST API, RPCs, Auth, Realtime, Storage)
  *    - Auth tokens, session cookies, and login credentials
@@ -13,13 +13,16 @@
  *    - Non-GET HTTP methods (POST, PUT, PATCH, DELETE)
  * 3. Offline Behavior:
  *    - Navigation requests fallback to cached /index.html allowing React Router to mount.
+ *    - If /index.html is unavailable, falls back to /offline.html.
  *    - API calls fail closed when offline; never serves stale or unauthenticated census data.
  * 4. Update Lifecycle:
  *    - Listens for SKIP_WAITING to allow safe user-controlled updates.
  *    - Automatically claims clients on activation.
+ * 5. Push Notifications:
+ *    - Handles push and notificationclick events safely without exposing private data.
  */
 
-const CACHE_VERSION = 'cr-shell-v1'
+const CACHE_VERSION = 'cr-shell-v5'
 
 // Core static assets required to render the application shell
 const STATIC_PRECACHE_URLS = [
@@ -27,10 +30,17 @@ const STATIC_PRECACHE_URLS = [
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.svg',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
   '/health.json',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
+  '/maskable-icon-192x192.png',
   '/maskable-icon-512x512.png',
+  '/apple-touch-icon.png',
+  '/logo.png',
+  '/khatri-logo.png',
+  '/offline.html',
 ]
 
 // ---------------------------------------------------------------------------
@@ -128,6 +138,10 @@ self.addEventListener('fetch', (event) => {
         if (cachedShell) {
           return cachedShell
         }
+        const cachedOffline = await cache.match('/offline.html')
+        if (cachedOffline) {
+          return cachedOffline
+        }
         return new Response('Network offline. Please reconnect to access KHATRI SARVANIYAT.', {
           status: 503,
           statusText: 'Service Unavailable',
@@ -166,4 +180,56 @@ self.addEventListener('fetch', (event) => {
 
   // 3. All other requests (Supabase REST, RPC, Auth, Storage, etc.)
   // Strictly Network-Only. Never intercepted by Cache Storage.
+})
+
+// ---------------------------------------------------------------------------
+// Push Notifications & Interaction Handlers
+// ---------------------------------------------------------------------------
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  try {
+    const payload = event.data.json()
+    const title = payload.title || 'KHATRI SARVANIYAT'
+    const options = {
+      body: payload.body || 'New community update available.',
+      icon: payload.icon || '/pwa-192x192.png',
+      badge: payload.badge || '/favicon-32x32.png',
+      tag: payload.tag || 'community-notification',
+      data: {
+        url: payload.url || '/',
+        ...payload.data,
+      },
+    }
+
+    event.waitUntil(self.registration.showNotification(title, options))
+  } catch {
+    const text = event.data.text()
+    event.waitUntil(
+      self.registration.showNotification('KHATRI SARVANIYAT', {
+        body: text,
+        icon: '/pwa-192x192.png',
+      })
+    )
+  }
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          client.navigate(targetUrl)
+          return client.focus()
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl)
+      }
+    })
+  )
 })

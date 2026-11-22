@@ -6,6 +6,8 @@
 
 export * from './types'
 export * from './utils/image.utils'
+export * from './utils/imageCompression.utils'
 export * from './services/avatar.service'
 export * from './components/AvatarImage'
 export * from './components/AvatarUploadDialog'
+export * from './components/ImagePreviewModal'

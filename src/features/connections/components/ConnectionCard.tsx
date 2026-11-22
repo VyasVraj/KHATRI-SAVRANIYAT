@@ -12,6 +12,7 @@
 import { Check, X, Ban, UserMinus, Clock } from 'lucide-react'
 import type { ConnectionWithProfile } from '../types'
 import { Button } from '@/components/forms/Button'
+import { AvatarImage } from '@/features/media'
 
 export interface ConnectionCardProps {
   connection: ConnectionWithProfile
@@ -57,10 +58,13 @@ export function ConnectionCard({
         {/* Profile Avatar & Name */}
         <div className="flex min-w-0 items-center gap-3">
           {other_user.avatar_url ? (
-            <img
+            <AvatarImage
               src={other_user.avatar_url}
+              name={displayName}
               alt={displayName}
-              className="h-11 w-11 shrink-0 rounded-full object-cover border border-navy-100"
+              size="md"
+              shape="circle"
+              className="h-11 w-11 shrink-0 border border-navy-100"
             />
           ) : (
             <div

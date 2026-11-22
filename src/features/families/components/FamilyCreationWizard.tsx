@@ -12,7 +12,7 @@
  *    atomic submission via register_complete_family RPC).
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -41,14 +41,21 @@ import { CitySelector } from '@/components/forms/CitySelector'
 import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
 import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
 import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
+import { ProfilePhotoUpload } from '@/components/forms/ProfilePhotoUpload'
+import { uploadAvatar } from '@/features/media/services/avatar.service'
+import { detectUserLocation } from '@/services/locationDetection.service'
 import { formatRelationshipDisplay } from '@/constants/familyRelationships'
+import { OCCUPATION_CATEGORIES, getCategoryForOccupation } from '@/constants/occupations'
 import { BrandLogo } from '@/components/common/BrandLogo'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
 import { useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { updatePerson } from '@/features/people/services/people.service'
 import {
   registerCompleteFamily,
   mapRelationshipToFamilyRole,
   type CompleteFamilyRegistrationPayload,
+  type RegistrationPersonInput,
   type RegistrationMemberInput,
 } from '../services/families.service'
 import { usePersonList } from '@/features/people/hooks/usePersonList'
@@ -65,7 +72,9 @@ export interface PersonFormValues {
   middle_name: string
   last_name: string
   gender: 'MALE' | 'FEMALE' | 'OTHER'
+  age_mode: 'dob' | 'age'
   date_of_birth: string
+  current_age: string
   city: string
   state: string
   country: string
@@ -73,6 +82,7 @@ export interface PersonFormValues {
   nukh: string
   occupation: string
   occupation_category?: string
+  custom_occupation?: string
   phone: string
   email: string
   // Optional fields
@@ -80,10 +90,11 @@ export interface PersonFormValues {
   birth_place: string
   date_of_death?: string
   is_deceased: boolean
-  phone_secondary: string
   blood_group: string
   blood_group_consent: boolean
-  kul: string
+  avatar_file?: File | null
+  avatar_preview?: string | null
+  avatar_url?: string | null
 }
 
 export interface StagedMember {
@@ -99,7 +110,9 @@ const INITIAL_PERSON_VALUES: PersonFormValues = {
   middle_name: '',
   last_name: '',
   gender: 'MALE',
+  age_mode: 'dob',
   date_of_birth: '',
+  current_age: '',
   city: '',
   state: '',
   country: 'India',
@@ -107,16 +120,18 @@ const INITIAL_PERSON_VALUES: PersonFormValues = {
   nukh: '',
   occupation: '',
   occupation_category: '',
+  custom_occupation: '',
   phone: '',
   email: '',
   maiden_name: '',
   birth_place: '',
   date_of_death: '',
   is_deceased: false,
-  phone_secondary: '',
   blood_group: '',
   blood_group_consent: false,
-  kul: '',
+  avatar_file: null,
+  avatar_preview: null,
+  avatar_url: null,
 }
 
 function validatePersonFields(vals: PersonFormValues): Record<string, string> {
@@ -127,21 +142,23 @@ function validatePersonFields(vals: PersonFormValues): Record<string, string> {
   if (!vals.last_name.trim()) errs.last_name = 'Last Name / Surname is required'
   if (!vals.gender) errs.gender = 'Gender is required'
   
-  if (!vals.date_of_birth) {
-    errs.date_of_birth = 'Date of Birth is required'
-  } else {
-    const dob = new Date(vals.date_of_birth)
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    if (dob > today) {
-      errs.date_of_birth = 'Date of Birth cannot be in the future'
+  if (vals.age_mode === 'age') {
+    if (vals.current_age?.trim()) {
+      const ageNum = parseInt(vals.current_age, 10)
+      if (isNaN(ageNum) || ageNum < 0 || ageNum > 125) {
+        errs.current_age = 'Please enter a valid age between 0 and 125'
+      }
     }
-  }
-
-  // Birthplace is mandatory
-  const effectiveBirthplace = vals.birth_place.trim() || vals.city.trim()
-  if (!effectiveBirthplace) {
-    errs.birth_place = 'Birthplace is required'
+  } else {
+    // Exact Date of Birth mode - OPTIONAL
+    if (vals.date_of_birth) {
+      const dob = new Date(vals.date_of_birth)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      if (dob > today) {
+        errs.date_of_birth = 'Date of Birth cannot be in the future'
+      }
+    }
   }
 
   // Blood Group is mandatory
@@ -156,10 +173,6 @@ function validatePersonFields(vals: PersonFormValues): Record<string, string> {
   if (!vals.nukh.trim()) errs.nukh = 'Nukh is required'
   if (vals.phone?.trim() && !/^[0-9+\s\-()]{7,25}$/.test(vals.phone.trim())) {
     errs.phone = 'Please enter a valid phone number (digits, +, -)'
-  }
-
-  if (vals.phone_secondary?.trim() && !/^[0-9+\s\-()]{7,25}$/.test(vals.phone_secondary.trim())) {
-    errs.phone_secondary = 'Please enter a valid secondary phone number'
   }
 
   if (vals.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email.trim())) {
@@ -189,24 +202,79 @@ export function FamilyCreationWizard() {
   const [familyGotra, setFamilyGotra] = useState('')
   const [familyNukh, setFamilyNukh] = useState('')
   const [familyDescription, setFamilyDescription] = useState('')
-  const [familyKul, setFamilyKul] = useState('')
   const [familyErrors, setFamilyErrors] = useState<Record<string, string>>({})
+
+  // Automatic Location Detection state
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false)
+  const [locationDetectError, setLocationDetectError] = useState<string | null>(null)
+  const [locationDetectSuccess, setLocationDetectSuccess] = useState<string | null>(null)
+
+  const handleAutoDetectLocation = async () => {
+    setIsDetectingLocation(true)
+    setLocationDetectError(null)
+    setLocationDetectSuccess(null)
+
+    const res = await detectUserLocation()
+    setIsDetectingLocation(false)
+    if (res.success && res.location) {
+      setFamilyCity(res.location.city)
+      setFamilyState(res.location.state)
+      setFamilyCountry(res.location.country || 'India')
+      setLocationDetectSuccess(`Detected: ${res.location.city}, ${res.location.state}, ${res.location.country}`)
+    } else {
+      setLocationDetectError(res.error || 'Could not detect location. Please search and select manually.')
+    }
+  }
 
   const { mukhis: communityMukhis, isLoading: isMukhisLoading } = useCommunityMukhis({
     priorityLocation: familyCity || undefined,
   })
 
-  const filteredMukhis = useMemo(() => {
-    if (!mukhiSearchQuery.trim()) return communityMukhis
-    const q = mukhiSearchQuery.toLowerCase().trim()
-    return communityMukhis.filter(
-      (m) =>
-        m.full_name.toLowerCase().includes(q) ||
-        m.gram.toLowerCase().includes(q) ||
-        (m.mobile_number && m.mobile_number.includes(q)) ||
-        String(m.source_serial_number) === q
+  // Filter only active & approved Mukhis and sort matching location Mukhis to the top
+  const { filteredMukhis, locationMatches } = useMemo(() => {
+    const activeApproved = communityMukhis.filter(
+      (m) => m.is_active && (m.authority_status === 'ACTIVE' || !m.authority_status)
     )
-  }, [communityMukhis, mukhiSearchQuery])
+
+    let list = activeApproved
+    if (mukhiSearchQuery.trim()) {
+      const q = mukhiSearchQuery.toLowerCase().trim()
+      list = activeApproved.filter(
+        (m) =>
+          m.full_name.toLowerCase().includes(q) ||
+          m.gram.toLowerCase().includes(q) ||
+          (m.mobile_number && m.mobile_number.includes(q)) ||
+          String(m.source_serial_number) === q
+      )
+    }
+
+    const matches = activeApproved.filter(
+      (m) => isLocationMatch(m.gram, familyCity) || isLocationMatch(m.gram, familyState)
+    )
+
+    const sorted = [...list].sort((a, b) => {
+      const aMatch = isLocationMatch(a.gram, familyCity) || isLocationMatch(a.gram, familyState) ? 1 : 0
+      const bMatch = isLocationMatch(b.gram, familyCity) || isLocationMatch(b.gram, familyState) ? 1 : 0
+      if (aMatch !== bMatch) {
+        return bMatch - aMatch // Match comes first
+      }
+      return (a.source_serial_number || 0) - (b.source_serial_number || 0)
+    })
+
+    return { filteredMukhis: sorted, locationMatches: matches }
+  }, [communityMukhis, mukhiSearchQuery, familyCity, familyState])
+
+  // Automatically preselect Mukhi if exactly 1 matching Mukhi exists for detected / selected location
+  useEffect(() => {
+    if (!familyCity.trim()) return
+    const activeApproved = communityMukhis.filter(
+      (m) => m.is_active && (m.authority_status === 'ACTIVE' || !m.authority_status)
+    )
+    const exactMatches = activeApproved.filter((m) => isLocationMatch(m.gram, familyCity))
+    if (exactMatches.length === 1) {
+      setSelectedMukhiId(exactMatches[0].id)
+    }
+  }, [familyCity, communityMukhis])
 
   const selectedMukhi = useMemo(
     () => communityMukhis.find((m) => m.id === selectedMukhiId) || null,
@@ -459,8 +527,54 @@ export function FamilyCreationWizard() {
     setIsSubmitting(true)
 
     try {
+      const resolveFullOccupation = (occ?: string, cat?: string) => {
+        const cleanOcc = (occ || '').trim()
+        const cleanCat = (cat || '').trim()
+        if (!cleanOcc && !cleanCat) return { official: null, category: null, custom: null }
+
+        let official: string | null = null
+        let category: string | null = null
+        let custom: string | null = null
+
+        if (cleanCat && cleanCat !== 'Other') {
+          const matched = OCCUPATION_CATEGORIES.find((c) => c.toLowerCase() === cleanCat.toLowerCase())
+          official = matched || cleanCat
+          category = official
+          if (cleanOcc && cleanOcc.toLowerCase() !== official.toLowerCase()) {
+            custom = cleanOcc
+          }
+        } else if (cleanCat === 'Other' && cleanOcc) {
+          const detected = getCategoryForOccupation(cleanOcc)
+          official = detected || 'Business and Entrepreneurship'
+          category = detected || 'Other'
+          custom = cleanOcc
+        } else if (cleanOcc) {
+          const detected = getCategoryForOccupation(cleanOcc)
+          if (detected) {
+            official = detected
+            category = detected
+            if (cleanOcc.toLowerCase() !== detected.toLowerCase()) {
+              custom = cleanOcc
+            }
+          } else {
+            official = 'Business and Entrepreneurship'
+            category = 'Other'
+            custom = cleanOcc
+          }
+        }
+
+        return { official, category, custom }
+      }
+
+      const headOccInfo = resolveFullOccupation(headForm.occupation, headForm.occupation_category)
+      const headDOB = headForm.age_mode === 'age' ? null : (headForm.date_of_birth.trim() || null)
+      const headCurrentAge =
+        headForm.age_mode === 'age' && headForm.current_age?.trim()
+          ? parseInt(headForm.current_age.trim(), 10)
+          : null
+
       // Build head payload
-      const headPayload =
+      const headPayload: RegistrationPersonInput =
         headMode === 'existing'
           ? {
               is_existing: true,
@@ -472,23 +586,24 @@ export function FamilyCreationWizard() {
               middle_name: headForm.middle_name.trim() || null,
               last_name: headForm.last_name.trim(),
               gender: headForm.gender,
-              date_of_birth: headForm.date_of_birth,
+              date_of_birth: headDOB,
+              current_age: headCurrentAge,
               city: headForm.city.trim(),
               state: headForm.state.trim(),
               country: headForm.country.trim(),
               gotra: headForm.gotra.trim(),
               nukh: headForm.nukh.trim(),
-              occupation: headForm.occupation.trim(),
+              occupation: headOccInfo.official,
+              occupation_category: headOccInfo.category,
+              custom_occupation: headOccInfo.custom,
               phone: headForm.phone.trim(),
               email: headForm.email.trim(),
               maiden_name: headForm.maiden_name.trim() || null,
-              birth_place: headForm.birth_place.trim() || headForm.city.trim(),
+              birth_place: headForm.birth_place.trim() || null,
               date_of_death: headForm.date_of_death || null,
               is_deceased: Boolean(headForm.is_deceased),
-              phone_secondary: headForm.phone_secondary.trim() || null,
               blood_group: headForm.blood_group.trim(),
               blood_group_consent: Boolean(headForm.blood_group_consent),
-              kul: headForm.kul.trim() || null,
             }
 
       // Build staged members payload
@@ -502,6 +617,14 @@ export function FamilyCreationWizard() {
             role: canonicalRole,
           }
         }
+
+        const mOccInfo = resolveFullOccupation(m.form_values.occupation, m.form_values.occupation_category)
+        const mDOB = m.form_values.age_mode === 'age' ? null : (m.form_values.date_of_birth.trim() || null)
+        const mCurrentAge =
+          m.form_values.age_mode === 'age' && m.form_values.current_age?.trim()
+            ? parseInt(m.form_values.current_age.trim(), 10)
+            : null
+
         return {
           is_existing: false,
           relationship_to_head: m.relationship_to_head,
@@ -510,23 +633,24 @@ export function FamilyCreationWizard() {
           middle_name: m.form_values.middle_name.trim() || null,
           last_name: m.form_values.last_name.trim(),
           gender: m.form_values.gender,
-          date_of_birth: m.form_values.date_of_birth,
+          date_of_birth: mDOB,
+          current_age: mCurrentAge,
           city: m.form_values.city.trim(),
           state: m.form_values.state.trim(),
           country: m.form_values.country.trim(),
           gotra: m.form_values.gotra.trim(),
           nukh: m.form_values.nukh.trim(),
-          occupation: m.form_values.occupation.trim(),
+          occupation: mOccInfo.official,
+          occupation_category: mOccInfo.category,
+          custom_occupation: mOccInfo.custom,
           phone: m.form_values.phone.trim(),
           email: m.form_values.email.trim(),
           maiden_name: m.form_values.maiden_name.trim() || null,
-          birth_place: m.form_values.birth_place.trim() || m.form_values.city.trim(),
+          birth_place: m.form_values.birth_place.trim() || null,
           date_of_death: m.form_values.date_of_death || null,
           is_deceased: Boolean(m.form_values.is_deceased),
-          phone_secondary: m.form_values.phone_secondary.trim() || null,
           blood_group: m.form_values.blood_group.trim(),
           blood_group_consent: Boolean(m.form_values.blood_group_consent),
-          kul: m.form_values.kul.trim() || null,
         }
       })
 
@@ -540,7 +664,6 @@ export function FamilyCreationWizard() {
           gotra: familyGotra.trim(),
           nukh: familyNukh.trim(),
           description: familyDescription.trim() || null,
-          kul: familyKul.trim() || null,
         },
         head: headPayload,
         members: membersPayload,
@@ -552,13 +675,100 @@ export function FamilyCreationWizard() {
         throw new Error(res.error?.message || 'Failed to register complete family.')
       }
 
+      // Upload profile photo for Head if provided
+      if (headMode === 'new' && headForm.avatar_file && res.data.head_person_id) {
+        try {
+          await uploadAvatar(headForm.avatar_file, { type: 'person', id: res.data.head_person_id })
+        } catch {
+          // Non-blocking avatar upload
+        }
+      }
+
+      // Upload profile photos for Staged Members if provided
+      if (res.data.family_id && stagedMembers.some((m) => !m.is_existing && m.form_values.avatar_file)) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: createdFm } = await (supabase.from('family_members') as any)
+            .select('person_id, is_head, role, relationship_to_head, persons(first_name, last_name)')
+            .eq('family_id', res.data.family_id)
+
+          if (Array.isArray(createdFm)) {
+            for (const m of stagedMembers) {
+              if (m.is_existing || !m.form_values.avatar_file) continue
+              const matched = createdFm.find(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (cfm: any) =>
+                  !cfm.is_head &&
+                  cfm.persons?.first_name?.toLowerCase() === m.form_values.first_name.trim().toLowerCase() &&
+                  cfm.persons?.last_name?.toLowerCase() === m.form_values.last_name.trim().toLowerCase()
+              )
+              if (matched?.person_id) {
+                await uploadAvatar(m.form_values.avatar_file, { type: 'person', id: matched.person_id })
+              }
+            }
+          }
+        } catch {
+          // Non-blocking avatar upload
+        }
+      }
+
+      // Synchronize exact occupation fields directly to guarantee database persistence across views
+      try {
+        if (
+          res.data.head_person_id &&
+          headMode === 'new' &&
+          (headOccInfo.official || headOccInfo.category || headOccInfo.custom)
+        ) {
+          await updatePerson(res.data.head_person_id, {
+            occupation: headOccInfo.official,
+            occupation_category: headOccInfo.category,
+            custom_occupation: headOccInfo.custom,
+          })
+        }
+
+        if (res.data.family_id && stagedMembers.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: createdFm } = await (supabase.from('family_members') as any)
+            .select('person_id, is_head, role, relationship_to_head, persons(first_name, last_name)')
+            .eq('family_id', res.data.family_id)
+
+          if (Array.isArray(createdFm)) {
+            for (const m of stagedMembers) {
+              if (m.is_existing) continue
+              const mOccInfo = resolveFullOccupation(m.form_values.occupation, m.form_values.occupation_category)
+              if (!mOccInfo.official && !mOccInfo.category && !mOccInfo.custom) continue
+
+              const matched = createdFm.find(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (cfm: any) =>
+                  !cfm.is_head &&
+                  cfm.persons?.first_name?.toLowerCase() === m.form_values.first_name.trim().toLowerCase() &&
+                  cfm.persons?.last_name?.toLowerCase() === m.form_values.last_name.trim().toLowerCase()
+              )
+              if (matched?.person_id) {
+                await updatePerson(matched.person_id, {
+                  occupation: mOccInfo.official,
+                  occupation_category: mOccInfo.category,
+                  custom_occupation: mOccInfo.custom,
+                })
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-blocking fallback
+      }
+
       setShowConfirmModal(false)
 
-      // Invalidate relevant cache queries
+      // Invalidate relevant cache queries across all domains
       await queryClient.invalidateQueries({ queryKey: ['families'] })
       await queryClient.invalidateQueries({ queryKey: ['family-members'] })
       await queryClient.invalidateQueries({ queryKey: ['persons'] })
+      await queryClient.invalidateQueries({ queryKey: ['community-persons'] })
       await queryClient.invalidateQueries({ queryKey: ['relationships'] })
+      await queryClient.invalidateQueries({ queryKey: ['public-occupation-directory'] })
+      await queryClient.invalidateQueries({ queryKey: ['public-occupations'] })
 
       navigate(ROUTES.FAMILIES, {
         state: {
@@ -580,11 +790,30 @@ export function FamilyCreationWizard() {
   function renderPersonForm(
     values: PersonFormValues,
     errors: Record<string, string>,
-    onChange: (field: keyof PersonFormValues, val: string | boolean) => void,
+    onChange: (field: keyof PersonFormValues, val: unknown) => void,
     idPrefix: string
   ) {
     return (
       <div className="space-y-4">
+        {/* Profile Photo Upload */}
+        <div className="rounded-lg border border-navy-100 bg-navy-50/30 p-3.5">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-navy-700 mb-2">
+            Profile Photo (Optional)
+          </label>
+          <ProfilePhotoUpload
+            id={`${idPrefix}-profile-photo`}
+            currentPhotoUrl={values.avatar_url || null}
+            previewUrl={values.avatar_preview || null}
+            onPhotoSelected={(file: File | null, previewUrl: string | null) => {
+              onChange('avatar_file', file)
+              onChange('avatar_preview', previewUrl)
+              if (!file && !previewUrl) {
+                onChange('avatar_url', null)
+              }
+            }}
+          />
+        </div>
+
         {/* Name Fields: Exact Order 1. First, 2. Middle, 3. Last */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
@@ -625,7 +854,7 @@ export function FamilyCreationWizard() {
           </div>
         </div>
 
-        {/* Identity: 4. Gender, 5. Date of Birth, 6. Blood Group, 7. Birthplace */}
+        {/* Identity: 4. Gender, 5. DOB / Age Toggle, 6. Blood Group, 7. Birthplace (Optional) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idPrefix}-gender`} className="block text-sm font-medium text-navy-700">
@@ -644,18 +873,68 @@ export function FamilyCreationWizard() {
             {errors.gender && <p className="mt-1 text-xs text-red-600">{errors.gender}</p>}
           </div>
 
-          <div>
-            <label htmlFor={`${idPrefix}-dob`} className="block text-sm font-medium text-navy-700">
-              5. Date of Birth <span className="text-red-500">*</span>
-            </label>
-            <Input
-              id={`${idPrefix}-dob`}
-              type="date"
-              max={new Date().toISOString().split('T')[0]}
-              value={values.date_of_birth}
-              onChange={(e) => onChange('date_of_birth', e.target.value)}
-              error={errors.date_of_birth}
-            />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-navy-700">
+                5. Age / Birth Date <span className="text-navy-400 font-normal">(Optional)</span>
+              </label>
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[11px] font-medium">
+                <button
+                  type="button"
+                  onClick={() => onChange('age_mode', 'dob')}
+                  className={`px-2 py-0.5 rounded transition-all ${
+                    values.age_mode !== 'age'
+                      ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                      : 'text-navy-600 hover:text-navy-900'
+                  }`}
+                >
+                  Date of Birth
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange('age_mode', 'age')}
+                  className={`px-2 py-0.5 rounded transition-all ${
+                    values.age_mode === 'age'
+                      ? 'bg-white text-navy-900 shadow-xs font-semibold'
+                      : 'text-navy-600 hover:text-navy-900'
+                  }`}
+                >
+                  Current Age
+                </button>
+              </div>
+            </div>
+
+            {values.age_mode === 'age' ? (
+              <div>
+                <Input
+                  id={`${idPrefix}-current-age`}
+                  type="number"
+                  min={0}
+                  max={125}
+                  value={values.current_age}
+                  onChange={(e) => onChange('current_age', e.target.value)}
+                  placeholder="Completed years (0 - 125)"
+                  error={errors.current_age}
+                />
+                <p className="mt-1 text-[11px] text-navy-500">
+                  Recorded as completed years without calculating a synthetic birth date.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <Input
+                  id={`${idPrefix}-dob`}
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={values.date_of_birth}
+                  onChange={(e) => onChange('date_of_birth', e.target.value)}
+                  error={errors.date_of_birth}
+                />
+                <p className="mt-1 text-[11px] text-navy-500">
+                  Optional: Leave empty if exact birth date is not known.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -679,8 +958,8 @@ export function FamilyCreationWizard() {
 
           <CitySelector
             id={`${idPrefix}-birth-place`}
-            label="7. Birthplace"
-            required
+            label="7. Birthplace (Optional)"
+            required={false}
             placeholder="Search birthplace worldwide..."
             value={values.birth_place}
             showCascadingToggle={true}
@@ -704,7 +983,7 @@ export function FamilyCreationWizard() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label htmlFor={`${idPrefix}-city`} className="block text-xs font-medium text-navy-700">
-                6. City / Town / Gaon <span className="text-red-500">*</span>
+                City / Town / Gaon <span className="text-red-500">*</span>
               </label>
               <Input
                 id={`${idPrefix}-city`}
@@ -716,7 +995,7 @@ export function FamilyCreationWizard() {
             </div>
             <div>
               <label htmlFor={`${idPrefix}-state`} className="block text-xs font-medium text-navy-700">
-                7. State / Province <span className="text-red-500">*</span>
+                State / Province <span className="text-red-500">*</span>
               </label>
               <Input
                 id={`${idPrefix}-state`}
@@ -728,7 +1007,7 @@ export function FamilyCreationWizard() {
             </div>
             <div>
               <label htmlFor={`${idPrefix}-country`} className="block text-xs font-medium text-navy-700">
-                8. Country <span className="text-red-500">*</span>
+                Country <span className="text-red-500">*</span>
               </label>
               <Input
                 id={`${idPrefix}-country`}
@@ -741,7 +1020,7 @@ export function FamilyCreationWizard() {
           </div>
         </div>
 
-        {/* Lineage: 9. Gotra & 10. Nukh */}
+        {/* Lineage: Gotra & Nukh */}
         <div className="rounded-lg border border-navy-100 bg-navy-50/40 p-3 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-navy-600">
             Lineage & Heritage (Prepopulated from Family)
@@ -772,6 +1051,11 @@ export function FamilyCreationWizard() {
             onChange={(occ, cat) => {
               onChange('occupation', occ)
               onChange('occupation_category', cat)
+              if (occ && cat && occ.toLowerCase() !== cat.toLowerCase()) {
+                onChange('custom_occupation', occ)
+              } else {
+                onChange('custom_occupation', '')
+              }
             }}
             error={errors.occupation}
             required={false}
@@ -838,26 +1122,6 @@ export function FamilyCreationWizard() {
                   </p>
                 </div>
               </label>
-            </div>
-            <div>
-              <PhoneInputWithCountryCode
-                id={`${idPrefix}-phone-sec`}
-                label="Secondary Phone Number"
-                value={values.phone_secondary}
-                onChange={(val) => onChange('phone_secondary', val)}
-                placeholder="Alternate phone"
-              />
-            </div>
-            <div>
-              <label htmlFor={`${idPrefix}-kul`} className="block text-sm font-medium text-navy-700">
-                Kul / Sub-lineage
-              </label>
-              <Input
-                id={`${idPrefix}-kul`}
-                value={values.kul}
-                onChange={(e) => onChange('kul', e.target.value)}
-                placeholder="Optional Kul"
-              />
             </div>
           </div>
 
@@ -979,18 +1243,68 @@ export function FamilyCreationWizard() {
             </div>
 
             {/* 2. Mukhi Selection (From approved 118 records; no free-form) */}
-            <div className="space-y-2 rounded-lg border border-navy-200 bg-navy-50/50 p-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-navy-900">
-                  2. Community Mukhi Representative <span className="text-red-500">*</span>
-                </label>
-                <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                  {communityMukhis.length > 0 ? `${communityMukhis.length} Approved Mukhis` : 'Approved Mukhis'}
-                </span>
+            <div className="space-y-2.5 rounded-lg border border-navy-200 bg-navy-50/50 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="block text-sm font-bold text-navy-900">
+                    2. Community Mukhi Representative <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-navy-600 mt-0.5">
+                    Search and assign the official Mukhi representative from the verified Directory.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAutoDetectLocation}
+                    disabled={isDetectingLocation}
+                    className="text-xs flex items-center gap-1.5 border-brand-300 text-brand-700 hover:bg-brand-50"
+                  >
+                    {isDetectingLocation ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Detecting Location...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="h-3.5 w-3.5 text-brand-600" />
+                        Auto-detect My Location
+                      </>
+                    )}
+                  </Button>
+                  <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                    {communityMukhis.length > 0 ? `${communityMukhis.length} Approved Mukhis` : 'Approved Mukhis'}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-navy-600">
-                Search and assign the official Mukhi representative from the verified Directory.
-              </p>
+
+              {/* Location Detection Feedback */}
+              {locationDetectSuccess && (
+                <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{locationDetectSuccess}</span>
+                </div>
+              )}
+              {locationDetectError && (
+                <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>{locationDetectError}</span>
+                </div>
+              )}
+
+              {/* Mukhi Recommendation Banner */}
+              {locationMatches.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50/80 border border-emerald-200 rounded-md text-xs text-emerald-800">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>
+                    {locationMatches.length === 1
+                      ? `Auto-matched 1 Mukhi for ${familyCity || familyState}.`
+                      : `Found ${locationMatches.length} Mukhis for ${familyCity || familyState}. Recommended matches are listed at the top.`}
+                  </span>
+                </div>
+              )}
 
               {/* Mukhi Search Input */}
               <div className="relative">
@@ -1013,7 +1327,7 @@ export function FamilyCreationWizard() {
                 ) : (
                   filteredMukhis.map((m) => {
                     const isSelected = selectedMukhiId === m.id
-                    const isMatch = isLocationMatch(m.gram, familyCity)
+                    const isMatch = isLocationMatch(m.gram, familyCity) || isLocationMatch(m.gram, familyState)
                     return (
                       <button
                         key={m.id}
@@ -1128,7 +1442,7 @@ export function FamilyCreationWizard() {
               />
             </div>
 
-            {/* Optional Fields: Description & Kul */}
+            {/* Optional Fields: Description */}
             <div className="space-y-3 pt-2 border-t border-navy-100">
               <div>
                 <label htmlFor="reg-desc" className="block text-sm font-medium text-navy-700">
@@ -1141,17 +1455,6 @@ export function FamilyCreationWizard() {
                   onChange={(e) => setFamilyDescription(e.target.value)}
                   placeholder="Brief history, ancestral roots, or household notes..."
                   className="mt-1 block w-full rounded-md border border-navy-300 p-2.5 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-              <div>
-                <label htmlFor="reg-kul" className="block text-sm font-medium text-navy-700">
-                  Kul / Sub-lineage (Optional)
-                </label>
-                <Input
-                  id="reg-kul"
-                  value={familyKul}
-                  onChange={(e) => setFamilyKul(e.target.value)}
-                  placeholder="Optional Kul classification"
                 />
               </div>
             </div>
@@ -1472,11 +1775,25 @@ export function FamilyCreationWizard() {
                 <span className="font-medium text-navy-800">{headMode === 'existing' ? 'Existing Record' : 'New Person'}</span>
               </div>
               <div>
-                <span className="text-navy-500">Gender & DOB:</span>{' '}
+                <span className="text-navy-500">Gender & Age:</span>{' '}
                 <span className="text-navy-800">
                   {headMode === 'existing'
-                    ? `${selectedExistingHead?.gender || '—'} • ${selectedExistingHead?.date_of_birth || '—'}`
-                    : `${headForm.gender} • ${headForm.date_of_birth}`}
+                    ? `${selectedExistingHead?.gender || '—'} • ${
+                        selectedExistingHead?.date_of_birth
+                          ? `DOB: ${selectedExistingHead.date_of_birth}`
+                          : selectedExistingHead?.current_age
+                          ? `Age: ${selectedExistingHead.current_age} yrs`
+                          : 'Age: Not recorded'
+                      }`
+                    : `${headForm.gender} • ${
+                        headForm.age_mode === 'age'
+                          ? headForm.current_age
+                            ? `Age: ${headForm.current_age} yrs`
+                            : 'Age: Not recorded'
+                          : headForm.date_of_birth
+                          ? `DOB: ${headForm.date_of_birth}`
+                          : 'DOB: Not recorded'
+                      }`}
                 </span>
               </div>
               <div>
@@ -1486,6 +1803,18 @@ export function FamilyCreationWizard() {
                     ? `${selectedExistingHead?.phone || '—'} • ${selectedExistingHead?.email_contact || '—'}`
                     : `${headForm.phone} • ${headForm.email}`}
                 </span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-navy-500">Occupation / Profession:</span>{' '}
+                <strong className="text-brand-900 font-semibold">
+                  {headMode === 'existing'
+                    ? (selectedExistingHead?.occupation || 'Occupation Not Provided')
+                    : headForm.occupation
+                      ? headForm.occupation_category && headForm.occupation.toLowerCase() !== headForm.occupation_category.toLowerCase()
+                        ? `${headForm.occupation_category} (${headForm.occupation})`
+                        : headForm.occupation
+                      : 'Occupation Not Provided'}
+                </strong>
               </div>
             </div>
           </div>
@@ -1521,7 +1850,14 @@ export function FamilyCreationWizard() {
                         {m.form_values.first_name} {m.form_values.middle_name} {m.form_values.last_name}
                       </strong>
                       <span className="text-navy-500 ml-2">
-                        ({m.form_values.gender}, DOB: {m.form_values.date_of_birth || '—'})
+                        ({m.form_values.gender}, {m.form_values.age_mode === 'age' ? (m.form_values.current_age ? `Age: ${m.form_values.current_age} yrs` : 'Age: —') : (m.form_values.date_of_birth ? `DOB: ${m.form_values.date_of_birth}` : 'DOB: —')})
+                      </span>
+                      <span className="text-brand-800 font-medium ml-2">
+                        • {m.form_values.occupation
+                            ? m.form_values.occupation_category && m.form_values.occupation.toLowerCase() !== m.form_values.occupation_category.toLowerCase()
+                              ? `${m.form_values.occupation_category} (${m.form_values.occupation})`
+                              : m.form_values.occupation
+                            : 'Occupation Not Provided'}
                       </span>
                     </div>
                     <span className="text-navy-500">{m.form_values.phone || m.form_values.city}</span>

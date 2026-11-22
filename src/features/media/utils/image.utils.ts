@@ -16,10 +16,12 @@ export const DEFAULT_ALLOWED_MIME_TYPES = [
   'image/png',
   'image/webp',
   'image/gif',
+  'image/heic',
+  'image/heif',
 ]
 
-export const DEFAULT_MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5 MB
-export const DEFAULT_AVATAR_DIMENSION = 512
+export const DEFAULT_MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5 MB raw max, compressed to <100 KB
+export const DEFAULT_AVATAR_DIMENSION = 400
 
 /**
  * Validate an avatar image file against size and MIME type restrictions.
@@ -44,10 +46,12 @@ export function validateAvatarFile(
   }
 
   // If File has type property, check MIME type
-  if (file.type && !allowedTypes.includes(file.type.toLowerCase())) {
+  const fileName = (file as File).name?.toLowerCase() || ''
+  const isHeicExt = fileName.endsWith('.heic') || fileName.endsWith('.heif')
+  if (file.type && !allowedTypes.includes(file.type.toLowerCase()) && !isHeicExt) {
     return {
       valid: false,
-      error: 'Unsupported image format. Allowed formats: JPEG, PNG, WEBP, GIF.',
+      error: 'Unsupported image format. Allowed formats: JPEG, PNG, WEBP, GIF, HEIC.',
     }
   }
 

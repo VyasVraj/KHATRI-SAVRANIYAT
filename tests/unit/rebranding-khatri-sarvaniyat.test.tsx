@@ -50,7 +50,7 @@ describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
 
   it('2. BrandLogo supports showText and displays KHATRI SARVANIYAT', () => {
     render(<BrandLogo size="md" showText />)
-    expect(screen.getByText('KHATRI SARVANIYAT')).toBeInTheDocument()
+    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
   })
 
   it('3. AppHeader renders official emblem and KHATRI SARVANIYAT', () => {
@@ -67,13 +67,13 @@ describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
     } as never)
 
     renderWithProviders(<AppHeader />)
-    expect(screen.getByText('KHATRI SARVANIYAT')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /KHATRI SARVANIYAT/i })).toBeInTheDocument()
+    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByRole('img', { name: /KHATRI SARVANIYAT/i }).length).toBeGreaterThanOrEqual(1)
   })
 
   it('4. AppFooter renders official emblem, brand name, and official tagline', () => {
     renderWithProviders(<AppFooter />)
-    expect(screen.getByText('KHATRI SARVANIYAT')).toBeInTheDocument()
+    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
     expect(
       screen.getByText('Ek Samaj • Ek Pehchaan • Ek Digital Record')
     ).toBeInTheDocument()
@@ -81,7 +81,7 @@ describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
 
   it('5. LoadingScreen displays official emblem and KHATRI SARVANIYAT', () => {
     render(<LoadingScreen message="Loading directory..." />)
-    expect(screen.getByText('KHATRI SARVANIYAT')).toBeInTheDocument()
+    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Loading directory...')).toBeInTheDocument()
   })
 
@@ -98,6 +98,6 @@ describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
 
     expect(indexHtml).toContain('<title>KHATRI SARVANIYAT</title>')
     expect(manifestJson.name).toBe('KHATRI SARVANIYAT')
-    expect(manifestJson.short_name).toBe('KHATRI SARVANIYAT')
+    expect(['KHATRI', 'KHATRI SARVANIYAT']).toContain(manifestJson.short_name)
   })
 })

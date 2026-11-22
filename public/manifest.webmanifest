@@ -1,13 +1,14 @@
 {
   "name": "KHATRI SARVANIYAT",
-  "short_name": "KHATRI SARVANIYAT",
-  "description": "KHATRI SARVANIYAT — Community family census, family trees, directories and connection platform",
+  "short_name": "KHATRI",
+  "description": "Official digital platform for preserving community identity, family heritage, genealogy and community connections.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "theme_color": "#081B55",
   "background_color": "#ffffff",
+  "categories": ["lifestyle", "social", "utilities"],
   "icons": [
     {
       "src": "/favicon-32x32.png",
@@ -28,10 +29,46 @@
       "purpose": "any"
     },
     {
+      "src": "/maskable-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/maskable-icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Discover Community",
+      "short_name": "Discover",
+      "description": "Explore community members, gotras, and settlements",
+      "url": "/discover",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Blood Group Directory",
+      "short_name": "Blood Directory",
+      "description": "Emergency blood donor directory",
+      "url": "/blood-directory",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Occupation Directory",
+      "short_name": "Occupations",
+      "description": "30 Official community professions and occupations",
+      "url": "/occupations",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Family",
+      "short_name": "Family",
+      "description": "View and manage family census records",
+      "url": "/families",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

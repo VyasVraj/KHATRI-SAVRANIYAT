@@ -68,7 +68,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
   return (
     <div
       className={[
-        'rounded-xl border bg-white p-5 shadow-xs transition-all hover:shadow-md relative',
+        'rounded-xl border bg-white p-3.5 sm:p-5 shadow-xs transition-all hover:shadow-md relative',
         isHighlighted
           ? 'border-brand-500 bg-brand-50/20 ring-2 ring-brand-400/40'
           : 'border-navy-200 hover:border-brand-300',
@@ -98,34 +98,34 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         {/* Left: Info */}
-        <div className="space-y-3 min-w-0 flex-1">
+        <div className="space-y-2.5 sm:space-y-3 min-w-0 flex-1">
           {/* Header Row: Title & Badges */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-bold text-navy-900 truncate">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
+            <h3 className="text-base sm:text-lg font-bold text-navy-900 break-words">
               {toProperCaseName(family.family_name)}
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(family as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === user?.id && (
-                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-indigo-700 border border-indigo-200">
                   Claimed Family
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700 border border-teal-200">
-                <Users className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-teal-700 border border-teal-200">
+                <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 {memberCount} {memberCount === 1 ? 'Member' : 'Members'}
               </span>
-              <span className="inline-flex items-center rounded-full bg-navy-100 px-2 py-0.5 text-[11px] font-medium text-navy-700">
+              <span className="inline-flex items-center rounded-full bg-navy-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-navy-700">
                 {profilePrivacyLabel}
               </span>
             </div>
           </div>
 
           {/* Family Head Section */}
-          <div className="flex items-center gap-2 rounded-lg bg-amber-50/70 border border-amber-200/80 px-3 py-1.5 text-xs text-amber-900">
+          <div className="flex items-center gap-2 rounded-lg bg-amber-50/70 border border-amber-200/80 px-2.5 py-1.5 text-xs text-amber-900">
             <Crown className="h-4 w-4 text-amber-700 shrink-0" />
-            <span className="font-semibold text-amber-800">Family Head:</span>
+            <span className="font-semibold text-amber-800 shrink-0">Family Head:</span>
             {family.head ? (
               <span className="font-bold text-navy-900 truncate">{toProperCaseName(family.head.name)}</span>
             ) : (
@@ -134,7 +134,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
           </div>
 
           {/* Location & Heritage Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-xs">
             {/* Location */}
             {location && (
               <div className="flex items-center gap-1.5 text-navy-600 truncate">
@@ -145,7 +145,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
 
             {/* Cultural Lineage (Gotra & Nukh) */}
             {(family.gotra || family.nukh) && (
-              <div className="flex items-center gap-2 text-navy-600 flex-wrap">
+              <div className="flex items-center gap-1.5 text-navy-600 flex-wrap">
                 {family.gotra && family.nukh ? (
                   <span className="rounded bg-navy-100 px-2 py-0.5 font-medium text-navy-800">
                     {family.gotra} · {family.nukh}
@@ -177,11 +177,11 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex sm:flex-col items-end gap-2 shrink-0 pt-2 sm:pt-0">
+        <div className="flex items-center gap-2 pt-2.5 border-t border-navy-100 sm:border-0 sm:pt-0 sm:flex-col sm:items-end w-full sm:w-auto">
           <Link
             to={ROUTES.FAMILY_DETAIL(family.id)}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-navy-800 transition-colors"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-navy-800 transition-colors"
           >
             <span>View Profile</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -190,7 +190,7 @@ export const FamilyCard: React.FC<FamilyCardProps> = ({
             <Link
               to={ROUTES.FAMILY_EDIT(family.id)}
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-navy-300 bg-white px-3.5 py-2 text-xs font-bold text-navy-700 shadow-xs hover:bg-navy-50 hover:text-navy-900 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-navy-300 bg-white px-3 py-2 text-xs font-bold text-navy-700 shadow-xs hover:bg-navy-50 hover:text-navy-900 transition-colors"
               aria-label={`Edit ${family.family_name} family`}
             >
               <Pencil className="h-3.5 w-3.5 text-navy-500" />

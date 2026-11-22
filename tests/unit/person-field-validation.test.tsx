@@ -41,7 +41,7 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
   // TEST A: MANDATORY FIELD VALIDATION
   // ---------------------------------------------------------------------------
   describe('Test A: Mandatory Field Validation', () => {
-    it('fails when any of the 10 mandatory fields are missing or empty', () => {
+    it('fails when mandatory fields are missing or empty', () => {
       const emptyPayload = {}
       const parseResult = createPersonSchema.safeParse(emptyPayload)
       expect(parseResult.success).toBe(false)
@@ -51,10 +51,11 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
         expect(errorPaths).toContain('last_name')
         expect(errorPaths).toContain('gender')
         expect(errorPaths).toContain('blood_group')
-        expect(errorPaths).toContain('birth_place')
-        expect(errorPaths).toContain('date_of_birth')
         expect(errorPaths).toContain('gotra')
         expect(errorPaths).toContain('nukh')
+        // Date of birth and birthplace are optional per latest specification
+        expect(errorPaths).not.toContain('date_of_birth')
+        expect(errorPaths).not.toContain('birth_place')
       }
     })
 
@@ -277,13 +278,9 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
       expect(bloodGroupLabel).toBeInTheDocument()
       expect(bloodGroupLabel.textContent).toContain('*')
 
-      const birthplaceLabel = screen.getByText('Birthplace')
+      const birthplaceLabel = screen.getByText(/Birthplace/i)
       expect(birthplaceLabel).toBeInTheDocument()
-      expect(birthplaceLabel.parentElement?.textContent).toContain('*')
-
-      const dobLabel = screen.getByText('Date of birth')
-      expect(dobLabel).toBeInTheDocument()
-      expect(dobLabel.parentElement?.textContent).toContain('*')
+      expect(birthplaceLabel.parentElement?.textContent).not.toContain('*')
 
       const gotraLabel = screen.getByText('Gotra')
       expect(gotraLabel).toBeInTheDocument()
@@ -310,9 +307,8 @@ describe('KHATRI SARVANIYAT — Person Field Validation Specification', () => {
       expect(dodLabel).toBeInTheDocument()
       expect(dodLabel.textContent).not.toContain('*')
 
-      const secondaryPhoneLabel = screen.getByText(/Secondary phone/i)
-      expect(secondaryPhoneLabel).toBeInTheDocument()
-      expect(secondaryPhoneLabel.textContent).not.toContain('*')
+      // Secondary phone is completely removed
+      expect(screen.queryByText(/Secondary phone/i)).toBeNull()
     })
   })
 })

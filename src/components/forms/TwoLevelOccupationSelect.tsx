@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { ChevronDown, Search, X, Check, Briefcase, PlusCircle } from 'lucide-react'
+import { ChevronDown, Search, X, Check, Briefcase, PlusCircle, Sparkles } from 'lucide-react'
 import {
   OCCUPATION_CATEGORIES,
+  SPECIFIC_OCCUPATIONS,
   getOccupationsForCategory,
   getCategoryForOccupation,
 } from '@/constants/occupations'
@@ -51,20 +52,56 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
   const [reusableCustoms, setReusableCustoms] = useState<string[]>([])
 
   useEffect(() => {
-    // Fetch approved reusable custom occupations
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase.from as any)('custom_occupations')
-      .select('occupation_name')
-      .eq('is_approved', true)
-      .eq('is_active', true)
-      .then(({ data }: { data: Array<{ occupation_name: string }> | null }) => {
+    async function loadCustoms() {
+      try {
+        // 1. Fetch from custom_occupations table
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase.from as any)('custom_occupations')
+          .select('occupation_name')
+          .eq('is_approved', true)
+          .eq('is_active', true)
         if (data && Array.isArray(data)) {
-          setReusableCustoms(data.map((d) => d.occupation_name).filter(Boolean))
+          setReusableCustoms((prev) =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            Array.from(new Set([...prev, ...data.map((d: any) => d.occupation_name).filter(Boolean)]))
+          )
         }
-      })
-      .then(undefined, () => {
+      } catch {
         // Non-blocking
-      })
+      }
+
+      try {
+        // 2. Also fetch distinct community custom occupations from community_persons view
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase.from as any)('community_persons')
+          .select('occupation, occupation_category')
+          .not('occupation', 'is', null)
+        if (data && Array.isArray(data)) {
+          const customs = data
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((d: any) => (d.occupation || '').trim())
+            .filter((occ: string) => {
+              if (
+                !occ ||
+                occ === 'Occupation Pending' ||
+                occ === 'Occupation Not Provided' ||
+                occ === 'Occupation Rejected' ||
+                occ === 'Occupation Not Available'
+              ) {
+                return false
+              }
+              return !OCCUPATION_CATEGORIES.some((c) => c.toLowerCase() === occ.toLowerCase())
+            })
+          if (customs.length > 0) {
+            setReusableCustoms((prev) => Array.from(new Set([...prev, ...customs])))
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    loadCustoms()
   }, [])
 
   // Sync external values
@@ -72,30 +109,52 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
     const rawOcc = (occupationValue || '').trim()
     const rawCat = (categoryValue || '').trim()
 
-    if (!rawOcc && !rawCat) {
+    // Placeholders are NOT real occupations and must NEVER be treated as custom occupations
+    const isPlaceholder =
+      !rawOcc ||
+      rawOcc === 'Occupation Pending' ||
+      rawOcc === 'Occupation Not Provided' ||
+      rawOcc === 'Occupation Not Available' ||
+      rawOcc === 'Occupation Rejected'
+
+    if (isPlaceholder && !rawCat) {
       setSelectedCategory('')
       setSelectedOccupation('')
       setCustomOccupation('')
       return
     }
 
+    if (isPlaceholder && rawCat) {
+      if (OCCUPATION_CATEGORIES.includes(rawCat as (typeof OCCUPATION_CATEGORIES)[number])) {
+        setSelectedCategory(rawCat)
+        setSelectedOccupation(rawCat)
+        setCustomOccupation('')
+      } else {
+        setSelectedCategory('')
+        setSelectedOccupation('')
+        setCustomOccupation('')
+      }
+      return
+    }
+
     // 1. If category is explicitly 'Other'
     if (rawCat === OTHER_OCCUPATION_CATEGORY || rawCat === OTHER_OPTION_LABEL) {
       setSelectedCategory(OTHER_OCCUPATION_CATEGORY)
-      setSelectedOccupation(rawOcc)
-      setCustomOccupation(rawOcc)
+      setSelectedOccupation(isPlaceholder ? '' : rawOcc)
+      setCustomOccupation(isPlaceholder ? '' : rawOcc)
       return
     }
 
     // 2. If valid official category provided
     if (rawCat && OCCUPATION_CATEGORIES.includes(rawCat as (typeof OCCUPATION_CATEGORIES)[number])) {
       setSelectedCategory(rawCat)
-      setSelectedOccupation(rawOcc || rawCat)
+      setSelectedOccupation(isPlaceholder ? rawCat : rawOcc || rawCat)
+      setCustomOccupation('')
       return
     }
 
     // 3. Detect category from occupation string
-    if (rawOcc) {
+    if (rawOcc && !isPlaceholder) {
       // Check if it's one of the 30 categories directly
       const isOfficialCat = OCCUPATION_CATEGORIES.find(
         (c) => c.toLowerCase() === rawOcc.toLowerCase()
@@ -103,6 +162,7 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
       if (isOfficialCat) {
         setSelectedCategory(isOfficialCat)
         setSelectedOccupation(isOfficialCat)
+        setCustomOccupation('')
         return
       }
 
@@ -111,6 +171,7 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
       if (detectedCat) {
         setSelectedCategory(detectedCat)
         setSelectedOccupation(rawOcc)
+        setCustomOccupation('')
         return
       }
 
@@ -123,7 +184,7 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
 
   // Click outside listener
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
       if (
         categoryContainerRef.current &&
         !categoryContainerRef.current.contains(e.target as Node)
@@ -138,15 +199,37 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
 
+  // Direct specific occupation matches when typing in category search
+  const directMatches = useMemo(() => {
+    if (!categorySearch.trim()) return []
+    const q = categorySearch.toLowerCase().trim()
+    return SPECIFIC_OCCUPATIONS.filter(
+      (occ) =>
+        occ.name.toLowerCase().includes(q) ||
+        occ.hindiName.toLowerCase().includes(q)
+    ).slice(0, 6)
+  }, [categorySearch])
+
   // Filtered categories (30 Official + 'Other — Add Your Occupation')
+  // Also matches categories whose sub-occupations match the search query!
   const filteredCategories = useMemo(() => {
     const all = [...OCCUPATION_CATEGORIES]
     if (!categorySearch.trim()) return all
     const q = categorySearch.toLowerCase().trim()
-    return all.filter((cat) => cat.toLowerCase().includes(q))
+    return all.filter((cat) => {
+      if (cat.toLowerCase().includes(q)) return true
+      const subOccs = getOccupationsForCategory(cat)
+      return subOccs.some(
+        (o) => o.name.toLowerCase().includes(q) || o.hindiName.toLowerCase().includes(q)
+      )
+    })
   }, [categorySearch])
 
   const showOtherOption = useMemo(() => {
@@ -269,42 +352,86 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
           </button>
 
           {isCategoryOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full rounded-lg border border-navy-200 bg-white p-1.5 shadow-xl animate-in fade-in-50">
+            <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full rounded-lg border border-navy-200 bg-white p-1.5 shadow-xl animate-in fade-in-50">
               <div className="relative mb-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-navy-400" />
                 <input
                   type="text"
-                  placeholder="Search 30 categories..."
+                  placeholder="Search profession or category (e.g. Housewife, Teacher, Doctor)..."
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
                   className="w-full rounded-md border border-navy-200 py-1.5 pl-8 pr-2 text-xs text-navy-900 placeholder:text-navy-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                  autoFocus
                 />
               </div>
 
-              <div className="max-h-48 overflow-y-auto space-y-0.5" role="listbox">
-                {filteredCategories.length === 0 && !showOtherOption ? (
-                  <div className="p-2 text-center text-xs text-navy-400">No category found</div>
-                ) : (
-                  <>
-                    {filteredCategories.map((cat, idx) => (
+              <div className="max-h-52 overflow-y-auto space-y-0.5" role="listbox">
+                {/* Direct matches from 389+ specific occupations */}
+                {directMatches.length > 0 && (
+                  <div className="pb-1 mb-1 border-b border-navy-100">
+                    <div className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider text-brand-700 flex items-center gap-1 bg-brand-50/70 rounded">
+                      <Sparkles className="h-3 w-3 text-brand-600" />
+                      Direct Profession Matches (Tap to Select)
+                    </div>
+                    {directMatches.map((occ) => (
                       <button
-                        key={cat}
+                        key={`${occ.category}-${occ.id}`}
                         type="button"
-                        onClick={() => handleSelectCategory(cat)}
-                        className={`flex w-full items-center justify-between rounded px-2.5 py-1.5 text-xs text-left hover:bg-navy-50 transition-colors ${
-                          cat === selectedCategory ? 'bg-brand-50 text-brand-900 font-semibold' : 'text-navy-800'
-                        }`}
-                        role="option"
-                        aria-selected={cat === selectedCategory}
+                        onClick={() => {
+                          setSelectedCategory(occ.category)
+                          setSelectedOccupation(occ.name)
+                          setIsCategoryOpen(false)
+                          setCategorySearch('')
+                          onChange(occ.name, occ.category)
+                        }}
+                        className="flex w-full items-center justify-between rounded px-2.5 py-1.5 text-xs text-left hover:bg-brand-50 transition-colors group"
                       >
-                        <span className="truncate">
-                          <span className="text-navy-400 text-[10px] mr-1.5 font-mono">{idx + 1}.</span>
-                          {cat}
-                        </span>
-                        {cat === selectedCategory && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
+                        <div className="truncate pr-2">
+                          <span className="font-semibold text-navy-900 group-hover:text-brand-900">{occ.name}</span>
+                          <span className="text-navy-500 text-[11px] ml-1.5 font-normal">({occ.hindiName})</span>
+                          <span className="block text-[10px] text-brand-600 truncate font-medium">Category: {occ.category}</span>
+                        </div>
+                        <Check className="h-3.5 w-3.5 text-brand-600 shrink-0 opacity-0 group-hover:opacity-100" />
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {filteredCategories.length === 0 && directMatches.length === 0 && !showOtherOption ? (
+                  <div className="p-2 text-center text-xs text-navy-400">No category or profession found</div>
+                ) : (
+                  <>
+                    {filteredCategories.map((cat, idx) => {
+                      const matchingSub = categorySearch.trim()
+                        ? getOccupationsForCategory(cat).find(
+                            (o) =>
+                              o.name.toLowerCase().includes(categorySearch.toLowerCase().trim()) ||
+                              o.hindiName.toLowerCase().includes(categorySearch.toLowerCase().trim())
+                          )
+                        : null
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => handleSelectCategory(cat)}
+                          className={`flex w-full items-center justify-between rounded px-2.5 py-1.5 text-xs text-left hover:bg-navy-50 transition-colors ${
+                            cat === selectedCategory ? 'bg-brand-50 text-brand-900 font-semibold' : 'text-navy-800'
+                          }`}
+                          role="option"
+                          aria-selected={cat === selectedCategory}
+                        >
+                          <span className="truncate">
+                            <span className="text-navy-400 text-[10px] mr-1.5 font-mono">{idx + 1}.</span>
+                            {cat}
+                            {matchingSub && (
+                              <span className="block text-[10px] text-navy-500 pl-4 font-normal italic">
+                                Includes: {matchingSub.name} ({matchingSub.hindiName})
+                              </span>
+                            )}
+                          </span>
+                          {cat === selectedCategory && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
+                        </button>
+                      )
+                    })}
 
                     {/* Option: Other — Add Your Occupation */}
                     {showOtherOption && (
@@ -394,7 +521,6 @@ export const TwoLevelOccupationSelect: React.FC<TwoLevelOccupationSelectProps> =
                     value={occupationSearch}
                     onChange={(e) => setOccupationSearch(e.target.value)}
                     className="w-full rounded-md border border-navy-200 py-1.5 pl-8 pr-2 text-xs text-navy-900 placeholder:text-navy-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    autoFocus
                   />
                 </div>
 

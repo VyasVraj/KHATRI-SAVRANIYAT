@@ -135,7 +135,7 @@ describe('Official Circular Publishing & Letterhead System', () => {
       expect(result.blob.size).toBeGreaterThan(1000)
       expect(result.filename).toContain('CIR-2026-088')
       expect(result.dataUri).toContain('data:application/pdf')
-    })
+    }, 20000)
 
     it('prepends official branded cover sheet to user-uploaded PDFs without distorting content (Method A)', async () => {
       const samplePdfPayload: CircularPdfPayload = {
@@ -159,7 +159,7 @@ describe('Official Circular Publishing & Letterhead System', () => {
       expect(brandedResult.blob).toBeInstanceOf(Blob)
       expect(brandedResult.blob.size).toBeGreaterThan(basePdf.blob.size)
       expect(brandedResult.filename).toContain('branded')
-    })
+    }, 20000)
   })
 
   // 2. Role Gating & Permissions

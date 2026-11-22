@@ -39,8 +39,8 @@ let cachedLogoBase64: string | null = null
 export async function getOfficialLogoDataUri(): Promise<string> {
   if (cachedLogoBase64) return cachedLogoBase64
 
-  // Node environment fallback for unit tests
-  if (typeof window === 'undefined') {
+  // Node / Vitest jsdom environment fallback
+  if (typeof process !== 'undefined' && process.versions?.node) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fs = require('fs')

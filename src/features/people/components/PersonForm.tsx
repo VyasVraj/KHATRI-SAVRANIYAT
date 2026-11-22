@@ -31,6 +31,10 @@ import { Button } from '@/components/forms/Button'
 import { PrivacyLevelSelect } from '@/components/forms/PrivacyLevelSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
 import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
+import { BloodGroupConsentCheckbox } from '@/components/forms/BloodGroupConsentCheckbox'
+import { ProfilePhotoUpload } from '@/components/forms/ProfilePhotoUpload'
+import { uploadAvatar } from '@/features/media/services/avatar.service'
+import { OCCUPATION_CATEGORIES, getCategoryForOccupation } from '@/constants/occupations'
 import { PhoneInputWithCountryCode } from '@/components/forms/PhoneInputWithCountryCode'
 import { AuthContext } from '@/features/auth/context/AuthContext'
 import { canManagePrivacy } from '@/constants/app'
@@ -81,19 +85,28 @@ const personFormSchema = z
         'Please select Blood Group'
       ),
     show_blood_group_in_directory: z.boolean().default(false),
-    birth_place: z
-      .string({ required_error: 'Birthplace is required' })
-      .trim()
-      .min(1, 'Birthplace is required')
-      .max(200, 'Birthplace must not exceed 200 characters'),
+    birth_place: z.string().trim().max(200, 'Birthplace must not exceed 200 characters').optional().nullable(),
+    age_mode: z.enum(['dob', 'age']).default('dob'),
     date_of_birth: z
-      .string({ required_error: 'Date of Birth is required' })
+      .string()
       .trim()
-      .min(1, 'Date of Birth is required')
+      .optional()
+      .nullable()
       .refine(
         (val) => !val || val <= getTodayIso(),
         'Date of birth cannot be in the future'
       ),
+    current_age: z
+      .string()
+      .trim()
+      .optional()
+      .nullable()
+      .refine((val) => {
+        if (!val) return true
+        const num = parseInt(val, 10)
+        return !isNaN(num) && num >= 0 && num <= 125
+      }, 'Please enter a valid age between 0 and 125'),
+    avatar_url: z.string().optional().nullable(),
     date_of_death: z
       .string()
       .optional()
@@ -184,14 +197,42 @@ function sanitizeFormValues(values: PersonFormValues, mode: 'create' | 'edit'): 
     blood_group: values.blood_group as CreatePersonInput['blood_group'],
     show_blood_group_in_directory: Boolean(values.show_blood_group_in_directory),
     blood_group_consent: Boolean(values.show_blood_group_in_directory),
-    date_of_birth: values.date_of_birth.trim(),
+    date_of_birth: values.age_mode === 'dob' ? sanitizeOptional(values.date_of_birth, isEdit) : null,
+    current_age: values.age_mode === 'age' && values.current_age ? parseInt(values.current_age, 10) : null,
     date_of_death: sanitizeOptional(values.date_of_death, isEdit),
     is_deceased: Boolean(values.is_deceased),
-    birth_place: values.birth_place.trim(),
+    birth_place: sanitizeOptional(values.birth_place, isEdit),
+    avatar_url: sanitizeOptional(values.avatar_url, isEdit),
     gotra: values.gotra.trim(),
     nukh: values.nukh.trim(),
-    occupation: values.occupation?.trim() || null,
+    occupation: (() => {
+      const rawOcc = values.occupation?.trim() || null
+      const rawCat = values.occupation_category?.trim() || null
+      if (
+        !rawOcc ||
+        rawOcc === 'Occupation Pending' ||
+        rawOcc === 'Occupation Not Provided' ||
+        rawOcc === 'Occupation Not Available' ||
+        rawOcc === 'Occupation Rejected'
+      ) {
+        return rawCat && rawCat !== 'Other' ? rawCat : null
+      }
+      if (rawCat && rawCat !== 'Other' && (OCCUPATION_CATEGORIES as readonly string[]).includes(rawCat)) {
+        return rawCat
+      }
+      const detected = getCategoryForOccupation(rawOcc)
+      if (detected) return detected
+      return rawCat && rawCat !== 'Other' ? rawCat : 'Business and Entrepreneurship'
+    })(),
     occupation_category: values.occupation_category?.trim() || null,
+    custom_occupation: (() => {
+      const rawOcc = values.occupation?.trim() || null
+      const rawCat = values.occupation_category?.trim() || null
+      if (rawOcc && rawCat && rawOcc.toLowerCase() !== rawCat.toLowerCase()) {
+        return rawOcc
+      }
+      return null
+    })(),
     email_contact: values.email_contact?.trim() ? values.email_contact.trim().toLowerCase() : null,
     phone: values.phone?.trim() ? values.phone.trim() : null,
     phone_secondary: sanitizeOptional(values.phone_secondary, isEdit),
@@ -284,13 +325,23 @@ export function PersonForm({
       gender: defaultValues?.gender ?? '',
       blood_group: toFieldValue((defaultValues as unknown as { blood_group?: string | null })?.blood_group),
       show_blood_group_in_directory: Boolean((defaultValues as unknown as { show_blood_group_in_directory?: boolean; blood_group_consent?: boolean })?.show_blood_group_in_directory ?? (defaultValues as unknown as { blood_group_consent?: boolean })?.blood_group_consent ?? false),
+      age_mode: (defaultValues as unknown as { current_age?: number | null })?.current_age && !defaultValues?.date_of_birth ? 'age' : 'dob',
       date_of_birth: toFieldValue(defaultValues?.date_of_birth),
+      current_age: (defaultValues as unknown as { current_age?: number | null })?.current_age ? String((defaultValues as unknown as { current_age?: number | null }).current_age) : '',
+      avatar_url: toFieldValue((defaultValues as unknown as { avatar_url?: string | null })?.avatar_url),
       date_of_death: toFieldValue(defaultValues?.date_of_death),
       is_deceased: (defaultValues as { is_deceased?: boolean; status?: string; date_of_death?: string | null })?.is_deceased ?? Boolean(defaultValues?.date_of_death || (defaultValues as { status?: string })?.status === 'DECEASED'),
       birth_place: toFieldValue(defaultValues?.birth_place),
       gotra: toFieldValue(defaultValues?.gotra),
       nukh: toFieldValue(defaultValues?.nukh),
-      occupation: toFieldValue((defaultValues as unknown as { occupation?: string | null })?.occupation),
+      occupation: toFieldValue(
+        (defaultValues as unknown as { custom_occupation?: string | null })?.custom_occupation ||
+        (defaultValues as unknown as { occupation?: string | null })?.occupation
+      ),
+      occupation_category: toFieldValue(
+        (defaultValues as unknown as { occupation_category?: string | null })?.occupation_category ||
+        getCategoryForOccupation((defaultValues as unknown as { occupation?: string | null })?.occupation || '')
+      ),
       email_contact: toFieldValue(defaultValues?.email_contact),
       phone: toFieldValue(defaultValues?.phone),
       phone_secondary: toFieldValue(defaultValues?.phone_secondary),
@@ -330,6 +381,37 @@ export function PersonForm({
       className="space-y-8"
       aria-label={mode === 'create' ? 'Add person form' : 'Edit person form'}
     >
+      {/* ---- Profile Photo ---- */}
+      <fieldset>
+        <legend className="mb-4 text-sm font-semibold uppercase tracking-wide text-navy-500">
+          Profile Photo
+        </legend>
+        <ProfilePhotoUpload
+          id="person-profile-photo"
+          currentPhotoUrl={watch('avatar_url')}
+          onPhotoSelected={async (file) => {
+            if (!file) {
+              setValue('avatar_url', '', { shouldDirty: true })
+              return
+            }
+            if (mode === 'edit' && defaultValues && 'id' in defaultValues && (defaultValues as { id?: string }).id) {
+              const res = await uploadAvatar(file, { type: 'person', id: (defaultValues as { id: string }).id }, {
+                previousAvatarUrl: defaultValues?.avatar_url,
+              })
+              if (res.data?.url) {
+                setValue('avatar_url', res.data.url, { shouldDirty: true })
+              }
+            } else {
+              const reader = new FileReader()
+              reader.onload = (event) => {
+                setValue('avatar_url', (event.target?.result as string) || '', { shouldDirty: true })
+              }
+              reader.readAsDataURL(file)
+            }
+          }}
+        />
+      </fieldset>
+
       {/* ---- Name ---- */}
       <fieldset>
         <legend className="mb-4 text-sm font-semibold uppercase tracking-wide text-navy-500">
@@ -439,31 +521,23 @@ export function PersonForm({
             )}
 
             {/* Blood Group Directory Consent Checkbox */}
-            <div className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3">
-              <input
-                type="checkbox"
-                id="show_blood_group_in_directory"
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                {...register('show_blood_group_in_directory')}
-              />
-              <div className="space-y-0.5">
-                <label
-                  htmlFor="show_blood_group_in_directory"
-                  className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block"
-                >
-                  Show my blood group details in the Blood Group Directory.
-                </label>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  If enabled, your name, selected blood group, family name, and permitted location details may appear in the community Blood Group Directory. Your personal phone number and email address will remain private.
-                </p>
-              </div>
-            </div>
+            <BloodGroupConsentCheckbox
+              id="show_blood_group_in_directory"
+              checked={Boolean(watch('show_blood_group_in_directory'))}
+              onChange={(val) =>
+                setValue('show_blood_group_in_directory', val, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              disabled={isSubmitting}
+            />
           </div>
 
           <CitySelector
-            label="Birthplace"
-            required
-            value={watch('birth_place')}
+            label="Birthplace (Optional)"
+            required={false}
+            value={watch('birth_place') || ''}
             onSelectCity={(loc) => {
               const formatted = loc.city
                 ? loc.state
@@ -476,14 +550,66 @@ export function PersonForm({
             placeholder="Search birthplace worldwide..."
             id="birth_place"
           />
-          <Input
-            label="Date of birth"
-            required
-            type="date"
-            hint="Format: YYYY-MM-DD"
-            error={errors.date_of_birth?.message}
-            {...register('date_of_birth')}
-          />
+
+          {/* Date of Birth vs Current Age Toggle */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-navy-700">
+                Date of Birth / Age (Optional)
+              </label>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setValue('age_mode', 'dob')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    watch('age_mode') !== 'age'
+                      ? 'bg-white text-navy-900 shadow-2xs font-semibold'
+                      : 'text-navy-600 hover:text-navy-900'
+                  }`}
+                >
+                  Date of Birth
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValue('age_mode', 'age')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    watch('age_mode') === 'age'
+                      ? 'bg-white text-navy-900 shadow-2xs font-semibold'
+                      : 'text-navy-600 hover:text-navy-900'
+                  }`}
+                >
+                  Current Age
+                </button>
+              </div>
+            </div>
+
+            {watch('age_mode') === 'age' ? (
+              <div>
+                <Input
+                  id="current_age"
+                  label="Current Age (in years)"
+                  type="number"
+                  min="0"
+                  max="125"
+                  placeholder="e.g. 25"
+                  hint="Completed years when exact Date of Birth is unknown"
+                  error={errors.current_age?.message}
+                  {...register('current_age')}
+                />
+              </div>
+            ) : (
+              <div>
+                <Input
+                  id="date_of_birth"
+                  label="Date of birth"
+                  type="date"
+                  hint="Format: YYYY-MM-DD"
+                  error={errors.date_of_birth?.message}
+                  {...register('date_of_birth')}
+                />
+              </div>
+            )}
+          </div>
           <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4 transition-colors hover:bg-slate-50">
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input
@@ -557,16 +683,6 @@ export function PersonForm({
             placeholder="Enter mobile number"
             error={errors.phone?.message}
           />
-          <div className="sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
-            <PhoneInputWithCountryCode
-              id="secondary-phone"
-              label="Secondary Phone"
-              value={watch('phone_secondary')}
-              onChange={(val) => setValue('phone_secondary', val, { shouldValidate: true })}
-              placeholder="Enter secondary mobile number"
-              error={errors.phone_secondary?.message}
-            />
-          </div>
         </div>
       </fieldset>
 

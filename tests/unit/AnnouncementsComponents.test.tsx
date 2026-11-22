@@ -154,7 +154,7 @@ describe('Community Announcements UI Components', () => {
       deleted_at: null,
     }
 
-    it('renders full announcement content when open', () => {
+    it('renders full announcement content when open with opaque background and backdrop', () => {
       const html = renderToStaticMarkup(
         <AnnouncementDetailModal
           announcement={announcement}
@@ -166,6 +166,9 @@ describe('Community Announcements UI Components', () => {
       expect(html).toContain('Full Details of Blood Donation Camp')
       expect(html).toContain('Detailed medical requirements')
       expect(html).toContain('Dr. Shah')
+      expect(html).toContain('bg-white')
+      expect(html).toContain('backdrop-blur-sm')
+      expect(html).toContain('shadow-2xl')
     })
 
     it('returns null when closed', () => {
