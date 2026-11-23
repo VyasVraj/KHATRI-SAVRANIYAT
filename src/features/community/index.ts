@@ -61,6 +61,7 @@ export * from './components/PanchangView'
 // Mukhi Leadership Directory (ANDROID-11)
 export * from './services/mukhi.service'
 export * from './hooks/useMukhiDirectory'
+export * from './hooks/useActiveMukhiAuthority'
 export * from './components/MukhiCard'
 export * from './components/MukhiFiltersBar'
 export * from './components/MukhiDirectoryView'

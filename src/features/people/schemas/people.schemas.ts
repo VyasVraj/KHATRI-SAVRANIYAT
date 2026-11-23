@@ -280,6 +280,29 @@ export const createPersonSchema = z
     dob_privacy: privacyLevelField.optional().default('PRIVATE'),
   })
   .superRefine((data, ctx) => {
+    // Mutually exclusive: must provide either Date of Birth OR Current Age
+    const hasDob = Boolean(data.date_of_birth && data.date_of_birth.trim().length > 0)
+    const hasAge = data.current_age !== null && data.current_age !== undefined
+
+    if (hasDob && hasAge) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please provide either Date of Birth OR Age, not both.',
+        path: ['date_of_birth'],
+      })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please provide either Date of Birth OR Age, not both.',
+        path: ['current_age'],
+      })
+    } else if (!hasDob && !hasAge) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please provide either Date of Birth OR Current Age.',
+        path: ['date_of_birth'],
+      })
+    }
+
     if (data.date_of_birth && data.date_of_death) {
       if (data.date_of_death < data.date_of_birth) {
         ctx.addIssue({
@@ -373,6 +396,23 @@ export const updatePersonSchema = z
     'At least one field must be provided for update'
   )
   .superRefine((data, ctx) => {
+    // Mutually exclusive: cannot provide both conflicting Date of Birth AND Current Age
+    const hasDob = Boolean(data.date_of_birth && data.date_of_birth.trim().length > 0)
+    const hasAge = data.current_age !== null && data.current_age !== undefined
+
+    if (hasDob && hasAge) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please provide either Date of Birth OR Age, not both.',
+        path: ['date_of_birth'],
+      })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please provide either Date of Birth OR Age, not both.',
+        path: ['current_age'],
+      })
+    }
+
     if (data.date_of_birth && data.date_of_death) {
       if (data.date_of_death < data.date_of_birth) {
         ctx.addIssue({

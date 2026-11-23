@@ -47,6 +47,17 @@ export function isValidBloodGroup(val: unknown): val is BloodGroup {
   return typeof val === 'string' && (BLOOD_GROUPS as readonly string[]).includes(val)
 }
 
+const ENUM_BLOOD_GROUP_MAP: Record<string, string> = {
+  A_POSITIVE: 'A+',
+  A_NEGATIVE: 'A-',
+  B_POSITIVE: 'B+',
+  B_NEGATIVE: 'B-',
+  AB_POSITIVE: 'AB+',
+  AB_NEGATIVE: 'AB-',
+  O_POSITIVE: 'O+',
+  O_NEGATIVE: 'O-',
+}
+
 /**
  * Format a blood group for display:
  * - Empty / null / undefined -> 'Not provided'
@@ -56,5 +67,6 @@ export function isValidBloodGroup(val: unknown): val is BloodGroup {
 export function formatBloodGroup(val: string | null | undefined): string {
   if (!val || val.trim() === '') return 'Not provided'
   if (val === 'UNKNOWN') return 'Unknown / Not Known'
+  if (ENUM_BLOOD_GROUP_MAP[val]) return ENUM_BLOOD_GROUP_MAP[val]
   return val
 }

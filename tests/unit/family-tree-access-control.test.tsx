@@ -193,12 +193,16 @@ describe('PersonDetail Member Privacy & Edit Permissions', () => {
       isLoading: false,
     }
 
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
     render(
-      <MemoryRouter>
-        <AuthContext.Provider value={mockAuthContext}>
-          <PersonDetail person={mockPerson} />
-        </AuthContext.Provider>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthContext.Provider value={mockAuthContext}>
+            <PersonDetail person={mockPerson} />
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
 
     // 1. Permitted public information
@@ -235,12 +239,16 @@ describe('PersonDetail Member Privacy & Edit Permissions', () => {
       isLoading: false,
     }
 
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
     render(
-      <MemoryRouter>
-        <AuthContext.Provider value={mockAuthContext}>
-          <PersonDetail person={mockPerson} />
-        </AuthContext.Provider>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthContext.Provider value={mockAuthContext}>
+            <PersonDetail person={mockPerson} />
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
 
     // 1. Private contact information visible to owner

@@ -24,6 +24,7 @@ import { AvatarImage } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { useTranslation } from '@/features/i18n'
 import { useCommunityMukhis } from '@/features/community/hooks/useCommunityMukhis'
+import { useActiveMukhiAuthority } from '@/features/community/hooks/useActiveMukhiAuthority'
 import type { CommunityMukhi } from '@/features/community/services/community-mukhis.service'
 import { MukhiDetailsModal } from '@/features/community/components/MukhiDetailsModal'
 import type { MukhiLeaderItem } from '@/features/community/types'
@@ -112,13 +113,19 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
   const currentHead = activeMembers.find((m) => (m.is_head || m.role === 'HEAD'))
   const lineageCount = [family.gotra, family.nukh].filter(Boolean).length
 
+  const { data: mukhiAuth } = useActiveMukhiAuthority()
+
   const currentUserId = auth?.user?.id
   const isCreator = Boolean(currentUserId && family.created_by === currentUserId)
   const isManager = Boolean(currentUserId && family.manager_user_id === currentUserId)
   const isClaimedManager = Boolean(currentUserId && (family as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === currentUserId)
   const isMember = Boolean(currentUserId && members.some((m) => m.person?.user_id === currentUserId))
-  const isAdminOrMukhi = Boolean(auth?.profile?.is_active && ['ADMIN', 'SUPER_ADMIN', 'MUKHI'].includes(auth.profile.role))
-  const canViewTree = isCreator || isManager || isClaimedManager || isMember || isAdminOrMukhi
+  const isAdminOrMukhi = Boolean(
+    auth?.profile?.is_active &&
+    ['ADMIN', 'SUPER_ADMIN', 'MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI'].includes(auth.profile.role)
+  )
+  const isLeadership = Boolean(mukhiAuth?.isLeadership) || isAdminOrMukhi
+  const canViewTree = isCreator || isManager || isClaimedManager || isMember || isLeadership
   const canViewRoster = canViewTree
 
   return (

@@ -20,6 +20,7 @@ import type { PrivacyLevel } from '@/types'
 import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { usePersonFamilyMukhi } from '@/features/community'
+import { useActiveMukhiAuthority } from '@/features/community/hooks/useActiveMukhiAuthority'
 import { formatBloodGroup } from '@/constants/bloodGroup'
 import { toProperCaseName } from '@/utils/text-casing'
 import { Shield, ShieldAlert, Phone, Briefcase, Pencil, Camera } from 'lucide-react'
@@ -77,14 +78,18 @@ interface PersonDetailProps {
  */
 export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdated }: PersonDetailProps) {
   const auth = useContext(AuthContext)
+  const { data: mukhiAuth } = useActiveMukhiAuthority()
   const isPrivacyManager = canManagePrivacy(auth?.profile?.role)
+  const isMukhi = Boolean(mukhiAuth?.isActiveMukhi) || Boolean(auth?.profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI'].includes(auth.profile.role))
+  const isLeadership = Boolean(mukhiAuth?.isLeadership) || isPrivacyManager || isMukhi
+
   const isOwner = Boolean(auth?.user?.id && person.user_id && auth.user.id === person.user_id)
   const isCreator = Boolean(auth?.user?.id && person.created_by && auth.user.id === person.created_by)
   const isSameFamily = Boolean((person as unknown as { is_same_family?: boolean })?.is_same_family)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
   const hasEditPermission = _canEdit || isOwner || isCreator || isPrivacyManager || isAuthorizedByPolicy
-  const canViewProtected = isPrivacyManager || isOwner || isCreator || isSameFamily || isAuthorizedByPolicy
+  const canViewProtected = isLeadership || isOwner || isCreator || isSameFamily || isAuthorizedByPolicy
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(person.avatar_url ?? null)
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
@@ -230,20 +235,31 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
               ) : (person.current_age !== undefined && person.current_age !== null) || (person.age !== undefined && person.age !== null) ? (
                 <DetailRow label="Current age" value={`${person.current_age ?? person.age} years (Recorded age)`} />
               ) : null}
-              <DetailRow label="Birth place" value={person.birth_place ? toProperCaseName(person.birth_place) : null} />
-              <DetailRow label="Blood Group" value={formatBloodGroup(person.blood_group)} />
             </>
           ) : (
             <>
-              {person.age !== undefined && person.age !== null && (
-                <DetailRow label="Calculated age" value={`${person.age} years`} />
+              {(person.age !== undefined && person.age !== null) || (person.current_age !== undefined && person.current_age !== null) ? (
+                <DetailRow
+                  label={person.date_of_birth ? 'Calculated age' : 'Current age'}
+                  value={`${person.age ?? person.current_age} years`}
+                />
+              ) : (
+                <DetailRow label="Current age" value="Age not recorded" />
               )}
             </>
           )}
-          {canViewProtected && (person.is_deceased || person.status === 'DECEASED' || Boolean(person.date_of_death)) && (
+          <DetailRow label="Birth place" value={person.birth_place ? toProperCaseName(person.birth_place) : null} />
+          {((person.city || person.state || person.country) && (
+            <DetailRow
+              label="Location"
+              value={[person.city, person.state, person.country].filter(Boolean).map(toProperCaseName).join(', ')}
+            />
+          ))}
+          <DetailRow label="Blood Group" value={formatBloodGroup(person.blood_group)} />
+          {(person.is_deceased || person.status === 'DECEASED' || Boolean(person.date_of_death)) && (
             <DetailRow
               label="Vital status"
-              value={person.date_of_death ? `Deceased (${formatDate(person.date_of_death)})` : 'Deceased'}
+              value={canViewProtected && person.date_of_death ? `Deceased (${formatDate(person.date_of_death)})` : 'Deceased'}
             />
           )}
         </dl>
@@ -260,6 +276,7 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
         <dl>
           <DetailRow label="Gotra" value={person.gotra ? toProperCaseName(person.gotra) : null} />
           <DetailRow label="Nukh" value={person.nukh ? toProperCaseName(person.nukh) : null} />
+          {person.kul && <DetailRow label="Kul" value={toProperCaseName(person.kul)} />}
           <div className="flex justify-between items-center border-b border-navy-100 py-2.5 text-sm gap-2">
             <dt className="text-navy-500 shrink-0">Occupation / Profession</dt>
             <dd className="max-w-[65%] sm:max-w-[55%] text-right font-medium text-navy-800 break-words flex items-center justify-end gap-1.5 flex-wrap">

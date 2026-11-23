@@ -13,6 +13,7 @@ import { useUpdatePerson } from '../hooks/usePersonMutations'
 import { PersonForm } from '../components/PersonForm'
 import { Button } from '@/components/forms/Button'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { usePersonClaim } from '@/features/claims'
 import { ROUTES } from '@/constants/app'
 import type { CreatePersonInput } from '../schemas/people.schemas'
 import type { PrivacyLevel } from '@/types'
@@ -25,6 +26,7 @@ export function PersonEditPage() {
   const { user, profile } = useAuthContext()
 
   const { data: person, isLoading, error } = usePerson(personId)
+  const { data: myClaim } = usePersonClaim(personId)
   const updatePerson = useUpdatePerson()
 
   async function handleSubmit(data: CreatePersonInput) {
@@ -45,14 +47,18 @@ export function PersonEditPage() {
     )
   }
 
-  // Strict Matrix: Profile creator (persons.created_by = auth.uid()), successfully verified/linked claimant (persons.user_id = auth.uid()),
-  // or Admins can edit.
+  // Strict Matrix:
+  // 1. Profile creator (persons.created_by = auth.uid())
+  // 2. Successfully verified/linked account (persons.user_id = auth.uid())
+  // 3. Approved profile claim (status = 'APPROVED')
+  // 4. Admins / Super Admins
   const isOwner = Boolean(user?.id && person?.user_id === user.id)
   const isCreator = Boolean(user?.id && person?.created_by === user.id)
+  const isApprovedClaimant = Boolean(myClaim?.status === 'APPROVED')
   const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
-  const hasEditPermission = isOwner || isCreator || isAdmin || isAuthorizedByPolicy
+  const hasEditPermission = isOwner || isCreator || isApprovedClaimant || isAdmin || isAuthorizedByPolicy
 
   if (error || !person || !hasEditPermission) {
     const message =
@@ -129,6 +135,7 @@ export function PersonEditPage() {
           occupation: (person as unknown as { occupation?: string })?.occupation ?? undefined,
           occupation_category: (person as unknown as { occupation_category?: string })?.occupation_category ?? undefined,
           date_of_birth: person.date_of_birth ?? undefined,
+          current_age: (person as unknown as { current_age?: number | null })?.current_age ?? undefined,
           date_of_death: person.date_of_death ?? undefined,
           is_deceased: Boolean(person.is_deceased || person.status === 'DECEASED' || person.date_of_death),
           birth_place: person.birth_place ?? undefined,

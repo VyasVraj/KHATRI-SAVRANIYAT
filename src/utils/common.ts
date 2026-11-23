@@ -68,3 +68,20 @@ export function safeJsonParse<T>(json: string): T | null {
     return null
   }
 }
+
+/**
+ * Calculate age in completed years from Date of Birth string (YYYY-MM-DD).
+ * Returns null if invalid or empty.
+ */
+export function calculateAgeFromDob(dobIso: string | null | undefined): number | null {
+  if (!dobIso) return null
+  const dob = new Date(dobIso)
+  if (isNaN(dob.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  const m = today.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--
+  }
+  return age >= 0 ? age : null
+}

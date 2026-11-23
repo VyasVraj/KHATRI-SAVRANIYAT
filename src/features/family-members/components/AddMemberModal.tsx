@@ -55,6 +55,7 @@ import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
 import type { FamilyRole } from '@/types'
 import type { Tables } from '@/types/database.types'
 import { toProperCaseName } from '@/utils/text-casing'
+import { calculateAgeFromDob } from '@/utils/common'
 
 type PersonRow = Tables<'persons'>
 
@@ -441,6 +442,28 @@ export function AddMemberModal({
       if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         setErrorMessage('Please enter a valid email address.')
         return
+      }
+
+      // Mutually exclusive Date of Birth OR Age validation
+      if (ageMode === 'dob') {
+        if (!dateOfBirth.trim()) {
+          setErrorMessage('Please enter Date of Birth.')
+          return
+        }
+        if (dateOfBirth.trim() > new Date().toISOString().split('T')[0]) {
+          setErrorMessage('Date of birth cannot be in the future.')
+          return
+        }
+      } else if (ageMode === 'age') {
+        if (!currentAge.trim()) {
+          setErrorMessage('Please enter Current Age.')
+          return
+        }
+        const ageNum = parseInt(currentAge.trim(), 10)
+        if (isNaN(ageNum) || ageNum < 0 || ageNum > 125) {
+          setErrorMessage('Please enter a valid age between 0 and 125.')
+          return
+        }
       }
     } else {
       if (!selectedPersonId) {
@@ -851,17 +874,20 @@ export function AddMemberModal({
                 </select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-navy-700">
-                    Age / Birth Date <span className="text-navy-400 font-normal">(Optional)</span>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-navy-800">
+                    Age / Birth Date Method <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[11px] font-medium">
+                  <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded text-[11px] font-medium">
                     <button
                       type="button"
-                      onClick={() => setAgeMode('dob')}
+                      onClick={() => {
+                        setAgeMode('dob')
+                        setCurrentAge('')
+                      }}
                       className={`px-2 py-0.5 rounded transition-all ${
-                        ageMode !== 'age'
+                        ageMode === 'dob'
                           ? 'bg-white text-navy-900 shadow-xs font-semibold'
                           : 'text-navy-600 hover:text-navy-900'
                       }`}
@@ -870,7 +896,10 @@ export function AddMemberModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAgeMode('age')}
+                      onClick={() => {
+                        setAgeMode('age')
+                        setDateOfBirth('')
+                      }}
                       className={`px-2 py-0.5 rounded transition-all ${
                         ageMode === 'age'
                           ? 'bg-white text-navy-900 shadow-xs font-semibold'
@@ -882,10 +911,30 @@ export function AddMemberModal({
                   </div>
                 </div>
 
-                {ageMode === 'age' ? (
+                {ageMode === 'dob' ? (
+                  <div className="space-y-1.5">
+                    <Input
+                      id="member-dob"
+                      type="date"
+                      label="Date of Birth *"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                    <div className="rounded border border-navy-100 bg-white px-2.5 py-1 text-xs">
+                      <span className="text-navy-500">Calculated Age: </span>
+                      <span className="font-bold text-navy-900">
+                        {calculateAgeFromDob(dateOfBirth) !== null
+                          ? `${calculateAgeFromDob(dateOfBirth)} years`
+                          : 'Enter birth date above to calculate age automatically'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
                   <div>
                     <Input
                       id="member-current-age"
+                      label="Current Age (in years) *"
                       type="number"
                       min={0}
                       max={125}
@@ -895,19 +944,6 @@ export function AddMemberModal({
                     />
                     <p className="mt-1 text-[11px] text-navy-500">
                       Recorded as completed years without computing a synthetic birth date.
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <Input
-                      id="member-dob"
-                      type="date"
-                      max={new Date().toISOString().split('T')[0]}
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                    />
-                    <p className="mt-1 text-[11px] text-navy-500">
-                      Optional: Leave blank if exact birth date is unknown.
                     </p>
                   </div>
                 )}

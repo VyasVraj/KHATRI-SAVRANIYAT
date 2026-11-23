@@ -62,6 +62,7 @@ import { usePersonList } from '@/features/people/hooks/usePersonList'
 import { useCommunityMukhis } from '@/features/community/hooks/useCommunityMukhis'
 import { isLocationMatch } from '@/features/community/services/community-mukhis.service'
 import { BLOOD_GROUP_OPTIONS } from '@/constants/bloodGroup'
+import { calculateAgeFromDob } from '@/utils/common'
 import { ROUTES } from '@/constants/app'
 import type { Tables } from '@/types/database.types'
 
@@ -142,16 +143,21 @@ function validatePersonFields(vals: PersonFormValues): Record<string, string> {
   if (!vals.last_name.trim()) errs.last_name = 'Last Name / Surname is required'
   if (!vals.gender) errs.gender = 'Gender is required'
   
+  // Mutually exclusive Date of Birth OR Age validation
   if (vals.age_mode === 'age') {
-    if (vals.current_age?.trim()) {
+    if (!vals.current_age?.trim()) {
+      errs.current_age = 'Current Age is required'
+    } else {
       const ageNum = parseInt(vals.current_age, 10)
       if (isNaN(ageNum) || ageNum < 0 || ageNum > 125) {
         errs.current_age = 'Please enter a valid age between 0 and 125'
       }
     }
   } else {
-    // Exact Date of Birth mode - OPTIONAL
-    if (vals.date_of_birth) {
+    // Exact Date of Birth mode
+    if (!vals.date_of_birth?.trim()) {
+      errs.date_of_birth = 'Date of Birth is required'
+    } else {
       const dob = new Date(vals.date_of_birth)
       const today = new Date()
       today.setHours(23, 59, 59, 999)
@@ -873,15 +879,18 @@ export function FamilyCreationWizard() {
             {errors.gender && <p className="mt-1 text-xs text-red-600">{errors.gender}</p>}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-navy-700">
-                5. Age / Birth Date <span className="text-navy-400 font-normal">(Optional)</span>
+              <label className="block text-xs font-bold uppercase tracking-wide text-navy-800">
+                5. Age / Birth Date Method <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[11px] font-medium">
+              <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded text-[11px] font-medium">
                 <button
                   type="button"
-                  onClick={() => onChange('age_mode', 'dob')}
+                  onClick={() => {
+                    onChange('age_mode', 'dob')
+                    onChange('current_age', '')
+                  }}
                   className={`px-2 py-0.5 rounded transition-all ${
                     values.age_mode !== 'age'
                       ? 'bg-white text-navy-900 shadow-xs font-semibold'
@@ -892,7 +901,10 @@ export function FamilyCreationWizard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => onChange('age_mode', 'age')}
+                  onClick={() => {
+                    onChange('age_mode', 'age')
+                    onChange('date_of_birth', '')
+                  }}
                   className={`px-2 py-0.5 rounded transition-all ${
                     values.age_mode === 'age'
                       ? 'bg-white text-navy-900 shadow-xs font-semibold'
@@ -908,6 +920,7 @@ export function FamilyCreationWizard() {
               <div>
                 <Input
                   id={`${idPrefix}-current-age`}
+                  label="Current Age (in years) *"
                   type="number"
                   min={0}
                   max={125}
@@ -921,18 +934,24 @@ export function FamilyCreationWizard() {
                 </p>
               </div>
             ) : (
-              <div>
+              <div className="space-y-1.5">
                 <Input
                   id={`${idPrefix}-dob`}
+                  label="Date of Birth *"
                   type="date"
                   max={new Date().toISOString().split('T')[0]}
                   value={values.date_of_birth}
                   onChange={(e) => onChange('date_of_birth', e.target.value)}
                   error={errors.date_of_birth}
                 />
-                <p className="mt-1 text-[11px] text-navy-500">
-                  Optional: Leave empty if exact birth date is not known.
-                </p>
+                <div className="rounded border border-navy-100 bg-white px-2.5 py-1 text-xs">
+                  <span className="text-navy-500">Calculated Age: </span>
+                  <span className="font-bold text-navy-900">
+                    {calculateAgeFromDob(values.date_of_birth) !== null
+                      ? `${calculateAgeFromDob(values.date_of_birth)} years`
+                      : 'Enter birth date above to calculate age automatically'}
+                  </span>
+                </div>
               </div>
             )}
           </div>

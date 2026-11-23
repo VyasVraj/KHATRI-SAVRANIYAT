@@ -36,7 +36,10 @@ export type PersonRow = Tables<'persons'> & {
   blood_group?: string | null
   age?: number | null
   occupation?: string | null
+  occupation_category?: string | null
   is_same_family?: boolean
+  can_edit?: boolean
+  can_view_tree?: boolean
 }
 
 /** Parameters for listing persons — minimal; pagination deferred to future phase. */
@@ -100,6 +103,13 @@ export async function createPerson(
     insertPayload.blood_group_consent = consentVal
     insertPayload.show_in_blood_directory = consentVal
     insertPayload.show_blood_group_in_directory = consentVal
+  }
+
+  // Mutually exclusive: if Date of Birth is provided, ensure current_age is null; if Age is provided, DOB remains null
+  if (insertPayload.date_of_birth) {
+    insertPayload.current_age = null
+  } else if (insertPayload.current_age !== null && insertPayload.current_age !== undefined) {
+    insertPayload.date_of_birth = null
   }
 
   // Prevent inserting placeholder strings as real occupations
@@ -260,6 +270,13 @@ export async function updatePerson(
     updatePayload.blood_group_consent = consentVal
     delete updatePayload.show_in_blood_directory
     delete updatePayload.show_blood_group_in_directory
+  }
+
+  // Mutually exclusive: if Date of Birth is provided, clear current_age; if Age is provided, clear DOB
+  if (updatePayload.date_of_birth) {
+    updatePayload.current_age = null
+  } else if (updatePayload.current_age !== null && updatePayload.current_age !== undefined) {
+    updatePayload.date_of_birth = null
   }
 
   // Prevent saving placeholder strings as real occupations

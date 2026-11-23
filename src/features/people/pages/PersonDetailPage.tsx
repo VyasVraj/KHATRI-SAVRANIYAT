@@ -19,9 +19,10 @@ import { PersonDetail } from '../components/PersonDetail'
 import { PersonRelationshipsList } from '@/features/relationships'
 import { PersonFamiliesList } from '@/features/family-members'
 import { PersonConnectionSection } from '@/features/connections'
-import { PersonClaimSection } from '@/features/claims'
+import { PersonClaimSection, usePersonClaim } from '@/features/claims'
 import { PersonVerificationSection } from '@/features/verification'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { useActiveMukhiAuthority } from '@/features/community/hooks/useActiveMukhiAuthority'
 import { Button } from '@/components/forms/Button'
 import { ROUTES } from '@/constants/app'
 
@@ -34,28 +35,34 @@ export function PersonDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: person, isLoading, error } = usePerson(personId)
+  const { data: myClaim } = usePersonClaim(personId)
   const softDelete = useSoftDeletePerson()
 
-  // Strict Scope: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid())
-  // or records they originally created (persons.created_by = auth.uid()).
-  // Family head status does NOT grant permission to edit other members' profiles.
+  // Strict Scope: Authenticated normal users can edit ONLY:
+  // 1. Records they originally created (persons.created_by = auth.uid())
+  // 2. Their OWN existing linked person record (persons.user_id = auth.uid())
+  // 3. Approved profile claim (status = 'APPROVED')
   // Super Admin and Admin retain system administrative management.
+  const { data: mukhiAuth } = useActiveMukhiAuthority()
+
+  // Mukhi retains only established role permissions (no arbitrary member editing).
   const isOwner = Boolean(user?.id && person?.user_id === user.id)
   const isCreator = Boolean(user?.id && person?.created_by === user.id)
+  const isApprovedClaimant = Boolean(myClaim?.status === 'APPROVED')
   const isSameFamily = Boolean((person as unknown as { is_same_family?: boolean })?.is_same_family)
   const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
-  const isMukhi = Boolean(profile?.role === 'MUKHI')
+  const isMukhi = Boolean(mukhiAuth?.isActiveMukhi) || Boolean(profile?.role && ['MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI'].includes(profile.role))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
-  const canEdit = isOwner || isCreator || isAdmin || isAuthorizedByPolicy
+  const canEdit = isOwner || isCreator || isApprovedClaimant || isAdmin || isAuthorizedByPolicy
 
   // Family Tree button is ONLY visible if user is authorized to view this person's family tree
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canViewTreePolicy = Boolean((person as any)?.can_view_tree)
-  const canViewTree = isOwner || isCreator || isSameFamily || isAdmin || isMukhi || canViewTreePolicy
+  const canViewTree = isOwner || isCreator || isApprovedClaimant || isSameFamily || isAdmin || isMukhi || canViewTreePolicy
 
   // Protected family details (interpersonal relationships, full memberships list)
-  const canViewProtected = isOwner || isCreator || isSameFamily || isAdmin || isMukhi || isAuthorizedByPolicy
+  const canViewProtected = isOwner || isCreator || isApprovedClaimant || isSameFamily || isAdmin || isMukhi || isAuthorizedByPolicy
 
   async function handleSoftDelete() {
     if (!personId) return

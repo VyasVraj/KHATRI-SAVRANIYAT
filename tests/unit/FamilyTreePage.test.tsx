@@ -41,8 +41,20 @@ vi.mock('@/features/connections', () => ({
 }))
 vi.mock('@/features/claims', () => ({
   PersonClaimSection: () => <div data-testid="mock-claim-section" />,
+  usePersonClaim: () => ({ data: null, isLoading: false }),
 }))
 
+
+function renderWithProviders(ui: React.ReactElement): string {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  )
+}
 
 const VALID_UUID = '11111111-1111-4111-8111-111111111111'
 const INVALID_UUID = 'invalid-not-a-uuid'
@@ -131,7 +143,7 @@ describe('FamilyTreePage Component', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${INVALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />
@@ -151,7 +163,7 @@ describe('FamilyTreePage Component', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${VALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />
@@ -169,7 +181,7 @@ describe('FamilyTreePage Component', () => {
       error: new Error('Permission denied under RLS policy'),
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${VALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />
@@ -189,7 +201,7 @@ describe('FamilyTreePage Component', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${VALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />
@@ -219,7 +231,7 @@ describe('FamilyTreePage Component', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${VALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />
@@ -247,7 +259,7 @@ describe('FamilyTreePage Component', () => {
       error: null,
     } as unknown as ReturnType<typeof usePersonHook.usePerson>)
 
-    const html = renderToStaticMarkup(
+    const html = renderWithProviders(
       <MemoryRouter initialEntries={[`/people/${VALID_UUID}/tree`]}>
         <Routes>
           <Route path="/people/:personId/tree" element={<FamilyTreePage />} />

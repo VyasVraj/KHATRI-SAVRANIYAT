@@ -40,6 +40,7 @@ import { AuthContext } from '@/features/auth/context/AuthContext'
 import { canManagePrivacy } from '@/constants/app'
 import { BLOOD_GROUP_OPTIONS, BLOOD_GROUPS } from '@/constants/bloodGroup'
 import { isValidNukhForGotra } from '@/constants/gotraNukh'
+import { calculateAgeFromDob } from '@/utils/common'
 import type { PrivacyLevel } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,40 @@ const personFormSchema = z
     dob_privacy: PRIVACY_ENUM.default('PRIVATE'),
   })
   .superRefine((data, ctx) => {
+    // Mutually exclusive: user selects either Date of Birth OR Current Age
+    if (data.age_mode === 'dob') {
+      if (!data.date_of_birth || !data.date_of_birth.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of birth is required when Date of Birth is selected',
+          path: ['date_of_birth'],
+        })
+      } else if (data.date_of_birth > getTodayIso()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of birth cannot be in the future',
+          path: ['date_of_birth'],
+        })
+      }
+    } else if (data.age_mode === 'age') {
+      if (!data.current_age || !data.current_age.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Current age is required when Age is selected',
+          path: ['current_age'],
+        })
+      } else {
+        const num = parseInt(data.current_age, 10)
+        if (isNaN(num) || num < 0 || num > 125) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Please enter a valid age between 0 and 125',
+            path: ['current_age'],
+          })
+        }
+      }
+    }
+
     if (data.date_of_birth && data.date_of_death) {
       if (data.date_of_death < data.date_of_birth) {
         ctx.addIssue({
@@ -314,6 +349,7 @@ export function PersonForm({
     handleSubmit,
     watch,
     setValue,
+    clearErrors,
     formState: { errors },
   } = useForm<PersonFormValues>({
     resolver: zodResolver(personFormSchema),
@@ -551,64 +587,113 @@ export function PersonForm({
             id="birth_place"
           />
 
-          {/* Date of Birth vs Current Age Toggle */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-navy-700">
-                Date of Birth / Age (Optional)
+          {/* Mutually Exclusive Date of Birth vs Current Age Section */}
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-navy-800 mb-2">
+                Age / Birth Date Method <span className="text-red-500">*</span>
               </label>
-              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setValue('age_mode', 'dob')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
-                    watch('age_mode') !== 'age'
-                      ? 'bg-white text-navy-900 shadow-2xs font-semibold'
-                      : 'text-navy-600 hover:text-navy-900'
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <label
+                  className={`flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-all ${
+                    watch('age_mode') === 'dob'
+                      ? 'border-brand-500 bg-brand-50/60 text-brand-900 shadow-xs ring-1 ring-brand-500/20 font-semibold'
+                      : 'border-slate-200 bg-white text-navy-700 hover:bg-slate-50'
                   }`}
                 >
-                  Date of Birth
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setValue('age_mode', 'age')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                  <input
+                    type="radio"
+                    value="dob"
+                    checked={watch('age_mode') === 'dob'}
+                    onChange={() => {
+                      setValue('age_mode', 'dob', { shouldValidate: true })
+                      setValue('current_age', '', { shouldValidate: true })
+                      clearErrors('current_age')
+                    }}
+                    className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-xs sm:text-sm">Enter Date of Birth</span>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-all ${
                     watch('age_mode') === 'age'
-                      ? 'bg-white text-navy-900 shadow-2xs font-semibold'
-                      : 'text-navy-600 hover:text-navy-900'
+                      ? 'border-brand-500 bg-brand-50/60 text-brand-900 shadow-xs ring-1 ring-brand-500/20 font-semibold'
+                      : 'border-slate-200 bg-white text-navy-700 hover:bg-slate-50'
                   }`}
                 >
-                  Current Age
-                </button>
+                  <input
+                    type="radio"
+                    value="age"
+                    checked={watch('age_mode') === 'age'}
+                    onChange={() => {
+                      setValue('age_mode', 'age', { shouldValidate: true })
+                      setValue('date_of_birth', '', { shouldValidate: true })
+                      clearErrors('date_of_birth')
+                    }}
+                    className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-xs sm:text-sm">Enter Current Age</span>
+                </label>
               </div>
             </div>
 
-            {watch('age_mode') === 'age' ? (
-              <div>
-                <Input
-                  id="current_age"
-                  label="Current Age (in years)"
-                  type="number"
-                  min="0"
-                  max="125"
-                  placeholder="e.g. 25"
-                  hint="Completed years when exact Date of Birth is unknown"
-                  error={errors.current_age?.message}
-                  {...register('current_age')}
-                />
-              </div>
-            ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Date of Birth field */}
               <div>
                 <Input
                   id="date_of_birth"
-                  label="Date of birth"
+                  label={`Date of Birth ${watch('age_mode') === 'dob' ? '*' : '(Disabled)'}`}
                   type="date"
-                  hint="Format: YYYY-MM-DD"
-                  error={errors.date_of_birth?.message}
+                  max={getTodayIso()}
+                  disabled={watch('age_mode') !== 'dob' || isSubmitting}
+                  className={watch('age_mode') !== 'dob' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}
+                  hint={watch('age_mode') === 'dob' ? 'Format: YYYY-MM-DD' : 'Disabled because Current Age is selected'}
+                  error={watch('age_mode') === 'dob' ? errors.date_of_birth?.message : undefined}
                   {...register('date_of_birth')}
                 />
               </div>
-            )}
+
+              {/* Age field */}
+              <div>
+                {watch('age_mode') === 'dob' ? (
+                  <div>
+                    <label className="block text-xs font-medium text-navy-700 mb-1">
+                      Calculated Current Age (Automatic)
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={
+                        watch('date_of_birth') && calculateAgeFromDob(watch('date_of_birth')) !== null
+                          ? `${calculateAgeFromDob(watch('date_of_birth'))} years (calculated)`
+                          : 'Calculated automatically from DOB'
+                      }
+                      className="w-full rounded border border-navy-200 bg-slate-100 px-3 py-2 text-sm text-navy-800 cursor-not-allowed font-medium"
+                    />
+                    <p className="mt-1 text-[11px] text-navy-500">
+                      Current age is automatically calculated from the Date of Birth entered.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Input
+                      id="current_age"
+                      label="Current Age (in years) *"
+                      type="number"
+                      min="0"
+                      max="125"
+                      placeholder="e.g. 25"
+                      disabled={watch('age_mode') !== 'age' || isSubmitting}
+                      className={watch('age_mode') !== 'age' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}
+                      hint="Completed whole years (0 - 125). Date of birth remains unknown."
+                      error={watch('age_mode') === 'age' ? errors.current_age?.message : undefined}
+                      {...register('current_age')}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4 transition-colors hover:bg-slate-50">
             <label className="flex items-start gap-3 cursor-pointer select-none">

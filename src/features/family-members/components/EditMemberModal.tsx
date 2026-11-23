@@ -33,6 +33,7 @@ import type { FamilyRole } from '@/types'
 import { Button } from '@/components/forms/Button'
 import { Input } from '@/components/forms/Input'
 import { toProperCaseName } from '@/utils/text-casing'
+import { calculateAgeFromDob } from '@/utils/common'
 import { RelationshipSelector } from '@/components/forms/RelationshipSelector'
 import { TwoLevelOccupationSelect } from '@/components/forms/TwoLevelOccupationSelect'
 import { GotraNukhSelect } from '@/components/forms/GotraNukhSelect'
@@ -408,6 +409,32 @@ export function EditMemberModal({
         }
       }
 
+      // Mutually exclusive Date of Birth OR Age validation
+      if (ageMode === 'dob') {
+        if (!dob.trim()) {
+          setErrorMessage('Please enter Date of Birth.')
+          setIsSaving(false)
+          return
+        }
+        if (dob.trim() > new Date().toISOString().split('T')[0]) {
+          setErrorMessage('Date of birth cannot be in the future.')
+          setIsSaving(false)
+          return
+        }
+      } else if (ageMode === 'age') {
+        if (!currentAge.trim()) {
+          setErrorMessage('Please enter Current Age.')
+          setIsSaving(false)
+          return
+        }
+        const ageNum = parseInt(currentAge.trim(), 10)
+        if (isNaN(ageNum) || ageNum < 0 || ageNum > 125) {
+          setErrorMessage('Please enter a valid age between 0 and 125.')
+          setIsSaving(false)
+          return
+        }
+      }
+
       const parsedCurrentAge =
         ageMode === 'age' && currentAge.trim() ? parseInt(currentAge.trim(), 10) : null
       const parsedDob =
@@ -703,12 +730,15 @@ export function EditMemberModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-navy-800">
-                    Age / DOB <span className="text-navy-400 font-normal lowercase">(optional)</span>
+                    Age / DOB Method <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-[10px] font-medium">
                     <button
                       type="button"
-                      onClick={() => setAgeMode('dob')}
+                      onClick={() => {
+                        setAgeMode('dob')
+                        setCurrentAge('')
+                      }}
                       className={`px-1.5 py-0.5 rounded transition-all ${
                         ageMode !== 'age'
                           ? 'bg-white text-navy-900 shadow-xs font-semibold'
@@ -719,7 +749,10 @@ export function EditMemberModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAgeMode('age')}
+                      onClick={() => {
+                        setAgeMode('age')
+                        setDob('')
+                      }}
                       className={`px-1.5 py-0.5 rounded transition-all ${
                         ageMode === 'age'
                           ? 'bg-white text-navy-900 shadow-xs font-semibold'
@@ -732,26 +765,41 @@ export function EditMemberModal({
                 </div>
 
                 {ageMode === 'age' ? (
-                  <Input
-                    id="edit-current-age"
-                    type="number"
-                    min={0}
-                    max={125}
-                    value={currentAge}
-                    onChange={(e) => setCurrentAge(e.target.value)}
-                    placeholder="Years (0 - 125)"
-                    disabled={isSaving}
-                  />
+                  <div>
+                    <Input
+                      id="edit-current-age"
+                      type="number"
+                      min={0}
+                      max={125}
+                      value={currentAge}
+                      onChange={(e) => setCurrentAge(e.target.value)}
+                      placeholder="Years (0 - 125)"
+                      disabled={isSaving}
+                      required
+                    />
+                    <p className="mt-0.5 text-[10px] text-navy-500">
+                      Completed years (0 - 125). Date of birth remains unknown.
+                    </p>
+                  </div>
                 ) : (
-                  <input
-                    type="date"
-                    id="edit-dob"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    disabled={isSaving}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs sm:text-sm text-navy-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                  />
+                  <div>
+                    <input
+                      type="date"
+                      id="edit-dob"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      disabled={isSaving}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs sm:text-sm text-navy-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      required
+                    />
+                    <p className="mt-0.5 text-[10px] text-navy-600 font-medium">
+                      Calculated Age:{' '}
+                      {calculateAgeFromDob(dob) !== null
+                        ? `${calculateAgeFromDob(dob)} years`
+                        : 'Enter birth date to calculate age'}
+                    </p>
+                  </div>
                 )}
               </div>
 
