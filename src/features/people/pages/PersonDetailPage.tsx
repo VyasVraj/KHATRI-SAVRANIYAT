@@ -36,15 +36,26 @@ export function PersonDetailPage() {
   const { data: person, isLoading, error } = usePerson(personId)
   const softDelete = useSoftDeletePerson()
 
-  // Strict Scope: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid()).
+  // Strict Scope: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid())
+  // or records they originally created (persons.created_by = auth.uid()).
   // Family head status does NOT grant permission to edit other members' profiles.
   // Super Admin and Admin retain system administrative management.
   const isOwner = Boolean(user?.id && person?.user_id === user.id)
   const isCreator = Boolean(user?.id && person?.created_by === user.id)
+  const isSameFamily = Boolean((person as unknown as { is_same_family?: boolean })?.is_same_family)
   const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
+  const isMukhi = Boolean(profile?.role === 'MUKHI')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
   const canEdit = isOwner || isCreator || isAdmin || isAuthorizedByPolicy
+
+  // Family Tree button is ONLY visible if user is authorized to view this person's family tree
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const canViewTreePolicy = Boolean((person as any)?.can_view_tree)
+  const canViewTree = isOwner || isCreator || isSameFamily || isAdmin || isMukhi || canViewTreePolicy
+
+  // Protected family details (interpersonal relationships, full memberships list)
+  const canViewProtected = isOwner || isCreator || isSameFamily || isAdmin || isMukhi || isAuthorizedByPolicy
 
   async function handleSoftDelete() {
     if (!personId) return
@@ -106,14 +117,16 @@ export function PersonDetailPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-semibold text-navy-900">Person record</h1>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button
-            variant="secondary"
-            onClick={() => navigate(ROUTES.PERSON_TREE(person.id))}
-            className="flex-1 sm:flex-none justify-center min-h-[44px]"
-          >
-            <Network className="h-4 w-4" />
-            Family tree
-          </Button>
+          {canViewTree && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(ROUTES.PERSON_TREE(person.id))}
+              className="flex-1 sm:flex-none justify-center min-h-[44px]"
+            >
+              <Network className="h-4 w-4" />
+              Family tree
+            </Button>
+          )}
           {canEdit && (
             <Button
               variant="secondary"
@@ -196,15 +209,19 @@ export function PersonDetailPage() {
         </div>
       )}
 
-      {/* Interpersonal relationships */}
-      <div className="mt-8">
-        <PersonRelationshipsList personId={person.id} />
-      </div>
+      {/* Interpersonal relationships — protected family details */}
+      {canViewProtected && (
+        <div className="mt-8">
+          <PersonRelationshipsList personId={person.id} />
+        </div>
+      )}
 
-      {/* Family memberships */}
-      <div className="mt-8">
-        <PersonFamiliesList personId={person.id} />
-      </div>
+      {/* Family memberships — protected family details */}
+      {canViewProtected && (
+        <div className="mt-8">
+          <PersonFamiliesList personId={person.id} />
+        </div>
+      )}
     </div>
   )
 }

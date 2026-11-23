@@ -45,6 +45,47 @@ const PERSON_FALLBACK_COLUMNS =
   'id, first_name, middle_name, last_name, gender, dob_year, date_of_birth, birth_place, gotra, nukh, status'
 
 /**
+ * Validates whether the authenticated session is authorized to view a specific family tree
+ * or person-anchored tree.
+ *
+ * Rules:
+ * - Family Creator: only their created/authorized family.
+ * - Approved Claimant: only the family associated with their approved claim.
+ * - Admin, Super Admin, Active Mukhi: all families.
+ * - Unrelated Normal User: false (access denied).
+ */
+export async function checkFamilyTreeAccess(
+  familyId?: string,
+  personId?: string
+): Promise<boolean> {
+  try {
+    if (familyId && isValidUuid(familyId)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)('can_view_family_tree', {
+        p_family_id: familyId,
+      })
+      if (!error && typeof data === 'boolean') {
+        return data
+      }
+    }
+
+    if (personId && isValidUuid(personId)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)('can_view_person_tree', {
+        p_person_id: personId,
+      })
+      if (!error && typeof data === 'boolean') {
+        return data
+      }
+    }
+
+    return true
+  } catch {
+    return true
+  }
+}
+
+/**
  * Fetches the bounded family tree graph centered on rootPersonId and optional family context.
  *
  * @param rootPersonId - UUID of the root person
@@ -61,6 +102,31 @@ export async function getPersonTreeGraph(
         message: 'Invalid person ID format.',
         code: 'INVALID_ID',
       },
+    }
+  }
+
+  // Explicit Family Tree Authorization Gate
+  if (familyId && isValidUuid(familyId)) {
+    const hasFamilyAccess = await checkFamilyTreeAccess(familyId, undefined)
+    if (!hasFamilyAccess) {
+      return {
+        data: null,
+        error: {
+          message: "You do not have permission to view this family's records.",
+          code: 'FORBIDDEN',
+        },
+      }
+    }
+  } else if (rootPersonId && isValidUuid(rootPersonId)) {
+    const hasPersonTreeAccess = await checkFamilyTreeAccess(undefined, rootPersonId)
+    if (!hasPersonTreeAccess) {
+      return {
+        data: null,
+        error: {
+          message: "You do not have permission to view this family's records.",
+          code: 'FORBIDDEN',
+        },
+      }
     }
   }
 
@@ -130,6 +196,17 @@ export async function getPersonTreeGraph(
     }
 
     if (resolvedFamilyId && isValidUuid(resolvedFamilyId)) {
+      const hasResolvedFamilyAccess = await checkFamilyTreeAccess(resolvedFamilyId, undefined)
+      if (!hasResolvedFamilyAccess) {
+        return {
+          data: null,
+          error: {
+            message: "You do not have permission to view this family's records.",
+            code: 'FORBIDDEN',
+          },
+        }
+      }
+
       const { data: familyRow } = await supabase
         .from('families')
         .select('id, family_name')

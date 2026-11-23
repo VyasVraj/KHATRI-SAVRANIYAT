@@ -250,47 +250,45 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
       </section>
 
       {/* Community identity */}
-      {canViewProtected && (
-        <section aria-labelledby="community-heading">
-          <h3
-            id="community-heading"
-            className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400"
-          >
-            Community identity
-          </h3>
-          <dl>
-            <DetailRow label="Gotra" value={person.gotra ? toProperCaseName(person.gotra) : null} />
-            <DetailRow label="Nukh" value={person.nukh ? toProperCaseName(person.nukh) : null} />
-            <div className="flex justify-between items-center border-b border-navy-100 py-2.5 text-sm gap-2">
-              <dt className="text-navy-500 shrink-0">Occupation / Profession</dt>
-              <dd className="max-w-[65%] sm:max-w-[55%] text-right font-medium text-navy-800 break-words flex items-center justify-end gap-1.5 flex-wrap">
-                {displayOccupation ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
-                    <Briefcase className="h-3 w-3 text-blue-600" />
-                    <span>{displayOccupation}</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 border border-slate-200">
-                    <span>Occupation Not Provided</span>
-                  </span>
-                )}
+      <section aria-labelledby="community-heading">
+        <h3
+          id="community-heading"
+          className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400"
+        >
+          Community identity
+        </h3>
+        <dl>
+          <DetailRow label="Gotra" value={person.gotra ? toProperCaseName(person.gotra) : null} />
+          <DetailRow label="Nukh" value={person.nukh ? toProperCaseName(person.nukh) : null} />
+          <div className="flex justify-between items-center border-b border-navy-100 py-2.5 text-sm gap-2">
+            <dt className="text-navy-500 shrink-0">Occupation / Profession</dt>
+            <dd className="max-w-[65%] sm:max-w-[55%] text-right font-medium text-navy-800 break-words flex items-center justify-end gap-1.5 flex-wrap">
+              {displayOccupation ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
+                  <Briefcase className="h-3 w-3 text-blue-600" />
+                  <span>{displayOccupation}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 border border-slate-200">
+                  <span>Occupation Not Provided</span>
+                </span>
+              )}
 
-                {hasEditPermission && (
-                  <button
-                    type="button"
-                    onClick={() => setUpdateOccupationModalOpen(true)}
-                    className="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer"
-                    title="Update Occupation / Profession"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    <span>{displayOccupation ? 'Edit' : 'Add'}</span>
-                  </button>
-                )}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      )}
+              {hasEditPermission && (
+                <button
+                  type="button"
+                  onClick={() => setUpdateOccupationModalOpen(true)}
+                  className="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer"
+                  title="Update Occupation / Profession"
+                >
+                  <Pencil className="h-3 w-3" />
+                  <span>{displayOccupation ? 'Edit' : 'Add'}</span>
+                </button>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       {/* Contact */}
       <section aria-labelledby="contact-heading">

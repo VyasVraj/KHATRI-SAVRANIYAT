@@ -112,6 +112,15 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
   const currentHead = activeMembers.find((m) => (m.is_head || m.role === 'HEAD'))
   const lineageCount = [family.gotra, family.nukh].filter(Boolean).length
 
+  const currentUserId = auth?.user?.id
+  const isCreator = Boolean(currentUserId && family.created_by === currentUserId)
+  const isManager = Boolean(currentUserId && family.manager_user_id === currentUserId)
+  const isClaimedManager = Boolean(currentUserId && (family as unknown as { claimed_by_user_id?: string })?.claimed_by_user_id === currentUserId)
+  const isMember = Boolean(currentUserId && members.some((m) => m.person?.user_id === currentUserId))
+  const isAdminOrMukhi = Boolean(auth?.profile?.is_active && ['ADMIN', 'SUPER_ADMIN', 'MUKHI'].includes(auth.profile.role))
+  const canViewTree = isCreator || isManager || isClaimedManager || isMember || isAdminOrMukhi
+  const canViewRoster = canViewTree
+
   return (
     <div className="space-y-6">
       {/* Overview section */}
@@ -156,7 +165,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
             </Link>
           )}
 
-          {members.length > 0 ? (
+          {members.length > 0 && canViewTree ? (
             <Link
               to={ROUTES.FAMILY_TREE(family.id)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-navy-800"
@@ -452,11 +461,21 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
 
       {/* Family Membership Roster (Phase 4 Subtask 2) */}
       <section aria-labelledby="family-roster-section-heading">
-        <MemberList
-          familyId={family.id}
-          canManageMembers={canManageMembers}
-          familyMukhi={effectiveMukhi}
-        />
+        {canViewRoster ? (
+          <MemberList
+            familyId={family.id}
+            canManageMembers={canManageMembers}
+            familyMukhi={effectiveMukhi}
+          />
+        ) : (
+          <div className="rounded-xl border border-navy-200 bg-navy-50/50 p-6 text-center">
+            <ShieldAlert className="mx-auto h-8 w-8 text-navy-400 mb-2" />
+            <h4 className="text-sm font-semibold text-navy-800">Member Roster Protected</h4>
+            <p className="mt-1 text-xs text-navy-600 max-w-md mx-auto">
+              The full member roster is accessible only to confirmed family members, the family creator, and community leadership.
+            </p>
+          </div>
+        )}
       </section>
 
 

@@ -45,14 +45,14 @@ export function PersonEditPage() {
     )
   }
 
-  // Strict Matrix: Authenticated normal users can edit ONLY their OWN existing linked person record (persons.user_id = auth.uid()).
-  // Family head status does NOT grant permission to edit other members' profiles.
-  // Super Admin and Admin retain system administrative management.
+  // Strict Matrix: Profile creator (persons.created_by = auth.uid()), successfully verified/linked claimant (persons.user_id = auth.uid()),
+  // or Admins can edit.
   const isOwner = Boolean(user?.id && person?.user_id === user.id)
+  const isCreator = Boolean(user?.id && person?.created_by === user.id)
   const isAdmin = Boolean(profile?.role && ['SUPER_ADMIN', 'ADMIN'].includes(profile.role))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isAuthorizedByPolicy = Boolean((person as any)?.can_edit)
-  const hasEditPermission = isOwner || isAdmin || isAuthorizedByPolicy
+  const hasEditPermission = isOwner || isCreator || isAdmin || isAuthorizedByPolicy
 
   if (error || !person || !hasEditPermission) {
     const message =

@@ -13,11 +13,14 @@
 
 import { useState, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2, ShieldAlert } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { usePerson } from '@/features/people/hooks/usePerson'
 import { useFamily } from '@/features/families/hooks/useFamily'
 import { useFamilyRealtime } from '@/features/families/hooks/useFamilyRealtime'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { checkFamilyTreeAccess } from '../services/tree.service'
 import { FamilyTreeCanvas } from '../components/FamilyTreeCanvas'
 import { FamilyTreeHeader } from '../components/FamilyTreeHeader'
 import { FamilyMemberListView } from '../components/FamilyMemberListView'
@@ -40,11 +43,27 @@ export function FamilyTreePage() {
 
   const rawFamilyId = params.familyId || queryFamilyId
   const rawPersonId = params.personId || queryPersonId
+  const { user, profile } = useAuthContext()
 
   const isValidFamilyId =
     typeof rawFamilyId === 'string' && UUID_REGEX.test(rawFamilyId)
   const isValidPersonId =
     typeof rawPersonId === 'string' && UUID_REGEX.test(rawPersonId)
+
+  // Proactive Family Tree Authorization Check
+  const { data: hasTreeAccess, isLoading: isAccessLoading } = useQuery({
+    queryKey: ['family-tree-access', rawFamilyId, rawPersonId, user?.id],
+    queryFn: async () => {
+      if (!user) return false
+      // Admin and Super Admin always retain authorized access
+      if (profile?.role && ['ADMIN', 'SUPER_ADMIN'].includes(profile.role)) return true
+      return checkFamilyTreeAccess(
+        isValidFamilyId ? rawFamilyId : undefined,
+        isValidPersonId ? rawPersonId : undefined
+      )
+    },
+    enabled: Boolean(user?.id) && (isValidFamilyId || isValidPersonId),
+  })
 
   // 1. Fetch family record if familyId is provided
   const {
@@ -131,6 +150,7 @@ export function FamilyTreePage() {
   }
 
   const isLoading =
+    isAccessLoading ||
     (isValidFamilyId && (isFamilyLoading || isMembersLoading)) ||
     (hasResolvedPersonId && isPersonLoading)
 
@@ -159,6 +179,44 @@ export function FamilyTreePage() {
                 individual or family from the community census.
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Access Restricted: Unauthorized normal user attempting to access another family's tree
+  if (hasTreeAccess === false) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+        <Button
+          variant="secondary"
+          onClick={() => navigate(ROUTES.FAMILIES)}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to families
+        </Button>
+        <div
+          role="alert"
+          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900 shadow-xs"
+        >
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-6 w-6 text-red-600 shrink-0" />
+            <div>
+              <h2 className="text-base font-semibold">Access Restricted</h2>
+              <p className="mt-1 text-sm text-red-700">
+                You do not have permission to view this family's records. A normal user can access only the family they created or the family to which their profile has been successfully claimed and approved.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-red-200 flex justify-end">
+            <Button
+              onClick={() => navigate(ROUTES.FAMILIES)}
+              className="border-red-400 bg-red-600 text-white hover:bg-red-700"
+            >
+              Return to My Family
+            </Button>
           </div>
         </div>
       </div>
