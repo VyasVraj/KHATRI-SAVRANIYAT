@@ -12,6 +12,7 @@
  * - Navigates to /people/:id on interaction.
  */
 
+import { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapPin, CheckCircle2, Clock, AlertCircle, GitFork, User } from 'lucide-react'
 import type { PersonDiscoveryResult } from '../types'
@@ -20,6 +21,7 @@ import { useTranslation } from '@/features/i18n'
 import { toProperCaseName } from '@/utils/text-casing'
 import { cn } from '@/lib/utils'
 import { AvatarImage } from '@/features/media'
+import { AuthContext } from '@/features/auth/context/AuthContext'
 
 interface PersonDirectoryCardProps {
   person: PersonDiscoveryResult
@@ -69,6 +71,12 @@ export function PersonDirectoryCard({
 }: PersonDirectoryCardProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const auth = useContext(AuthContext)
+  const isAdmin = Boolean(
+    auth?.profile?.role &&
+    ['ADMIN', 'SUPER_ADMIN'].includes(auth.profile.role)
+  )
+  const canViewTree = isAdmin || Boolean(person.can_view_tree)
 
   const fullName = toProperCaseName(
     [person.first_name, person.middle_name, person.last_name]
@@ -275,18 +283,24 @@ export function PersonDirectoryCard({
             <span>{t('directory.view_profile')}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              navigate(`/tree?rootPersonId=${person.id}`)
-            }}
-            className="flex-1 inline-flex min-h-[44px] items-center justify-center gap-1 rounded border border-navy-200 bg-white py-2 px-2 text-[11px] font-medium text-navy-700 hover:bg-navy-50 hover:text-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            aria-label={`${t('directory.view_tree')} for ${fullName}`}
-          >
-            <GitFork className="h-3.5 w-3.5 text-navy-400" />
-            <span>{t('directory.view_tree')}</span>
-          </button>
+          {canViewTree && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (person.family_id) {
+                  navigate(`/families/${person.family_id}/tree`)
+                } else {
+                  navigate(`/tree?rootPersonId=${person.id}`)
+                }
+              }}
+              className="flex-1 inline-flex min-h-[44px] items-center justify-center gap-1 rounded border border-navy-200 bg-white py-2 px-2 text-[11px] font-medium text-navy-700 hover:bg-navy-50 hover:text-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              aria-label={`${t('directory.view_tree')} for ${fullName}`}
+            >
+              <GitFork className="h-3.5 w-3.5 text-navy-400" />
+              <span>{t('directory.view_tree')}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

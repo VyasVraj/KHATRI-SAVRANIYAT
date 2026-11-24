@@ -59,7 +59,7 @@ export function PersonDetailPage() {
   // Family Tree button is ONLY visible if user is authorized to view this person's family tree
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canViewTreePolicy = Boolean((person as any)?.can_view_tree)
-  const canViewTree = isOwner || isCreator || isApprovedClaimant || isSameFamily || isAdmin || isMukhi || canViewTreePolicy
+  const canViewTree = isOwner || isCreator || isApprovedClaimant || isSameFamily || isAdmin || canViewTreePolicy
 
   // Protected family details (interpersonal relationships, full memberships list)
   const canViewProtected = isOwner || isCreator || isApprovedClaimant || isSameFamily || isAdmin || isMukhi || isAuthorizedByPolicy

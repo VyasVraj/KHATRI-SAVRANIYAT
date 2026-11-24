@@ -20,7 +20,6 @@ import { useFamily } from '@/features/families/hooks/useFamily'
 import { useFamilyRealtime } from '@/features/families/hooks/useFamilyRealtime'
 import { useFamilyMembers } from '@/features/family-members/hooks/useFamilyMembers'
 import { useAuthContext } from '@/features/auth/context/AuthContext'
-import { useActiveMukhiAuthority } from '@/features/community/hooks/useActiveMukhiAuthority'
 import { checkFamilyTreeAccess } from '../services/tree.service'
 import { FamilyTreeCanvas } from '../components/FamilyTreeCanvas'
 import { FamilyTreeHeader } from '../components/FamilyTreeHeader'
@@ -51,16 +50,15 @@ export function FamilyTreePage() {
   const isValidPersonId =
     typeof rawPersonId === 'string' && UUID_REGEX.test(rawPersonId)
 
-  const { data: mukhiAuth } = useActiveMukhiAuthority()
-  const isLeadership = Boolean(mukhiAuth?.isLeadership) || Boolean(profile?.role && ['ADMIN', 'SUPER_ADMIN', 'MUKHI', 'COMMUNITY_MUKHI', 'ASSISTANT_MUKHI'].includes(profile.role))
+  const isAdmin = Boolean(profile?.role && ['ADMIN', 'SUPER_ADMIN'].includes(profile.role))
 
   // Proactive Family Tree Authorization Check
   const { data: hasTreeAccess, isLoading: isAccessLoading } = useQuery({
-    queryKey: ['family-tree-access', rawFamilyId, rawPersonId, user?.id, isLeadership],
+    queryKey: ['family-tree-access', rawFamilyId, rawPersonId, user?.id, isAdmin],
     queryFn: async () => {
       if (!user) return false
-      // Admin, Super Admin, and Active Mukhis always retain authorized tree access
-      if (isLeadership) return true
+      // Admin and Super Admin always retain authorized tree access across all families
+      if (isAdmin) return true
       return checkFamilyTreeAccess(
         isValidFamilyId ? rawFamilyId : undefined,
         isValidPersonId ? rawPersonId : undefined

@@ -75,6 +75,8 @@ export interface PersonDiscoveryResult {
   verification_status: VerificationStatus
   profile_privacy?: PrivacyLevel
   is_same_family?: boolean
+  can_view_tree?: boolean
+  family_id?: string | null
   avatar_url?: string | null
 }
 
@@ -111,6 +113,9 @@ export interface FamilyDiscoveryResult {
   verification_status: VerificationStatus
   profile_privacy: PrivacyLevel
   members_privacy: PrivacyLevel
+  created_by?: string | null
+  manager_user_id?: string | null
+  can_view_tree?: boolean
 }
 
 // ---------------------------------------------------------------------------

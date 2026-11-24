@@ -79,9 +79,9 @@ export async function checkFamilyTreeAccess(
       }
     }
 
-    return true
+    return false
   } catch {
-    return true
+    return false
   }
 }
 
