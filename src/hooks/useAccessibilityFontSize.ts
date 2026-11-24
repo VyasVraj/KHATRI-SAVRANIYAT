@@ -34,6 +34,8 @@ export const FONT_SIZE_STEPS: ReadonlyArray<Exclude<FontSizePreference, 'DEFAULT
   'VERY_LARGE',
 ] as const
 
+export const ACCESSIBILITY_FONT_SIZE_EVENT = 'cr_accessibility_font_size_change'
+
 const STORAGE_KEY = 'khatri_font_size_preference'
 
 const SCALE_MAP: Record<string, string> = {
@@ -112,8 +114,39 @@ export function useAccessibilityFontSize() {
       } catch {
         // Ignore quota/private browsing errors
       }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent(ACCESSIBILITY_FONT_SIZE_EVENT, { detail: normalized })
+        )
+      }
     }
   }, [profile])
+
+  // Synchronize across components in real time when font size is updated anywhere
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<FontSizePreference>
+      if (customEvent.detail) {
+        setFontSizeState(customEvent.detail)
+      }
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        setFontSizeState(normalizePreference(e.newValue))
+      }
+    }
+
+    window.addEventListener(ACCESSIBILITY_FONT_SIZE_EVENT, handleEvent)
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      window.removeEventListener(ACCESSIBILITY_FONT_SIZE_EVENT, handleEvent)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [])
 
   // Apply to document root (html font-size) for rem-based responsive scaling
   useEffect(() => {
@@ -142,6 +175,12 @@ export function useAccessibilityFontSize() {
         localStorage.setItem(STORAGE_KEY, normalized)
       } catch {
         // Ignore
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent(ACCESSIBILITY_FONT_SIZE_EVENT, { detail: normalized })
+        )
       }
 
       // If user is authenticated, persist to profile in database

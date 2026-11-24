@@ -8,10 +8,10 @@
  * Design: Deep navy/indigo. No gradients. Clean and professional.
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ShieldCheck, CheckCircle, Bell, Shield, Download } from 'lucide-react'
+import { Menu, X, Users, User, UserCheck, LogOut, ChevronDown, ChevronLeft, ChevronRight, ShieldCheck, CheckCircle, Bell, Shield, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_NAME, ROUTES, ADMIN_ROLES, PLATFORM_ADMIN_ROLES } from '@/constants/app'
 import { BrandLogo } from '@/components/common/BrandLogo'
@@ -20,6 +20,7 @@ import { signOut } from '@/features/auth/services/auth.service'
 import { NotificationBell } from '@/features/notifications'
 import { LanguageSelector } from '@/features/i18n'
 import { AccessibilityFontSizeSlider } from '@/components/common/AccessibilityFontSizeSlider'
+import { useAccessibilityFontSize } from '@/hooks/useAccessibilityFontSize'
 import { isAppInstalled, onInstallStateChange } from '@/lib/pwa'
 import { InstallAppModal } from '@/components/common/InstallAppModal'
 import { AvatarImage } from '@/features/media'
@@ -54,6 +55,103 @@ export function AppHeader() {
   const { isAuthenticated, user, profile, isLoading } = useAuthContext()
   const { data: linkedPerson } = usePersonByUserId(user?.id)
   const [liveAvatarUrl, setLiveAvatarUrl] = useState<string | null>(null)
+
+  const { fontSize, step } = useAccessibilityFontSize()
+  const headerContainerRef = useRef<HTMLDivElement>(null)
+  const navScrollRef = useRef<HTMLElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [isBrandAbbreviated, setIsBrandAbbreviated] = useState(step >= 3)
+
+  const checkNavScroll = useCallback(() => {
+    const el = navScrollRef.current
+    if (!el) return
+    const { scrollLeft, scrollWidth, clientWidth } = el
+    setCanScrollLeft(scrollLeft > 2)
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2)
+  }, [])
+
+  const scrollNav = (direction: 'left' | 'right') => {
+    const el = navScrollRef.current
+    if (!el) return
+    const amount = Math.max(160, el.clientWidth * 0.6)
+    el.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth',
+    })
+  }
+
+  const handleNavWheel = (e: React.WheelEvent<HTMLElement>) => {
+    const el = navScrollRef.current
+    if (!el) return
+    if (el.scrollWidth > el.clientWidth) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY
+        checkNavScroll()
+      }
+    }
+  }
+
+  const checkHeaderFit = useCallback(() => {
+    if (step >= 3) {
+      setIsBrandAbbreviated(true)
+      return
+    }
+
+    const headerEl = headerContainerRef.current
+    const navEl = navScrollRef.current
+    if (!headerEl) {
+      setIsBrandAbbreviated(false)
+      return
+    }
+
+    const availableWidth = headerEl.clientWidth
+    if (availableWidth < 980 && navEl && navEl.scrollWidth > navEl.clientWidth + 20) {
+      setIsBrandAbbreviated(true)
+    } else {
+      setIsBrandAbbreviated(false)
+    }
+  }, [step])
+
+  useEffect(() => {
+    checkNavScroll()
+    checkHeaderFit()
+
+    const navEl = navScrollRef.current
+    const headerEl = headerContainerRef.current
+
+    let observer: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        checkNavScroll()
+        checkHeaderFit()
+      })
+      if (navEl) observer.observe(navEl)
+      if (headerEl) observer.observe(headerEl)
+    }
+
+    const onResize = () => {
+      checkNavScroll()
+      checkHeaderFit()
+    }
+
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      if (observer) observer.disconnect()
+      window.removeEventListener('resize', onResize)
+    }
+  }, [checkNavScroll, checkHeaderFit, fontSize, step])
+
+  useEffect(() => {
+    const el = navScrollRef.current
+    if (!el) return
+    const activeItem = el.querySelector('[aria-current="page"]') as HTMLElement | null
+    if (activeItem && typeof activeItem.scrollIntoView === 'function') {
+      activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    }
+    checkNavScroll()
+  }, [location.pathname, checkNavScroll])
 
   useEffect(() => {
     setLiveAvatarUrl(profile?.avatar_url ?? linkedPerson?.avatar_url ?? null)
@@ -157,55 +255,108 @@ export function AppHeader() {
         Skip to main content
       </a>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" ref={headerContainerRef}>
+        <div className="flex h-16 items-center justify-between gap-2 sm:gap-4 min-w-0">
           {/* Logo / Brand */}
           <Link
             to={ROUTES.HOME}
-            className="flex items-center gap-2 sm:gap-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 group min-w-0 shrink"
+            className="flex items-center gap-2 sm:gap-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 group min-w-0 shrink-0"
             aria-label={`${APP_NAME} — Home`}
+            title={APP_NAME}
           >
             <BrandLogo size="sm" alt={APP_NAME} priority className="transition-transform group-hover:scale-105 shrink-0" />
-            <span className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap truncate">
-              {APP_NAME}
+            <span
+              data-testid="header-brand-name"
+              className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap transition-all duration-200"
+            >
+              {isBrandAbbreviated ? 'SKS' : APP_NAME}
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav aria-label="Primary navigation" className="hidden items-center gap-1 md:flex">
-            {NAV_LINKS.map(({ label, href }) => {
-              const tourTarget =
-                href === ROUTES.DISCOVER
-                  ? 'nav-discover'
-                  : href === ROUTES.FAMILIES
-                  ? 'nav-my-family'
-                  : href === ROUTES.COMMUNITY
-                  ? 'nav-community'
-                  : undefined
+          {/* Desktop Navigation with Auto-Scroll */}
+          <div className="hidden md:flex items-center min-w-0 flex-1 justify-center px-1 lg:px-2 relative overflow-hidden">
+            {/* Left scroll control button */}
+            {canScrollLeft && (
+              <button
+                type="button"
+                onClick={() => scrollNav('left')}
+                aria-label="Scroll navigation left"
+                className="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-navy-800/90 text-navy-200 hover:text-white hover:bg-navy-700 transition-colors z-20 shadow-xs mr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
 
-              return (
-                <NavLink
-                  key={href}
-                  to={href}
-                  data-tour-target={tourTarget}
-                  className={({ isActive }) =>
-                    cn(
-                      'rounded px-3 py-2 text-sm font-medium transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400',
-                      isActive
-                        ? 'bg-brand-700 text-white'
-                        : 'text-navy-200 hover:bg-navy-700 hover:text-white'
-                    )
-                  }
-                >
-                  {label}
-                </NavLink>
-              )
-            })}
-          </nav>
+            {/* Left fade gradient indicator */}
+            {canScrollLeft && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-navy-900 to-transparent z-10"
+              />
+            )}
+
+            {/* Scrollable nav items list */}
+            <nav
+              ref={navScrollRef}
+              onScroll={checkNavScroll}
+              onWheel={handleNavWheel}
+              aria-label="Primary navigation"
+              className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap py-1 px-1 min-w-0"
+            >
+              {NAV_LINKS.map(({ label, href }) => {
+                const tourTarget =
+                  href === ROUTES.DISCOVER
+                    ? 'nav-discover'
+                    : href === ROUTES.FAMILIES
+                    ? 'nav-my-family'
+                    : href === ROUTES.COMMUNITY
+                    ? 'nav-community'
+                    : undefined
+
+                return (
+                  <NavLink
+                    key={href}
+                    to={href}
+                    data-tour-target={tourTarget}
+                    className={({ isActive }) =>
+                      cn(
+                        'rounded px-3 py-2 text-sm font-medium transition-colors shrink-0',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400',
+                        isActive
+                          ? 'bg-brand-700 text-white'
+                          : 'text-navy-200 hover:bg-navy-700 hover:text-white'
+                      )
+                    }
+                  >
+                    {label}
+                  </NavLink>
+                )
+              })}
+            </nav>
+
+            {/* Right fade gradient indicator */}
+            {canScrollRight && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-navy-900 to-transparent z-10"
+              />
+            )}
+
+            {/* Right scroll control button */}
+            {canScrollRight && (
+              <button
+                type="button"
+                onClick={() => scrollNav('right')}
+                aria-label="Scroll navigation right"
+                className="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-navy-800/90 text-navy-200 hover:text-white hover:bg-navy-700 transition-colors z-20 shadow-xs ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
 
           {/* Desktop Auth & Language Actions */}
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 md:flex shrink-0">
             <LanguageSelector />
             {!isLoading && (
               <>
