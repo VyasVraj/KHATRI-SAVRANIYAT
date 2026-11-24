@@ -76,7 +76,10 @@ export function PersonDirectoryCard({
     auth?.profile?.role &&
     ['ADMIN', 'SUPER_ADMIN'].includes(auth.profile.role)
   )
-  const canViewTree = isAdmin || Boolean(person.can_view_tree)
+  const canViewTree =
+    isAdmin ||
+    Boolean(person.can_view_tree) ||
+    (person.can_view_tree === undefined && Boolean(person.is_same_family))
 
   const fullName = toProperCaseName(
     [person.first_name, person.middle_name, person.last_name]

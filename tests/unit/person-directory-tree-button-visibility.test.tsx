@@ -151,4 +151,36 @@ describe('PersonDirectoryCard — Family Tree Button Visibility & Access Control
     expect(screen.getByRole('button', { name: /view profile/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /view tree|family tree/i })).not.toBeInTheDocument()
   })
+
+  it('7. When can_view_tree is undefined, falls back to is_same_family=true to show Family Tree button', () => {
+    const fallbackSameFamilyPerson: PersonDiscoveryResult = {
+      ...unrelatedPerson,
+      can_view_tree: undefined,
+      is_same_family: true,
+    }
+
+    renderCard(fallbackSameFamilyPerson, {
+      user: { id: 'jignasha-user-id', email: 'jignasha@example.com' } as never,
+      profile: { id: 'jignasha-user-id', role: 'MEMBER', is_active: true } as never,
+    })
+
+    expect(screen.getByRole('button', { name: /view profile/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /view tree|family tree/i })).toBeInTheDocument()
+  })
+
+  it('8. When can_view_tree is undefined, falls back to is_same_family=false to hide Family Tree button', () => {
+    const fallbackUnrelatedPerson: PersonDiscoveryResult = {
+      ...unrelatedPerson,
+      can_view_tree: undefined,
+      is_same_family: false,
+    }
+
+    renderCard(fallbackUnrelatedPerson, {
+      user: { id: 'jignasha-user-id', email: 'jignasha@example.com' } as never,
+      profile: { id: 'jignasha-user-id', role: 'MEMBER', is_active: true } as never,
+    })
+
+    expect(screen.getByRole('button', { name: /view profile/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /view tree|family tree/i })).not.toBeInTheDocument()
+  })
 })
