@@ -1,7 +1,7 @@
 /**
  * Circulars & Official Community Notices Service
  *
- * Implements authoritative official notices and circulars for KHATRI SARVANIYAT:
+ * Implements authoritative official notices and circulars for SINDHI KHATRI SAMAJ:
  * - Publication of official directives under AKHIL BHARAT SINDHI BRAHMKHATRI PANCHAYAT (SARVANIYAT)
  * - Method A: Upload Existing PDF Notice / Circular (auto letterhead + cover sheet)
  * - Method B: Create Notice Online (rich vector PDF with official emblem, layout, and signatory)

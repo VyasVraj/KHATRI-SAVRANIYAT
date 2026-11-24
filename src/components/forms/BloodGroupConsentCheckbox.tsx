@@ -1,7 +1,7 @@
 /**
  * BloodGroupConsentCheckbox Component
  * Reusable, accessible privacy consent toggle for Blood Group Directory.
- * Matches the KHATRI SARVANIYAT navy/brand theme.
+ * Matches the SINDHI KHATRI SAMAJ navy/brand theme.
  * Uses a single robust interactive container with role="checkbox" and pointer-events-none children
  * to eliminate double-firing, dead zones on padding, or unclickable states across all devices.
  */

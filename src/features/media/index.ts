@@ -1,7 +1,7 @@
 /**
  * Media Feature Domain Public API (Avatar & Profile Images)
  *
- * Photo albums and gallery features were retired per Khatri Sarvaniyat specification.
+ * Photo albums and gallery features were retired per SINDHI KHATRI SAMAJ specification.
  */
 
 export * from './types'

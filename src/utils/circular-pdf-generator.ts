@@ -1,7 +1,7 @@
 /**
  * Official Circular PDF Generator
  *
- * Implements authoritative PDF generation for KHATRI SARVANIYAT:
+ * Implements authoritative PDF generation for SINDHI KHATRI SAMAJ:
  * - Method A: Prepend official branded letterhead cover page to user-uploaded PDF
  *   without distorting or modifying original PDF pages.
  * - Method B: Full vector A4 official circular document with authentic emblem,

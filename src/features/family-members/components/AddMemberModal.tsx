@@ -1,7 +1,7 @@
 /**
  * AddMemberModal — Add member directly to family from Family Details.
  *
- * Implements KHATRI SARVANIYAT Family Management Specification:
+ * Implements SINDHI KHATRI SAMAJ Family Management Specification:
  * - Knows the family context automatically.
  * - Relationship to Family Head:
  *     Spouse, Son, Daughter, Father, Mother, Grandfather, Grandmother,

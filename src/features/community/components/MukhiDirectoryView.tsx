@@ -3,7 +3,7 @@
  *
  * Full mobile-first directory view for Mukhi Leadership:
  * - Heading: Mukhi Directory
- * - Subtitle: Explore the official KHATRI SARVANIYAT Mukhi directory and find community leaders across different regions.
+ * - Subtitle: Explore the official SINDHI KHATRI SAMAJ Mukhi directory and find community leaders across different regions.
  * - Dynamic count badge: {totalCount} Mukhis
  * - Search by Mukhi Name, Mobile Number, Region / Gram / City.
  * - Filter by Region / Gram / City dropdown.

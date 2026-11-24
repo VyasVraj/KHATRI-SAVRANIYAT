@@ -5,7 +5,7 @@
  * Do NOT put secrets or sensitive values here.
  */
 
-export const APP_NAME = import.meta.env.VITE_APP_NAME ?? 'SINDHI KHATRI SAMAJ'
+export const APP_NAME = 'SINDHI KHATRI SAMAJ'
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.1.0'
 export const APP_ENV = import.meta.env.VITE_APP_ENV ?? 'development'
 

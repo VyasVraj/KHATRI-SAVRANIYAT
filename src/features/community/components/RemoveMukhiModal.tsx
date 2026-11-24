@@ -9,7 +9,7 @@
  * - Linked Person Name (if available)
  * - Required verbatim data safety explanation:
  *   "Are you sure you want to remove this person from their Mukhi position? This action will remove
- *   their Mukhi authority and active Mukhi Directory listing. Their KHATRI SARVANIYAT login account,
+ *   their Mukhi authority and active Mukhi Directory listing. Their SINDHI KHATRI SAMAJ login account,
  *   personal profile, family membership, family relationships and census records will remain unchanged.
  *   The person will continue using the website as a normal community user, subject to any other
  *   independent roles they hold."

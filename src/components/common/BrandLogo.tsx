@@ -1,7 +1,7 @@
 /**
  * BrandLogo — Official SINDHI KHATRI SAMAJ Emblem Component
  *
- * Renders the authentic traditional Khatri Sarvaniyat emblem:
+ * Renders the authentic traditional SINDHI KHATRI SAMAJ emblem:
  * - Deep navy shield with golden decorative border
  * - Crossed traditional swords and sun motif
  * - Central sacred Om symbol

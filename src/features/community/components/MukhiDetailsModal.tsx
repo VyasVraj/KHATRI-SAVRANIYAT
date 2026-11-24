@@ -2,7 +2,7 @@
  * MukhiDetailsModal component
  *
  * Dedicated accessible modal for viewing an individual Mukhi's profile details.
- * Implements approved KHATRI SARVANIYAT design:
+ * Implements approved SINDHI KHATRI SAMAJ design:
  * - Solid dark navy fixed header (no gradients)
  * - Dynamic badges: Mukhi Unique ID, Official Mukhi, Verified Active Authority
  * - Full name with ellipsis truncation and accessible full-name title

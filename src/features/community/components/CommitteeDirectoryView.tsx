@@ -1,7 +1,7 @@
 /**
  * Committee Directory View (Screen 44 — Official Executive Committee Directory)
  *
- * Canonical Directory for Khatri Sarvaniyat Executive Committee (Karyakarini):
+ * Canonical Directory for SINDHI KHATRI SAMAJ Executive Committee (Karyakarini):
  * - Renders ONLY the official 31-member Executive Committee records (0 Mukhi Directory records).
  * - Section A: Executive Leadership & Central Officers (8 members: President, 3 Vice Presidents,
  *   General Secretary, Secretary, Treasurer, Organization Secretary).

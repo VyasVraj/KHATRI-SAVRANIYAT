@@ -1,5 +1,5 @@
 /**
- * Official Centralized Family Relationships Master Reference for Khatri Sarvaniyat
+ * Official Centralized Family Relationships Master Reference for SINDHI KHATRI SAMAJ
  *
  * Source: KHATRI_SARVANIYAT_Comprehensive_Family_Relationship_Reference(1).pdf
  * Covers all 13 official categories with exact English & Hindi labels, stable UPPERCASE codes,

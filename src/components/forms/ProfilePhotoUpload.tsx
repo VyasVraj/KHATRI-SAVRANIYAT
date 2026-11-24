@@ -1,7 +1,7 @@
 /**
  * ProfilePhotoUpload Component
  *
- * Professional profile photo uploader conforming to Khatri Sarvaniyat design standards:
+ * Professional profile photo uploader conforming to SINDHI KHATRI SAMAJ design standards:
  * - Image preview circle with fallback initials / user icon.
  * - Automatic client-side non-blocking Web Worker compression before staging/upload.
  * - Targets <= 400x400 px WebP format, 75–100 KB target (max 150 KB).

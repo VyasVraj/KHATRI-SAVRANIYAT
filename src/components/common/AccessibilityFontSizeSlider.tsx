@@ -1,7 +1,7 @@
 /**
  * AccessibilityFontSizeSlider (Part 21 Parity)
  *
- * Interactive 5-level horizontal text size slider matching Khatri Sarvaniyat theme:
+ * Interactive 5-level horizontal text size slider matching SINDHI KHATRI SAMAJ theme:
  * - Position 1: Small (14px / 0.90)
  * - Position 2: Standard (16px / 1.00) [Default]
  * - Position 3: Large (18px / 1.15)

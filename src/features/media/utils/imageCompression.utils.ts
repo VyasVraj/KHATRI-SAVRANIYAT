@@ -1,7 +1,7 @@
 /**
  * Client-Side Profile Photo Compression & Optimization Utilities
  *
- * Enforces strict performance and storage requirements for Khatri Sarvaniyat:
+ * Enforces strict performance and storage requirements for SINDHI KHATRI SAMAJ:
  * - Target & maximum file size: strictly <= 75 KB (76,800 bytes)
  * - Max dimensions: 400x400 px (preserving aspect ratio, centered square avatar)
  * - Output format: image/webp

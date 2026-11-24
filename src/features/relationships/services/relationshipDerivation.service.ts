@@ -1,5 +1,5 @@
 /**
- * Centralized Relationship Derivation Engine for Khatri Sarvaniyat
+ * Centralized Relationship Derivation Engine for SINDHI KHATRI SAMAJ
  *
  * Source: KHATRI_SARVANIYAT_Comprehensive_Family_Relationship_Reference(1).pdf
  *

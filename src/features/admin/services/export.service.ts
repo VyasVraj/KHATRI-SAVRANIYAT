@@ -519,7 +519,7 @@ export function downloadCsvExcel(
 }
 
 /**
- * Generates and triggers printable PDF report with official Khatri Sarvaniyat branding.
+ * Generates and triggers printable PDF report with official SINDHI KHATRI SAMAJ branding.
  */
 export function generatePdfReport(
   reportTitle: string,

@@ -1,7 +1,7 @@
 /**
  * FamilyCreationWizard — Complete Family Registration & Add Person Workflow.
  *
- * Requirements (Khatri Sarvaniyat):
+ * Requirements (SINDHI KHATRI SAMAJ):
  * 1. Step 1: Family Details (7 mandatory fields: Family Name, Mukhi from 118 records,
  *    City/State/Country, Gotra from 29 master list, dependent Nukh, optional description).
  * 2. Step 2: Family Head (Option A: New Person with 12 mandatory fields in exact order,

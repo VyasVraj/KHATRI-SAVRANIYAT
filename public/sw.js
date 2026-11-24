@@ -22,7 +22,7 @@
  *    - Handles push and notificationclick events safely without exposing private data.
  */
 
-const CACHE_VERSION = 'cr-shell-v8'
+const CACHE_VERSION = 'cr-shell-v9'
 
 // Core static assets required to render the application shell
 const STATIC_PRECACHE_URLS = [
@@ -142,7 +142,7 @@ self.addEventListener('fetch', (event) => {
         if (cachedOffline) {
           return cachedOffline
         }
-        return new Response('Network offline. Please reconnect to access KHATRI SARVANIYAT.', {
+        return new Response('Network offline. Please reconnect to access SINDHI KHATRI SAMAJ.', {
           status: 503,
           statusText: 'Service Unavailable',
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },

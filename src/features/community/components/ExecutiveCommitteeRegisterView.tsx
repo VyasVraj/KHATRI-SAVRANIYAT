@@ -1,6 +1,6 @@
 /**
  * ExecutiveCommitteeRegisterView — Official 31-member Executive Committee (Karyakarini)
- * Directory for Khatri Sarvaniyat.
+ * Directory for SINDHI KHATRI SAMAJ.
  *
  * Source of truth: Executive Committee Register PDF.
  */

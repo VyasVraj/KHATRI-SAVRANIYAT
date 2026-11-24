@@ -2,7 +2,7 @@
  * Announcement Detail Modal Component (Phase 10 — Subtask 2)
  *
  * Provides a clean, accessible, opaque modal dialog displaying full announcement details
- * adhering to the Khatri Sarvaniyat community design system.
+ * adhering to the SINDHI KHATRI SAMAJ community design system.
  */
 
 import { useEffect } from 'react'
