@@ -47,8 +47,8 @@ export function AppSettingsSection({ onTabChange }: AppSettingsSectionProps) {
           </div>
           <p className="mt-1 text-xs text-navy-500">
             {isInstalled
-              ? 'KHATRI SARVANIYAT is running in standalone application mode on this device.'
-              : 'Install KHATRI SARVANIYAT on your home screen or desktop for fast, app-like access without opening a browser.'}
+              ? 'SINDHI KHATRI SAMAJ is running in standalone application mode on this device.'
+              : 'Install SINDHI KHATRI SAMAJ on your home screen or desktop for fast, app-like access without opening a browser.'}
           </p>
         </div>
 

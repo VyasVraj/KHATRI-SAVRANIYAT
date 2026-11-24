@@ -75,9 +75,9 @@ export function ForgotPasswordPage() {
         <div className="mb-8 text-center flex flex-col items-center">
           <Link to={ROUTES.HOME} className="inline-flex flex-col items-center gap-3 group">
             <div className="p-2 rounded-xl bg-[#081B55] border border-[#D9A62E]/60 shadow-md group-hover:scale-105 transition-transform">
-              <BrandLogo size="md" alt="KHATRI SARVANIYAT" priority />
+              <BrandLogo size="md" alt="SINDHI KHATRI SAMAJ" priority />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-navy-950">KHATRI SARVANIYAT</span>
+            <span className="text-2xl font-bold tracking-tight text-navy-950">SINDHI KHATRI SAMAJ</span>
           </Link>
           <h1 className="mt-4 text-2xl font-semibold text-navy-900">
             Reset your password

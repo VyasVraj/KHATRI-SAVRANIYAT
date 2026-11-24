@@ -201,7 +201,7 @@ export const IssueOfficialNoticeModal: React.FC<IssueOfficialNoticeModalProps> =
 
       onSuccess(
         status === 'PUBLISHED'
-          ? 'Official notice published successfully with Khatri Sarvaniyat letterhead.'
+          ? 'Official notice published successfully with SINDHI KHATRI SAMAJ letterhead.'
           : 'Official notice saved as draft.'
       )
       onClose()

@@ -100,7 +100,7 @@ export const ExecutiveCommitteeRegisterView: React.FC = () => {
               </h2>
             </div>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Official 31-member governance council of Khatri Sarvaniyat community. Authoritative Mukhis and executive leadership.
+              Official 31-member governance council of SINDHI KHATRI SAMAJ community. Authoritative Mukhis and executive leadership.
             </p>
           </div>
 

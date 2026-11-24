@@ -142,7 +142,7 @@ export function SecuritySettingsSection() {
 
         <ul className="text-xs text-navy-600 space-y-2 list-disc list-inside leading-relaxed">
           <li>Never share your login credentials or OTP links with anyone.</li>
-          <li>KHATRI SARVANIYAT administrators will never ask for your password.</li>
+          <li>SINDHI KHATRI SAMAJ administrators will never ask for your password.</li>
           <li>If you suspect unauthorized access, change your password immediately and sign out of all sessions.</li>
         </ul>
       </div>

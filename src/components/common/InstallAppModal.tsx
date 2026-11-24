@@ -1,7 +1,7 @@
 /**
  * InstallAppModal Component
  *
- * Professional, accessible modal providing seamless installation for KHATRI SARVANIYAT
+ * Professional, accessible modal providing seamless installation for SINDHI KHATRI SAMAJ
  * across Android, iOS/iPadOS, Windows, and macOS devices.
  *
  * Capabilities:
@@ -77,10 +77,10 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
         {/* Header */}
         <div className="bg-navy-900 px-6 py-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BrandLogo size="sm" alt="KHATRI SARVANIYAT" priority className="h-10 w-10 shrink-0" />
+            <BrandLogo size="sm" alt="SINDHI KHATRI SAMAJ" priority className="h-10 w-10 shrink-0" />
             <div>
               <h2 id="install-app-title" className="text-base font-bold tracking-tight text-white">
-                Install KHATRI SARVANIYAT
+                Install SINDHI KHATRI SAMAJ
               </h2>
               <p className="text-xs text-navy-200">Progressive Web Application</p>
             </div>
@@ -102,7 +102,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
               <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto animate-bounce" />
               <h3 className="text-lg font-bold text-navy-900">Application Installed!</h3>
               <p className="text-sm text-slate-600 max-w-sm mx-auto">
-                KHATRI SARVANIYAT is now installed on your device. You can open it directly from your home screen or application launcher.
+                SINDHI KHATRI SAMAJ is now installed on your device. You can open it directly from your home screen or application launcher.
               </p>
             </div>
           ) : (
@@ -115,7 +115,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
                     One-Click Quick Install
                   </div>
                   <p className="text-xs text-navy-700">
-                    Your browser supports direct installation. Click below to add KHATRI SARVANIYAT to your device launcher.
+                    Your browser supports direct installation. Click below to add SINDHI KHATRI SAMAJ to your device launcher.
                   </p>
                   <button
                     type="button"
@@ -199,7 +199,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
                     </h4>
                     <ol className="space-y-2.5 list-decimal list-inside text-slate-700">
                       <li className="leading-relaxed">
-                        Open <strong>KHATRI SARVANIYAT</strong> in <strong>Apple Safari</strong>.
+                        Open <strong>SINDHI KHATRI SAMAJ</strong> in <strong>Apple Safari</strong>.
                       </li>
                       <li className="leading-relaxed">
                         Tap the <strong className="inline-flex items-center gap-1 text-navy-900 bg-white px-1.5 py-0.5 rounded border border-slate-200"><Share2 className="h-3 w-3 text-brand-600" /> Share</strong> icon at the bottom of the screen.

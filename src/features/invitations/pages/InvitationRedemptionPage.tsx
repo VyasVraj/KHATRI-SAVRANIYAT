@@ -140,7 +140,7 @@ export function InvitationRedemptionPage() {
             {preview.family_name || 'Community Family'}
           </h1>
           <p className="mt-1 text-sm text-navy-300">
-            You have been invited to join this family record on KHATRI SARVANIYAT.
+            You have been invited to join this family record on SINDHI KHATRI SAMAJ.
           </p>
         </div>
 

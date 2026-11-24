@@ -293,7 +293,7 @@ export const CircularDetailModal: React.FC<CircularDetailModalProps> = ({
                     Official Document Attached
                   </div>
                   <div className="text-xs text-blue-700 dark:text-blue-300">
-                    Certified with Khatri Sarvaniyat official letterhead & endorsement
+                    Certified with SINDHI KHATRI SAMAJ official letterhead & endorsement
                   </div>
                 </div>
               </div>

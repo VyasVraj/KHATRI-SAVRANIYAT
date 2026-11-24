@@ -224,7 +224,7 @@ export const RemoveMukhiModal: React.FC<RemoveMukhiModalProps> = ({
               <span>Data Protection & Scope Notice</span>
             </div>
             <p className="text-xs text-amber-950 leading-relaxed font-medium">
-              Are you sure you want to remove this person from their Mukhi position? This action will remove their Mukhi authority and active Mukhi Directory listing. Their KHATRI SARVANIYAT login account, personal profile, family membership, family relationships and census records will remain unchanged. The person will continue using the website as a normal community user, subject to any other independent roles they hold.
+              Are you sure you want to remove this person from their Mukhi position? This action will remove their Mukhi authority and active Mukhi Directory listing. Their SINDHI KHATRI SAMAJ login account, personal profile, family membership, family relationships and census records will remain unchanged. The person will continue using the website as a normal community user, subject to any other independent roles they hold.
             </p>
           </div>
 

@@ -19,7 +19,7 @@ export function LoadingScreen({ message = 'Loading…' }: LoadingScreenProps) {
     >
       <div className="mb-5 flex flex-col items-center gap-3 animate-in fade-in duration-300">
         <BrandLogo size="lg" priority />
-        <span className="text-xl font-bold tracking-tight text-white">KHATRI SARVANIYAT</span>
+        <span className="text-xl font-bold tracking-tight text-white">SINDHI KHATRI SAMAJ</span>
       </div>
       <Loader2 className="h-7 w-7 animate-spin text-brand-400" />
       <p className="mt-3 text-sm text-navy-300">{message}</p>

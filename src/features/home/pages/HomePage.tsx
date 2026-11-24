@@ -40,14 +40,14 @@ export function HomePage() {
       <section className="bg-navy-900 py-16 text-white sm:py-20" aria-labelledby="hero-heading">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            {/* 1. Existing KHATRI SARVANIYAT logo */}
+            {/* 1. Existing SINDHI KHATRI SAMAJ logo */}
             <div className="mb-6 flex justify-center">
               <div className="relative inline-flex items-center justify-center p-2 rounded-2xl bg-[#081B55] border-2 border-[#D9A62E] shadow-xl">
                 <BrandLogo
                   size="xl"
                   priority
                   className="h-24 w-24 sm:h-28 sm:w-28"
-                  alt="KHATRI SARVANIYAT Official Emblem"
+                  alt="SINDHI KHATRI SAMAJ Official Emblem"
                 />
               </div>
             </div>
@@ -263,7 +263,7 @@ export function HomePage() {
               {t('app.tagline')}
             </h2>
             <p className="mb-6 text-navy-500">
-              Join families across our community who have registered on KHATRI SARVANIYAT.
+              Join families across our community who have registered on SINDHI KHATRI SAMAJ.
             </p>
             <Link
               to={ROUTES.SIGN_UP}

@@ -1,5 +1,5 @@
 /**
- * BrandLogo — Official KHATRI SARVANIYAT Emblem Component
+ * BrandLogo — Official SINDHI KHATRI SAMAJ Emblem Component
  *
  * Renders the authentic traditional Khatri Sarvaniyat emblem:
  * - Deep navy shield with golden decorative border
@@ -46,7 +46,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   layout = 'row',
   textClassName,
   priority = false,
-  alt = 'KHATRI SARVANIYAT Official Emblem',
+  alt = 'SINDHI KHATRI SAMAJ Official Emblem',
 }) => {
   const sizeClass = typeof size === 'string' ? SIZE_MAP[size] : ''
   const inlineStyle = typeof size === 'number' ? { width: size, height: size } : undefined
@@ -93,7 +93,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           textClassName
         )}
       >
-        KHATRI SARVANIYAT
+        SINDHI KHATRI SAMAJ
       </span>
     </div>
   )

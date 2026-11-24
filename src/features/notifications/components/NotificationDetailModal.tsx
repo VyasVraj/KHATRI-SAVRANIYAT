@@ -95,10 +95,10 @@ export function NotificationDetailModal({
   const senderName =
     (notification.metadata?.sender_name as string) ||
     (notification.category === 'COMMUNITY' || notification.category === 'EVENT'
-      ? 'KHATRI SARVANIYAT'
+      ? 'SINDHI KHATRI SAMAJ'
       : notification.category === 'FAMILY'
       ? 'Family Census'
-      : 'KHATRI SARVANIYAT')
+      : 'SINDHI KHATRI SAMAJ')
 
   const audienceLabel = (notification.metadata?.audience as string) || 'all'
 

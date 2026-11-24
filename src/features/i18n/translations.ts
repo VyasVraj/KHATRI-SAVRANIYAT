@@ -16,7 +16,7 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
 export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, string>> = {
   en: {
     // App Slogans & Taglines
-    'app.name': 'KHATRI SARVANIYAT',
+    'app.name': 'SINDHI KHATRI SAMAJ',
     'app.slogan': 'Ek Samaj • Ek Pehchaan • Ek Digital Record',
     'app.subtitle': 'A digital census (janganna) for our samaj',
     'app.three_pillars': 'Our People • Our Roots • Our Tomorrow',
@@ -53,7 +53,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'home.organization_title': 'AKHIL BHARAT SINDHI BRAHMKHATRI PANCHAYAT (SARVANIYAT)',
     'home.hero_title': 'Preserve Your Family Legacy',
     'home.hero_description':
-      'KHATRI SARVANIYAT is a digital platform dedicated to preserving our community identity, family heritage, genealogy and connections. Register your family, discover relatives and keep our traditions alive for future generations.',
+      'SINDHI KHATRI SAMAJ is a digital platform dedicated to preserving our community identity, family heritage, genealogy and connections. Register your family, discover relatives and keep our traditions alive for future generations.',
     'home.register_button': 'Register Your Family',
     'home.find_family_button': 'Find My Family',
     'home.features_title': 'Everything Our Community Needs',
@@ -416,7 +416,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     // Mukhi Leadership Directory (Screens 33-36 — ANDROID-11)
     'mukhi.title': 'Mukhi Directory',
     'mukhi.subtitle':
-      'Explore the official KHATRI SARVANIYAT Mukhi directory and find community leaders across different regions.',
+      'Explore the official SINDHI KHATRI SAMAJ Mukhi directory and find community leaders across different regions.',
     'mukhi.tab_mukhi': 'Mukhi Directory',
     'mukhi.pulse_mukhi': 'Mukhi Directory',
     'mukhi.pulse_mukhi_desc': 'Community elders & regional Samaj Mukhis.',
@@ -549,7 +549,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
 
   hi: {
     // App Slogans & Taglines
-    'app.name': 'खत्री सरवानियत',
+    'app.name': 'सिंधी खत्री समाज',
     'app.slogan': 'एक समाज • एक पहचान • एक डिजिटल रिकॉर्ड',
     'app.subtitle': 'हमारे समाज के लिए एक डिजिटल जनगणना',
     'app.three_pillars': 'हमारे लोग • हमारी जड़ें • हमारा कल',
@@ -586,7 +586,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'home.organization_title': 'अखिल भारत सिंधी ब्रह्मखत्री पंचायत (सरवाणियत)',
     'home.hero_title': 'अपनी पारिवारिक विरासत को सुरक्षित रखें',
     'home.hero_description':
-      'खत्री सरवानियत हमारे समाज की पारिवारिक जनगणना, वंशावली वृक्ष, निर्देशिका और सत्यापित संबंधों के लिए एक विश्वसनीय मंच है। अपने परिवार को पंजीकृत करें और आने वाली पीढ़ियों के लिए अपनी विरासत को संजोएं।',
+      'सिंधी खत्री समाज हमारे समाज की पारिवारिक जनगणना, वंशावली वृक्ष, निर्देशिका और सत्यापित संबंधों के लिए एक विश्वसनीय मंच है। अपने परिवार को पंजीकृत करें और आने वाली पीढ़ियों के लिए अपनी विरासत को संजोएं।',
     'home.register_button': 'अपने परिवार का पंजीकरण करें',
     'home.find_family_button': 'मेरा परिवार खोजें',
     'home.features_title': 'हमारे समाज की हर जरूरत',
@@ -1080,7 +1080,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
 
   gu: {
     // App Slogans & Taglines
-    'app.name': 'ખત્રી સરવાણિયાત',
+    'app.name': 'સિંધી ખત્રી સમાજ',
     'app.slogan': 'એક સમાજ • એક ઓળખ • એક ડિજિટલ રેકોર્ડ',
     'app.subtitle': 'આપણા સમાજ માટે એક ડિજિટલ વસ્તી ગણતરી (જનગણના)',
     'app.three_pillars': 'આપણા લોકો • આપણી પરંપરા • આપણું ભવિષ્ય',
@@ -1117,7 +1117,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<TranslationKey, stri
     'home.organization_title': 'અખિલ ભારત સિંધી બ્રહ્મખત્રી પંચાયત (સરવાણિયત)',
     'home.hero_title': 'તમારા પરિવારનો વારસો સાચવો',
     'home.hero_description':
-      'ખત્રી સરવાણિયાત એ આપણા સમાજની પારિવારિક જનગણના, વંશાવળી વૃક્ષ અને પ્રમાણિત સંબંધો માટેનું વિશ્વસનીય પ્લેટફોર્મ છે. તમારા પરિવારની નોંધણી કરો અને વારસો સાચવો.',
+      'સિંધી ખત્રી સમાજ એ આપણા સમાજની પારિવારિક જનગણના, વંશાવળી વૃક્ષ અને પ્રમાણિત સંબંધો માટેનું વિશ્વસનીય પ્લેટફોર્મ છે. તમારા પરિવારની નોંધણી કરો અને વારસો સાચવો.',
     'home.register_button': 'પરિવારની નોંધણી કરો',
     'home.find_family_button': 'મારું પરિવાર શોધો',
     'home.features_title': 'આપણા સમાજની દરેક જરૂરિયાત',

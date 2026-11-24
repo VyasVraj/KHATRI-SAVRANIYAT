@@ -123,7 +123,7 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link to={ROUTES.HOME} className="inline-block">
-            <span className="text-2xl font-bold text-brand-600">KHATRI SARVANIYAT</span>
+            <span className="text-2xl font-bold text-brand-600">SINDHI KHATRI SAMAJ</span>
           </Link>
           <h1 className="mt-4 text-2xl font-semibold text-navy-900">
             Choose a new password

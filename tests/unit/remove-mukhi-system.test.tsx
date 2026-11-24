@@ -238,7 +238,7 @@ describe('KHATRI SARVANIYAT — Complete Mukhi Removal System', () => {
       ).toBeInTheDocument()
       expect(
         screen.getByText(
-          /This action will remove their Mukhi authority and active Mukhi Directory listing\. Their KHATRI SARVANIYAT login account, personal profile, family membership, family relationships and census records will remain unchanged\./
+          /This action will remove their Mukhi authority and active Mukhi Directory listing\. Their SINDHI KHATRI SAMAJ login account, personal profile, family membership, family relationships and census records will remain unchanged\./
         )
       ).toBeInTheDocument()
 

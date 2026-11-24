@@ -3,7 +3,7 @@
  *
  * Capabilities:
  * - Listens for waiting service worker updates.
- * - Displays a non-intrusive floating toast: "New version available! Update KHATRI SARVANIYAT to enjoy the latest improvements."
+ * - Displays a non-intrusive floating toast: "New version available! Update SINDHI KHATRI SAMAJ to enjoy the latest improvements."
  * - Options: [Later] and [Update Now].
  * - Safe update handling: preserves form safety, executes SKIP_WAITING only when triggered.
  * - Displays an ambient "Offline Mode" indicator when navigator.onLine is false:
@@ -94,7 +94,7 @@ export function PwaUpdateNotification() {
               <div>
                 <h4 className="text-sm font-bold text-navy-900">Update Available</h4>
                 <p className="text-xs text-navy-600 font-medium leading-relaxed">
-                  New version available! Update KHATRI SARVANIYAT to enjoy the latest improvements.
+                  New version available! Update SINDHI KHATRI SAMAJ to enjoy the latest improvements.
                 </p>
               </div>
             </div>

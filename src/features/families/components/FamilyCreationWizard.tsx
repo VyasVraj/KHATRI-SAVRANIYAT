@@ -1172,7 +1172,7 @@ export function FamilyCreationWizard() {
         <BrandLogo size="md" className="shrink-0" />
         <div>
           <h2 className="text-base font-bold tracking-tight text-amber-300 uppercase">
-            KHATRI SARVANIYAT
+            SINDHI KHATRI SAMAJ
           </h2>
           <p className="text-xs text-navy-200">
             Official Community Census & Family Registration System

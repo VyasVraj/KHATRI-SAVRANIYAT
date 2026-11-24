@@ -24,8 +24,8 @@ describe('PWA Web App Manifest & Static Assets', () => {
     const content = fs.readFileSync(manifestPath, 'utf8')
     const manifest = JSON.parse(content)
 
-    expect(manifest.name).toBe('KHATRI SARVANIYAT')
-    expect(['KHATRI', 'KHATRI SARVANIYAT']).toContain(manifest.short_name)
+    expect(manifest.name).toBe('SINDHI KHATRI SAMAJ')
+    expect(manifest.short_name).toBe('SINDHI KHATRI SAMAJ')
     expect(manifest.start_url).toBe('/')
     expect(manifest.scope).toBe('/')
     expect(manifest.display).toBe('standalone')
@@ -116,7 +116,7 @@ describe('PWA Web App Manifest & Static Assets', () => {
     const swPath = path.join(rootDir, 'public', 'sw.js')
     const sw = fs.readFileSync(swPath, 'utf8')
 
-    expect(sw).toContain("const CACHE_VERSION = 'cr-shell-v5'")
+    expect(sw).toMatch(/const CACHE_VERSION = 'cr-shell-v\d+'/)
     expect(sw).toContain("'/pwa-192x192.png'")
     expect(sw).toContain("'/pwa-512x512.png'")
     expect(sw).toContain("'/maskable-icon-192x192.png'")

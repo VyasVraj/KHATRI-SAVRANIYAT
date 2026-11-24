@@ -365,7 +365,7 @@ export const CommitteeDirectoryView: React.FC = () => {
               </div>
             </div>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Official leadership, executive representatives and committee members of KHATRI SARVANIYAT.
+              Official leadership, executive representatives and committee members of SINDHI KHATRI SAMAJ.
             </p>
           </div>
 

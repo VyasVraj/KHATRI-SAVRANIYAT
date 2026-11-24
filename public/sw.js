@@ -1,5 +1,5 @@
 /**
- * KHATRI SARVANIYAT — Production Progressive Web App Service Worker
+ * SINDHI KHATRI SAMAJ — Production Progressive Web App Service Worker
  *
  * Strict Cache Security & Architecture Invariants:
  * 1. ONLY static application shell resources are allowed in Cache Storage:
@@ -18,11 +18,11 @@
  * 4. Update Lifecycle:
  *    - Listens for SKIP_WAITING to allow safe user-controlled updates.
  *    - Automatically claims clients on activation.
- * 5. Push Notifications:
+ *    - Push Notifications:
  *    - Handles push and notificationclick events safely without exposing private data.
  */
 
-const CACHE_VERSION = 'cr-shell-v7'
+const CACHE_VERSION = 'cr-shell-v8'
 
 // Core static assets required to render the application shell
 const STATIC_PRECACHE_URLS = [
@@ -191,7 +191,7 @@ self.addEventListener('push', (event) => {
 
   try {
     const payload = event.data.json()
-    const title = payload.title || 'KHATRI SARVANIYAT'
+    const title = payload.title || 'SINDHI KHATRI SAMAJ'
     const options = {
       body: payload.body || 'New community update available.',
       icon: payload.icon || '/pwa-192x192.png',
@@ -207,7 +207,7 @@ self.addEventListener('push', (event) => {
   } catch {
     const text = event.data.text()
     event.waitUntil(
-      self.registration.showNotification('KHATRI SARVANIYAT', {
+      self.registration.showNotification('SINDHI KHATRI SAMAJ', {
         body: text,
         icon: '/pwa-192x192.png',
       })

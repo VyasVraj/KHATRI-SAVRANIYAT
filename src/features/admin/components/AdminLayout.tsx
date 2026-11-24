@@ -268,7 +268,7 @@ export function AdminLayout() {
             className="flex items-center gap-2 rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs font-medium text-navy-700 transition-colors hover:bg-navy-100 hover:text-navy-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <ArrowLeft className="h-3.5 w-3.5 text-navy-500" aria-hidden="true" />
-            <span>Exit to KHATRI SARVANIYAT</span>
+            <span>Exit to SINDHI KHATRI SAMAJ</span>
           </Link>
         </div>
       </aside>

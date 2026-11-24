@@ -94,7 +94,7 @@ export function MukhiDirectoryView() {
           <p className="mt-1 text-sm text-slate-500">
             {t(
               'mukhi.subtitle',
-              'Explore the official KHATRI SARVANIYAT Mukhi directory and find community leaders across different regions.'
+              'Explore the official SINDHI KHATRI SAMAJ Mukhi directory and find community leaders across different regions.'
             )}
           </p>
         </div>

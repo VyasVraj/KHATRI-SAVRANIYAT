@@ -154,11 +154,11 @@ describe('FamilyCreationWizard Component — Khatri Sarvaniyat Registration', ()
   // 1. Branding & 4-Step Progress Navigation
   // -------------------------------------------------------------------------
   describe('Branding and 4-Step Navigation', () => {
-    it('renders KHATRI SARVANIYAT official header and all 4 wizard steps', () => {
+    it('renders SINDHI KHATRI SAMAJ official header and all 4 wizard steps', () => {
       const html = renderWizard()
 
       // Brand Header
-      expect(html).toContain('KHATRI SARVANIYAT')
+      expect(html).toContain('SINDHI KHATRI SAMAJ')
       expect(html).toContain('Official Community Census &amp; Family Registration System')
 
       // All 4 Step Labels

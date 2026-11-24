@@ -79,7 +79,7 @@ describe('1. Multilingual Home Page Title & Description Removal', () => {
 
     // Deleted description paragraph MUST NOT be in document
     expect(
-      screen.queryByText(/KHATRI SARVANIYAT is a digital platform dedicated to preserving our community identity/i)
+      screen.queryByText(/(?:KHATRI SARVANIYAT|SINDHI KHATRI SAMAJ) is a digital platform dedicated to preserving our community identity/i)
     ).not.toBeInTheDocument()
 
     // Switch to Hindi

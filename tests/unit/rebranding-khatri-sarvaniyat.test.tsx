@@ -1,9 +1,9 @@
 /**
- * Rebranding Validation Suite: KHATRI SARVANIYAT
+ * Rebranding Validation Suite: SINDHI KHATRI SAMAJ
  *
  * Verifies that the platform identity and official emblem branding:
- * 1. Uses the official Khatri Sarvaniyat emblem with object-contain.
- * 2. Header, Footer, and Loading screen display "KHATRI SARVANIYAT".
+ * 1. Uses the official emblem with object-contain.
+ * 2. Header, Footer, and Loading screen display "SINDHI KHATRI SAMAJ".
  * 3. Footer displays official tagline "Ek Samaj • Ek Pehchaan • Ek Digital Record".
  * 4. PWA manifest and HTML title reflect the official name.
  */
@@ -39,21 +39,21 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
-describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
+describe('SINDHI KHATRI SAMAJ Rebranding & Official Emblem Verification', () => {
   it('1. BrandLogo renders image with object-contain and official alt attribute', () => {
     render(<BrandLogo size="md" />)
-    const img = screen.getByRole('img', { name: /KHATRI SARVANIYAT/i })
+    const img = screen.getByRole('img', { name: /SINDHI KHATRI SAMAJ/i })
     expect(img).toBeInTheDocument()
     expect(img).toHaveAttribute('src', '/logo.png')
     expect(img.className).toContain('object-contain')
   })
 
-  it('2. BrandLogo supports showText and displays KHATRI SARVANIYAT', () => {
+  it('2. BrandLogo supports showText and displays SINDHI KHATRI SAMAJ', () => {
     render(<BrandLogo size="md" showText />)
-    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('SINDHI KHATRI SAMAJ').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('3. AppHeader renders official emblem and KHATRI SARVANIYAT', () => {
+  it('3. AppHeader renders official emblem and SINDHI KHATRI SAMAJ', () => {
     vi.mocked(authContext.useAuthContext).mockReturnValue({
       user: null,
       profile: null,
@@ -67,37 +67,37 @@ describe('KHATRI SARVANIYAT Rebranding & Official Emblem Verification', () => {
     } as never)
 
     renderWithProviders(<AppHeader />)
-    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByRole('img', { name: /KHATRI SARVANIYAT/i }).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('SINDHI KHATRI SAMAJ').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByRole('img', { name: /SINDHI KHATRI SAMAJ/i }).length).toBeGreaterThanOrEqual(1)
   })
 
   it('4. AppFooter renders official emblem, brand name, and official tagline', () => {
     renderWithProviders(<AppFooter />)
-    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('SINDHI KHATRI SAMAJ').length).toBeGreaterThanOrEqual(1)
     expect(
       screen.getByText('Ek Samaj • Ek Pehchaan • Ek Digital Record')
     ).toBeInTheDocument()
   })
 
-  it('5. LoadingScreen displays official emblem and KHATRI SARVANIYAT', () => {
+  it('5. LoadingScreen displays official emblem and SINDHI KHATRI SAMAJ', () => {
     render(<LoadingScreen message="Loading directory..." />)
-    expect(screen.getAllByText('KHATRI SARVANIYAT').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('SINDHI KHATRI SAMAJ').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Loading directory...')).toBeInTheDocument()
   })
 
-  it('6. Central APP_NAME constant is KHATRI SARVANIYAT', () => {
-    expect(APP_NAME).toBe('KHATRI SARVANIYAT')
+  it('6. Central APP_NAME constant is SINDHI KHATRI SAMAJ', () => {
+    expect(APP_NAME).toBe('SINDHI KHATRI SAMAJ')
   })
 
-  it('7. index.html title and manifest.webmanifest name are KHATRI SARVANIYAT', () => {
+  it('7. index.html title and manifest.webmanifest name are SINDHI KHATRI SAMAJ', () => {
     const rootDir = process.cwd()
     const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8')
     const manifestJson = JSON.parse(
       fs.readFileSync(path.join(rootDir, 'public', 'manifest.webmanifest'), 'utf8')
     )
 
-    expect(indexHtml).toContain('<title>KHATRI SARVANIYAT</title>')
-    expect(manifestJson.name).toBe('KHATRI SARVANIYAT')
-    expect(['KHATRI', 'KHATRI SARVANIYAT']).toContain(manifestJson.short_name)
+    expect(indexHtml).toContain('<title>SINDHI KHATRI SAMAJ</title>')
+    expect(manifestJson.name).toBe('SINDHI KHATRI SAMAJ')
+    expect(manifestJson.short_name).toBe('SINDHI KHATRI SAMAJ')
   })
 })

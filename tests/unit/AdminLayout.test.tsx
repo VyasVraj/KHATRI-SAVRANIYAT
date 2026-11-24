@@ -94,7 +94,7 @@ describe('AdminLayout Component', () => {
 
   it('provides a return-to-community navigation link', () => {
     const markup = renderLayoutMarkup()
-    expect(markup).toContain('Exit to KHATRI SARVANIYAT')
+    expect(markup).toContain('Exit to SINDHI KHATRI SAMAJ')
     expect(markup).toContain('href="/"')
   })
 
