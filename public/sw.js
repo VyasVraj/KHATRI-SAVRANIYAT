@@ -22,7 +22,7 @@
  *    - Handles push and notificationclick events safely without exposing private data.
  */
 
-const CACHE_VERSION = 'cr-shell-v5'
+const CACHE_VERSION = 'cr-shell-v6'
 
 // Core static assets required to render the application shell
 const STATIC_PRECACHE_URLS = [
