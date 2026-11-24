@@ -218,11 +218,12 @@ describe('Community Directory Profile Visibility & Editing Permissions', () => {
     expect(screen.getByText(/41 years/i)).toBeInTheDocument()
     expect(screen.getByText(/Kashyap/i)).toBeInTheDocument()
     expect(screen.getByText(/Prajapati/i)).toBeInTheDocument()
-    expect(screen.getByText('Anjar')).toBeInTheDocument()
-    expect(screen.getByText('Ahmedabad, Gujarat, India')).toBeInTheDocument()
     expect(screen.getByText('B+')).toBeInTheDocument()
+    expect(screen.getByText('Family & Location')).toBeInTheDocument()
 
-    // Date of birth and private contact are masked
+    // Birth place, date of birth and private contact are masked
+    expect(screen.queryByText('Birth place')).not.toBeInTheDocument()
+    expect(screen.queryByText('Anjar')).not.toBeInTheDocument()
     expect(screen.queryByText('Date of birth')).not.toBeInTheDocument()
     expect(screen.queryByText(/1985-04-12/)).not.toBeInTheDocument()
     expect(screen.queryByText(/April 12, 1985/i)).not.toBeInTheDocument()

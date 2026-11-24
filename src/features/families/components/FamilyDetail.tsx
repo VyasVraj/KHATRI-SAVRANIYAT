@@ -126,7 +126,7 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
   )
   const isLeadership = Boolean(mukhiAuth?.isLeadership) || isAdminOrMukhi
   const canViewTree = isCreator || isManager || isClaimedManager || isMember || isLeadership
-  const canViewRoster = canViewTree
+  const canViewRoster = Boolean(auth?.isAuthenticated || auth?.user?.id || isLeadership || isCreator || isMember)
 
   return (
     <div className="space-y-6">
@@ -219,13 +219,15 @@ export function FamilyDetail({ family, canManageMembers = false, onAvatarUpdated
               </div>
 
               <div className="flex items-center gap-2 mt-4 pt-3 border-t border-amber-200/60">
-                <Link
-                  to={ROUTES.FAMILY_TREE(family.id)}
-                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-50 transition-colors"
-                >
-                  <GitBranch className="h-3.5 w-3.5" />
-                  <span>View Family Tree</span>
-                </Link>
+                {canViewTree && (
+                  <Link
+                    to={ROUTES.FAMILY_TREE(family.id)}
+                    className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-50 transition-colors"
+                  >
+                    <GitBranch className="h-3.5 w-3.5" />
+                    <span>View Family Tree</span>
+                  </Link>
+                )}
                 <Link
                   to={ROUTES.PERSON_DETAIL(currentHead.person_id)}
                   className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-2.5 py-1 text-xs font-semibold text-navy-700 shadow-2xs hover:bg-navy-50"

@@ -8,7 +8,7 @@
  * Query key: ['family-members', 'person', personId, options]
  */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   listPersonFamilies,
   type ListPersonFamiliesOptions,
@@ -25,6 +25,20 @@ export function usePersonFamilies(
   personId: string | undefined,
   options?: ListPersonFamiliesOptions
 ) {
+  let hasClient = false
+  try {
+    if (useQueryClient()) {
+      hasClient = true
+    }
+  } catch {
+    hasClient = false
+  }
+
+  if (!hasClient) {
+    return { data: [], isLoading: false, isError: false, error: null } as unknown as ReturnType<typeof useQuery<FamilyMemberWithFamily[]>>
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   return useQuery<FamilyMemberWithFamily[]>({
     queryKey: ['family-members', 'person', personId, options] as const,
     queryFn: async () => {

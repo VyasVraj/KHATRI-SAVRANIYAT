@@ -21,6 +21,7 @@ import { AvatarImage, AvatarUploadDialog } from '@/features/media'
 import { Button } from '@/components/forms/Button'
 import { usePersonFamilyMukhi } from '@/features/community'
 import { useActiveMukhiAuthority } from '@/features/community/hooks/useActiveMukhiAuthority'
+import { usePersonFamilies } from '@/features/family-members/hooks/usePersonFamilies'
 import { formatBloodGroup } from '@/constants/bloodGroup'
 import { toProperCaseName } from '@/utils/text-casing'
 import { Shield, ShieldAlert, Phone, Briefcase, Pencil, Camera } from 'lucide-react'
@@ -37,6 +38,11 @@ type PersonRow = Tables<'persons'> & {
   state?: string | null
   country?: string | null
   can_edit?: boolean
+  family_id?: string | null
+  family_name?: string | null
+  family_city?: string | null
+  family_state?: string | null
+  family_country?: string | null
 }
 
 /** Human-readable gender labels */
@@ -145,6 +151,30 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
   })()
 
   const { data: familyMukhiInfo, isLoading: isMukhiLoading } = usePersonFamilyMukhi(person.id)
+  const { data: personFamilies = [] } = usePersonFamilies(person.id)
+  const activeFamilyMembership = personFamilies.find((f) => !f.left_at) ?? personFamilies[0] ?? null
+  const activeFamily = activeFamilyMembership?.family ?? null
+
+  const displayFamilyName =
+    activeFamily?.family_name ??
+    (person as unknown as { family_name?: string | null }).family_name ??
+    familyMukhiInfo?.family?.family_name ??
+    null
+
+  const displayFamilyCity =
+    activeFamily?.city ??
+    (person as unknown as { family_city?: string | null }).family_city ??
+    null
+
+  const displayFamilyState =
+    activeFamily?.state ??
+    (person as unknown as { family_state?: string | null }).family_state ??
+    null
+
+  const displayFamilyCountry =
+    activeFamily?.country ??
+    (person as unknown as { family_country?: string | null }).family_country ??
+    (displayFamilyCity || displayFamilyState ? 'India' : null)
 
   const fullName = toProperCaseName(
     [person.first_name, person.middle_name, person.last_name]
@@ -235,26 +265,20 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
               ) : (person.current_age !== undefined && person.current_age !== null) || (person.age !== undefined && person.age !== null) ? (
                 <DetailRow label="Current age" value={`${person.current_age ?? person.age} years (Recorded age)`} />
               ) : null}
+              <DetailRow label="Birth place" value={person.birth_place ? toProperCaseName(person.birth_place) : null} />
             </>
           ) : (
             <>
               {(person.age !== undefined && person.age !== null) || (person.current_age !== undefined && person.current_age !== null) ? (
                 <DetailRow
-                  label={person.date_of_birth ? 'Calculated age' : 'Current age'}
+                  label="Age"
                   value={`${person.age ?? person.current_age} years`}
                 />
               ) : (
-                <DetailRow label="Current age" value="Age not recorded" />
+                <DetailRow label="Age" value="Age not recorded" />
               )}
             </>
           )}
-          <DetailRow label="Birth place" value={person.birth_place ? toProperCaseName(person.birth_place) : null} />
-          {((person.city || person.state || person.country) && (
-            <DetailRow
-              label="Location"
-              value={[person.city, person.state, person.country].filter(Boolean).map(toProperCaseName).join(', ')}
-            />
-          ))}
           <DetailRow label="Blood Group" value={formatBloodGroup(person.blood_group)} />
           {(person.is_deceased || person.status === 'DECEASED' || Boolean(person.date_of_death)) && (
             <DetailRow
@@ -262,6 +286,34 @@ export function PersonDetail({ person, canEdit: _canEdit = false, onAvatarUpdate
               value={canViewProtected && person.date_of_death ? `Deceased (${formatDate(person.date_of_death)})` : 'Deceased'}
             />
           )}
+        </dl>
+      </section>
+
+      {/* Family & Location */}
+      <section aria-labelledby="family-location-heading">
+        <h3
+          id="family-location-heading"
+          className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400"
+        >
+          Family & Location
+        </h3>
+        <dl>
+          <DetailRow
+            label="Family"
+            value={displayFamilyName ? toProperCaseName(displayFamilyName) : 'Not listed in family'}
+          />
+          <DetailRow
+            label="City"
+            value={displayFamilyCity ? toProperCaseName(displayFamilyCity) : '—'}
+          />
+          <DetailRow
+            label="State / Province"
+            value={displayFamilyState ? toProperCaseName(displayFamilyState) : '—'}
+          />
+          <DetailRow
+            label="Country"
+            value={displayFamilyCountry ? toProperCaseName(displayFamilyCountry) : '—'}
+          />
         </dl>
       </section>
 

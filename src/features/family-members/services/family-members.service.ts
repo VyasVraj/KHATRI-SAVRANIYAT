@@ -45,7 +45,9 @@ export type FamilyMemberWithPerson = FamilyMemberRow & {
 export type FamilySummary = Pick<
   Tables<'families'>,
   'id' | 'family_name' | 'city' | 'state' | 'profile_privacy'
->
+> & {
+  country?: string | null
+}
 
 /** Family member joined with family details (for reverse lookup) */
 export type FamilyMemberWithFamily = FamilyMemberRow & {
@@ -351,7 +353,7 @@ export async function listPersonFamilies(
 
   let query = supabase
     .from('family_members')
-    .select('*, family:families(id, family_name, city, state, profile_privacy)')
+    .select('*, family:families(id, family_name, city, state, country, profile_privacy)')
     .eq('person_id', personId)
     .order('is_head', { ascending: false })
     .order('created_at', { ascending: true })

@@ -192,7 +192,7 @@ describe('Active Mukhi Access to Family Member Profiles and Rosters', () => {
     expect(screen.queryByText(/Member Roster Protected/i)).not.toBeInTheDocument()
   })
 
-  it('displays "Member Roster Protected" to an unrelated normal user', () => {
+  it('allows authenticated normal users to view any registered family member roster in read-only mode', () => {
     mockActiveMukhiAuthority.mockReturnValue({
       data: { isActiveMukhi: false, isLeadership: false, isAdmin: false, isLoading: false },
       isLoading: false,
@@ -210,7 +210,35 @@ describe('Active Mukhi Access to Family Member Profiles and Rosters', () => {
       </QueryClientProvider>
     )
 
-    // Normal unrelated user should see the protected banner, NOT the roster
+    // Authenticated normal user sees the MemberList roster, NOT the protected banner
+    expect(screen.getByTestId('member-list-roster')).toBeInTheDocument()
+    expect(screen.queryByText(/Member Roster Protected/i)).not.toBeInTheDocument()
+  })
+
+  it('displays "Member Roster Protected" to unauthenticated visitors', () => {
+    mockActiveMukhiAuthority.mockReturnValue({
+      data: { isActiveMukhi: false, isLeadership: false, isAdmin: false, isLoading: false },
+      isLoading: false,
+    })
+
+    const unauthenticatedAuth = {
+      ...createAuthContextValue('anon', 'MEMBER'),
+      user: null,
+      profile: null,
+      session: null,
+      isAuthenticated: false,
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthContext.Provider value={unauthenticatedAuth}>
+            <FamilyDetail family={MOCK_FAMILY} />
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
     expect(screen.getByText(/Member Roster Protected/i)).toBeInTheDocument()
     expect(screen.queryByTestId('member-list-roster')).not.toBeInTheDocument()
   })
@@ -309,7 +337,7 @@ describe('Active Mukhi Access to Family Member Profiles and Rosters', () => {
     expect(screen.queryByRole('button', { name: /Change photo/i })).not.toBeInTheDocument()
   })
 
-  it('denies Mukhi-only viewing when Mukhi record is deactivated', () => {
+  it('denies Mukhi-only viewing when Mukhi record is deactivated (falls back to read-only standard user)', () => {
     // When deactivated, isActiveMukhi and isLeadership are false
     mockActiveMukhiAuthority.mockReturnValue({
       data: { isActiveMukhi: false, isLeadership: false, isAdmin: false, isLoading: false },
@@ -328,8 +356,8 @@ describe('Active Mukhi Access to Family Member Profiles and Rosters', () => {
       </QueryClientProvider>
     )
 
-    // Must be blocked with Member Roster Protected message
-    expect(screen.getByText(/Member Roster Protected/i)).toBeInTheDocument()
-    expect(screen.queryByTestId('member-list-roster')).not.toBeInTheDocument()
+    // Authenticated user can view roster in read-only mode
+    expect(screen.getByTestId('member-list-roster')).toBeInTheDocument()
+    expect(screen.queryByText(/Member Roster Protected/i)).not.toBeInTheDocument()
   })
 })

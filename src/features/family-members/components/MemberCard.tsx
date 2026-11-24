@@ -189,10 +189,10 @@ export function MemberCard({
               <span className="text-red-600">Left: {formatDate(member.left_at)}</span>
             )}
             <Link
-              to={`${ROUTES.PERSON_DETAIL(member.person_id)}#relationships`}
-              className="text-navy-500 hover:text-brand-600 hover:underline"
+              to={ROUTES.PERSON_DETAIL(member.person_id)}
+              className="text-brand-600 hover:text-brand-800 hover:underline font-medium"
             >
-              Relationships &rarr;
+              View Profile &rarr;
             </Link>
           </div>
         </div>
